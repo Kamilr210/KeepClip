@@ -8,6 +8,10 @@ data/*
 tools/bin/*
 !tools/bin/.gitkeep
 
+# ── Installer build output (the built .exe goes to GitHub Releases) ─
+installer/dist/
+*.exe
+
 # ── Python ─────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
