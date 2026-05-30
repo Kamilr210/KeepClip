@@ -27,6 +27,18 @@ unless you explicitly offload them to your own Google Drive.
 - **Media** — ffmpeg / ffprobe (portable, see setup below)
 - **Transcription** — faster-whisper on CUDA
 
+## Install (Windows) — easiest
+
+Download **`KeepClip-Setup.exe`** from the
+[Releases](https://github.com/Kamilr210/KeepClip/releases) page and run it.
+
+The installer does everything for you: it installs Python if it's missing,
+creates the environment, installs all dependencies, and downloads ffmpeg — then
+adds a **KeepClip** shortcut to your desktop and Start menu. The first install
+needs an internet connection and pulls down ~2 GB, so give it a few minutes.
+
+> Want to set it up by hand (or you're not on Windows)? See **Manual setup** below.
+
 ## Requirements
 
 - **Windows** (the launch scripts are `.bat` / `.vbs`)
@@ -34,7 +46,7 @@ unless you explicitly offload them to your own Google Drive.
 - **An NVIDIA GPU with CUDA** for transcription (the CUDA runtime libs are installed via pip). You can switch to CPU by setting `WHISPER_DEVICE = "cpu"` in `backend/config.py`, but it will be much slower.
 - **ffmpeg** (downloaded separately — see step 3)
 
-## Setup
+## Manual setup
 
 ### 1. Clone
 
