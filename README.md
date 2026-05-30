@@ -39,7 +39,7 @@ unless you explicitly offload them to your own Google Drive.
 ### 1. Clone
 
 ```powershell
-git clone https://github.com/<your-username>/KeepClip.git
+git clone https://github.com/Kamilr210/KeepClip.git
 cd KeepClip
 ```
 
