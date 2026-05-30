@@ -79,26 +79,57 @@ os.environ["PATH"] = str(TOOLS_BIN) + os.pathsep + os.environ.get("PATH", "")
 _model = None
 
 
+def _cuda_is_available() -> bool:
+    """True if ctranslate2 can see at least one CUDA (NVIDIA) device.
+
+    Lets us pick the backend automatically: machines without an NVIDIA GPU
+    transcribe on the CPU instead of failing on a missing CUDA device.
+    """
+    try:
+        import ctranslate2
+
+        return ctranslate2.get_cuda_device_count() > 0
+    except Exception:
+        return False
+
+
 def get_model():
     global _model
     if _model is not None:
         return _model
     from faster_whisper import WhisperModel
 
-    candidates = [
-        (WHISPER_DEVICE, WHISPER_COMPUTE_TYPE),
-        ("cuda", "int8_float32"),
-        ("cuda", "int8"),
-        ("cpu", "int8"),
-    ]
+    device = (WHISPER_DEVICE or "auto").strip().lower()
+    if device == "auto":
+        device = "cuda" if _cuda_is_available() else "cpu"
+
+    if device == "cuda":
+        # Prefer the GPU, but degrade gracefully (compute type, then CPU).
+        candidates = [
+            ("cuda", WHISPER_COMPUTE_TYPE),
+            ("cuda", "int8_float32"),
+            ("cuda", "int8"),
+            ("cpu", "int8"),
+        ]
+    else:
+        # No NVIDIA GPU — run on the CPU (slower, but works everywhere).
+        candidates = [
+            ("cpu", "int8"),
+            ("cpu", "float32"),
+        ]
+
     last_exc = None
-    for device, ctype in candidates:
+    seen: set[tuple[str, str]] = set()
+    for dev, ctype in candidates:
+        if (dev, ctype) in seen:
+            continue
+        seen.add((dev, ctype))
         try:
-            _model = WhisperModel(WHISPER_MODEL, device=device, compute_type=ctype)
-            print(f"[whisper] loaded {WHISPER_MODEL} on {device} ({ctype})", file=sys.stderr)
+            _model = WhisperModel(WHISPER_MODEL, device=dev, compute_type=ctype)
+            print(f"[whisper] loaded {WHISPER_MODEL} on {dev} ({ctype})", file=sys.stderr)
             return _model
         except Exception as exc:
-            print(f"[whisper] {device}/{ctype} failed: {exc}", file=sys.stderr)
+            print(f"[whisper] {dev}/{ctype} failed: {exc}", file=sys.stderr)
             last_exc = exc
     raise RuntimeError(f"Could not load Whisper model: {last_exc}")
 

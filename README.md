@@ -14,7 +14,7 @@ unless you explicitly offload them to your own Google Drive.
 ## Features
 
 - **Transcript search** — full-text search (SQLite FTS5) over every spoken line, with click-to-jump to the exact timestamp.
-- **Local transcription** — [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (`large-v3-turbo`) on your GPU (CUDA). Nothing is sent to any server.
+- **Local transcription** — [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (`large-v3-turbo`) on your NVIDIA GPU (CUDA), or on the CPU if you don't have one. Nothing is sent to any server.
 - **Library management** — automatic folder scanning, thumbnails, favorites, and per-game grouping.
 - **Clip cutting** — trim/compress a fragment of a clip; cuts are saved next to your game folders and picked up automatically.
 - **Inline transcript editing** — fix a misheard line directly in the UI.
@@ -25,7 +25,7 @@ unless you explicitly offload them to your own Google Drive.
 - **Backend** — FastAPI + SQLite (FTS5), served by uvicorn on `127.0.0.1:8765`
 - **Frontend** — vanilla HTML / CSS / JS (no build step)
 - **Media** — ffmpeg / ffprobe (portable, see setup below)
-- **Transcription** — faster-whisper on CUDA
+- **Transcription** — faster-whisper on CUDA (GPU) or CPU
 
 ## Install (Windows) — easiest
 
@@ -43,7 +43,7 @@ needs an internet connection and pulls down ~2 GB, so give it a few minutes.
 
 - **Windows** (the launch scripts are `.bat` / `.vbs`)
 - **Python 3.10+**
-- **An NVIDIA GPU with CUDA** for transcription (the CUDA runtime libs are installed via pip). You can switch to CPU by setting `WHISPER_DEVICE = "cpu"` in `backend/config.py`, but it will be much slower.
+- **A GPU is optional.** KeepClip auto-detects an NVIDIA GPU (CUDA) and uses it if present (the CUDA runtime libs are installed via pip). Without one it automatically falls back to your CPU — this works everywhere but is much slower, so on CPU consider a smaller `WHISPER_MODEL` (e.g. `small` or `base`) in `backend/config.py`.
 - **ffmpeg** (downloaded separately — see step 3)
 
 ## Manual setup
@@ -129,7 +129,7 @@ The resulting access/refresh tokens are stored in the Windows Credential Manager
 - `DEFAULT_CLIPS_ROOT` — fallback clips folder (you normally set this in-app instead)
 - `WHISPER_MODEL` — e.g. `large-v3-turbo`, `large-v3`, `medium`, `small`
 - `WHISPER_LANG` — transcription language (default `pl`)
-- `WHISPER_DEVICE` — `cuda` or `cpu`
+- `WHISPER_DEVICE` — `auto` (default: NVIDIA GPU if present, otherwise CPU), or force `cuda` / `cpu`
 
 ## Data & privacy
 

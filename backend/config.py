@@ -22,8 +22,12 @@ VIDEO_EXTS = {".mp4", ".mkv", ".mov", ".avi", ".webm"}
 # Whisper config
 WHISPER_MODEL = "large-v3-turbo"
 WHISPER_LANG = "pl"
-WHISPER_DEVICE = "cuda"
-WHISPER_COMPUTE_TYPE = "int8"  # GTX 1080 Ti (Pascal) has no efficient fp16; int8 is fast + accurate on Pascal CUDA
+# "auto" uses the NVIDIA GPU (CUDA) if one is present, otherwise falls back to
+# the CPU. Force a backend by setting this to "cuda" or "cpu".
+# On CPU, large-v3-turbo is much slower — consider a smaller WHISPER_MODEL
+# (e.g. "small" or "base") if transcription takes too long.
+WHISPER_DEVICE = "auto"
+WHISPER_COMPUTE_TYPE = "int8"  # int8 is fast + accurate on the CPU and on older (Pascal) GPUs
 
 # Word-level Whisper timestamps via DTW are far more accurate than the default
 # attention-based ones, especially across long silent stretches (e.g. walking
