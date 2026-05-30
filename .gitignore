@@ -1,0 +1,36 @@
+# ── Private app data (NEVER publish) ───────────────────────────
+# OAuth secrets, the clips database, logs, thumbnails, user settings.
+data/*
+!data/.gitkeep
+
+# ── Portable binaries (download separately, see README) ─────────
+# ffmpeg/ffprobe are >200 MB each — over GitHub's 100 MB file limit.
+tools/bin/*
+!tools/bin/.gitkeep
+
+# ── Python ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# ── Virtualenvs anywhere ───────────────────────────────────────
+backend/.venv/
+
+# ── Editor / tooling ───────────────────────────────────────────
+.claude/
+.vscode/
+.idea/
+
+# ── Logs / temp ────────────────────────────────────────────────
+*.log
+*.part
+*.tmp
+
+# ── OS noise ───────────────────────────────────────────────────
+Thumbs.db
+desktop.ini
+.DS_Store
