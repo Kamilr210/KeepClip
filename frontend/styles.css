@@ -719,3 +719,119 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
   background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s;
 }
 .cloud-quota .subtle { margin-top: 6px; font-size: 13px; }
+
+/* =========================================
+   ПРОЗРАЧНАЯ ШАПКА ОКНА (TITLEBAR)
+   ========================================= */
+#custom-titlebar {
+  display: flex;
+  height: 32px;
+  background-color: transparent; /* Полностью прозрачный фон */
+  color: #8b92a5;
+  user-select: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 99999;
+}
+
+.titlebar-drag-region {
+  flex-grow: 1;
+  height: 100%;
+}
+
+.titlebar-controls {
+  display: flex;
+}
+
+.titlebar-btn {
+  background: transparent;
+  border: none;
+  color: #8b92a5;
+  width: 46px;
+  height: 32px;
+  font-size: 14px;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+/* Полупрозрачный ховер для кнопок, так как панель теперь прозрачная */
+.titlebar-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.titlebar-btn.close:hover {
+  background-color: #e81123;
+  color: #ffffff;
+}
+
+/* Приложение теперь занимает 100% высоты окна, заходя под панель */
+body {
+  margin: 0 !important;
+  height: 100vh !important;
+  margin-top: 0 !important; /* Убираем отступ, интерфейс поднимается вверх */
+}
+
+
+/* =========================================
+   КАСТОМНЫЙ СКРОЛЛБАР (ПОЛЗУНОК)
+   ========================================= */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #12151d;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #2a3042;
+  border-radius: 6px;
+  border: 3px solid #12151d;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #404862;
+}
+
+/* =========================================
+   АНИМАЦИИ СКРЫТИЯ И РАЗВОРАЧИВАНИЯ ОКНА
+   ========================================= */
+body {
+  /* Плавный переход для прозрачности и масштаба */
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out !important;
+  transform-origin: center center;
+}
+
+body.window-animating {
+  opacity: 0;
+  transform: scale(0.97); /* Слегка отдаляем окно перед закрытием/сворачиванием */
+}
+
+/* =========================================
+   УГОЛОК ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРА (RESIZE GRIP)
+   ========================================= */
+.resize-grip {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize; /* Курсор диагональной стрелки */
+  z-index: 999999;
+  
+  /* Рисуем аккуратные диагональные полоски */
+  background: linear-gradient(135deg, transparent 40%, #8b92a5 40%, #8b92a5 50%, transparent 50%, transparent 65%, #8b92a5 65%, #8b92a5 75%, transparent 75%);
+  opacity: 0.3;
+  transition: opacity 0.2s;
+}
+
+.resize-grip:hover {
+  opacity: 1; /* Подсвечиваем при наведении */
+}
