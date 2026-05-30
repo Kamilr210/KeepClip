@@ -2125,4 +2125,68 @@ setInterval(sendHeartbeat, 30000);
   const s = await fetch("/api/transcribe/status").then((r) => r.json());
   if (s.running) attachStream();
   await renderRecent("");
+
+  // Ожидаем готовности моста между Python и JS
+window.addEventListener('pywebviewready', function() {
+  
+  // Кнопка свернуть
+  const btnMinimize = document.getElementById('btn-minimize');
+  if (btnMinimize) {
+    btnMinimize.addEventListener('click', () => {
+      window.pywebview.api.minimize_window();
+    });
+  }
+
+  // Кнопка закрыть
+  const btnClose = document.getElementById('btn-close');
+  if (btnClose) {
+    btnClose.addEventListener('click', () => {
+      window.pywebview.api.close_window();
+    });
+  }
+  
+});
+// Надежная инициализация кнопок управления окном
+function initTitlebar() {
+  const btnMinimize = document.getElementById('btn-minimize');
+  if (btnMinimize) {
+    btnMinimize.addEventListener('click', () => {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.minimize_window();
+      }
+    });
+  }
+
+  const btnMaximize = document.getElementById('btn-maximize');
+  if (btnMaximize) {
+    btnMaximize.addEventListener('click', () => {
+      if (window.pywebview && window.pywebview.api) {
+        // Получаем размеры рабочей области без панели задач прямо из браузера
+        const aw = window.screen.availWidth;
+        const ah = window.screen.availHeight;
+        // Координаты отступа (если панель задач сбоку или сверху)
+        const al = window.screen.availLeft || 0;
+        const at = window.screen.availTop || 0;
+        
+        // Отправляем эти безопасные цифры в Python
+        window.pywebview.api.toggle_maximize_window(aw, ah, al, at);
+      }
+    });
+  }
+
+  const btnClose = document.getElementById('btn-close');
+  if (btnClose) {
+    btnClose.addEventListener('click', () => {
+      if (window.pywebview && window.pywebview.api) {
+        window.pywebview.api.close_window();
+      }
+    });
+  }
+}
+
+if (window.pywebview && window.pywebview.api) {
+  initTitlebar();
+} else {
+  window.addEventListener('pywebviewready', initTitlebar);
+}
 })();
