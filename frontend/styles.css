@@ -1,14 +1,14 @@
 :root {
-  --bg: #0f1115;
-  --card: #181b22;
+  --bg: #000000;
+  --card: #15171b;
   --card-2: #1f2330;
-  --text: #e7e9ee;
-  --muted: #8b93a7;
-  --accent: #7c5cff;
-  --accent-2: #5bd1ff;
+  --text: #b4b4b4;
+  --muted: #8f8f8f;
+  --accent: #9120dd;
+  --accent-2: #75d8ff;
   --good: #43d17a;
   --warn: #f5a524;
-  --border: #262b3a;
+  --border: #232731;
   --mark: #ffd86b;
 }
 
@@ -509,6 +509,7 @@ header {
 .nav-item:hover, .nav-tool:hover { background: var(--card-2); color: var(--text); }
 .nav-item .nav-label, .nav-tool .nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ni-ic { width: 19px; height: 19px; flex: none; }
+.img-sidebar{ color: #fff}
 .nav-item.active, .nav-item.active:hover {
   background: linear-gradient(135deg, var(--accent), #6d7bff);
   color: #fff; box-shadow: 0 6px 18px rgba(124,92,255,.32);
