@@ -33,6 +33,7 @@ def scan() -> dict:
     found = len(on_disk)
 
     with get_conn() as con:
+        con.execute("UPDATE clips SET has_thumb=0 WHERE has_thumb=2")
         # remove rows for files that no longer exist
         existing_rows = list(con.execute("SELECT id, filepath, storage FROM clips"))
         dead_ids: list[int] = []
