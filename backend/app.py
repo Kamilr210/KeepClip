@@ -1371,19 +1371,30 @@ def serve_cloud_video(clip_id: int, request: Request):
     return StreamingResponse(body(), status_code=upstream.status_code, headers=headers)
 
 
+# keepclip/backend/app.py
+
 @app.get("/thumb/{clip_id}")
 def serve_thumb(clip_id: int):
     p = thumb_path(clip_id)
     if not p.exists():
         # try to generate it lazily
         with get_conn() as con:
-            row = con.execute("SELECT filepath FROM clips WHERE id=?", (clip_id,)).fetchone()
-        if not row:
-            raise HTTPException(404)
-        if not make_thumbnail(clip_id, Path(row["filepath"])):
+            # Вытягиваем has_thumb из БД
+            row = con.execute("SELECT filepath, has_thumb FROM clips WHERE id=?", (clip_id,)).fetchone()
+            
+        # Если клип не найден или мы уже пытались и неудачно (has_thumb == 2) — сразу отдаем 404
+        if not row or row["has_thumb"] == 2:
             raise HTTPException(404, "no thumbnail")
+            
+        if not make_thumbnail(clip_id, Path(row["filepath"])):
+            # Запоминаем неудачу, чтобы не пытаться снова при каждом скролле
+            with get_conn() as con:
+                con.execute("UPDATE clips SET has_thumb=2 WHERE id=?", (clip_id,))
+            raise HTTPException(404, "no thumbnail")
+            
         with get_conn() as con:
             con.execute("UPDATE clips SET has_thumb=1 WHERE id=?", (clip_id,))
+            
     return FileResponse(p, media_type="image/jpeg")
 
 
