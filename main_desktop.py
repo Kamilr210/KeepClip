@@ -89,4 +89,7 @@ if __name__ == '__main__':
         js_api=api
     )
     api._window = window
-    webview.start()
+
+    icon_path = os.path.join(root_dir, 'frontend', 'icons', 'icon.ico')
+
+    webview.start(icon=icon_path)
