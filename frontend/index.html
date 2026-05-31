@@ -340,7 +340,14 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
       Typowa lokalizacja klipów NVIDIA ShadowPlay to <code>C:\Users\&lt;ty&gt;\Videos\NVIDIA</code>.
     </p>
     <label class="config-label">Ścieżka folderu</label>
-    <input id="config-path" type="text" placeholder="C:\Users\...\Videos\NVIDIA" autocomplete="off" spellcheck="false" />
+    <div class="folder-input-wrap">
+      <button id="btn-browse-folder" type="button" class="btn-browse" title="Wybierz folder (Przeglądaj)" aria-label="Wybierz folder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>
+      </button>
+      <input id="config-path" type="text" placeholder="C:\Users\...\Videos\NVIDIA" autocomplete="off" spellcheck="false" />
+    </div>
     <div id="config-error" class="config-error" hidden></div>
     <div id="config-actions" class="confirm-actions">
       <button id="config-cancel" class="btn ghost">Anuluj</button>
@@ -437,14 +444,14 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
 </div>
 
 <script src="/static/app.js"></script>
+
 </body>
 <div id="custom-titlebar">
     <div class="titlebar-drag-region pywebview-drag-region"></div>
-    
     <div class="titlebar-controls">
       <button id="btn-minimize" class="titlebar-btn minimize" title="Свернуть">🗕</button>
       <button id="btn-maximize" class="titlebar-btn maximize" title="Развернуть/Восстановить">🗖</button>
       <button id="btn-close" class="titlebar-btn close" title="Закрыть">✕</button>
     </div>
-  </div>
+</div>
 </html>

@@ -213,14 +213,6 @@ def cut_clip(
 
 
 def make_thumbnail(clip_id: int, video: Path, at_seconds: float = 5.0) -> bool:
-    """Extract one frame as a 1280px-wide JPEG. Returns True on success.
-
-    Source clips are typically 1080p+ (e.g. 1920x1200), and the big mosaic cards
-    can render fairly large once Windows display scaling is factored in — a 720px
-    thumb looked soft there. 1280px stays comfortably above the on-screen size on
-    any realistic monitor while remaining a small file; -q:v 2 is the highest
-    JPEG quality so detailed game frames don't pick up compression artifacts.
-    """
     out = thumb_path(clip_id)
     duration = probe_duration(video) or 10.0
     timestamp = min(at_seconds, max(0.0, duration / 2))
@@ -229,8 +221,8 @@ def make_thumbnail(clip_id: int, video: Path, at_seconds: float = 5.0) -> bool:
             [
                 str(FFMPEG),
                 "-y",
-                "-ss", f"{timestamp:.2f}",
-                "-i", str(video),
+                "-i", str(video),              # <-- Перемещено СЮДА
+                "-ss", f"{timestamp:.2f}",     # <-- Перемещено СЮДА
                 "-frames:v", "1",
                 "-vf", "scale=1280:-2",
                 "-q:v", "2",

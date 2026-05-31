@@ -51,6 +51,7 @@ const els = {
   configTitle: $("#config-title"),
   configIntro: $("#config-intro"),
   configPath: $("#config-path"),
+  configBrowse: $("#btn-browse-folder"),
   configError: $("#config-error"),
   configCancel: $("#config-cancel"),
   configSave: $("#config-save"),
@@ -209,39 +210,97 @@ function refreshCloudQuota() {
   fetch("/api/cloud/status").then((r) => r.json()).then(setCloudQuota).catch(() => {});
 }
 
-// Paint both storage bars (local disk + Drive) from the two cached sources.
-// Each bar stacks a "clips" segment over an "other usage" segment on a track
-// whose remaining width is the free space.
+// Paint both storage bars (local disk + Drive)
 function renderStorage() {
   const s = _lastStats || {};
-  const pct = (part, whole) => (whole ? Math.max(0, Math.min(100, (part / whole) * 100)) : 0);
+  
+  const pct = (part, whole) => {
+    if (!whole || whole <= 0 || !part || part <= 0) return 0;
+    return Math.max(0, Math.min(100, (part / whole) * 100));
+  };
 
-  // ---- local disk ----
+  // ---- ЛОКАЛЬНЫЙ ДИСК ----
   const lClips = s.local_bytes || 0;
   const dTotal = s.disk_total || 0;
-  const dFree = s.disk_free;
-  const dUsed = dTotal && dFree != null ? dTotal - dFree : 0;
+  const dFree = s.disk_free != null ? s.disk_free : 0;
+  
+  const dUsed = dTotal > 0 ? dTotal - dFree : 0;
+  const lOther = Math.max(0, dUsed - lClips); 
+
   if (els.localClips) els.localClips.textContent = fmtSize(lClips);
   if (els.localTotal) els.localTotal.textContent = dTotal ? fmtSize(dTotal) : "—";
-  if (els.localFree) els.localFree.textContent = dFree != null ? `${fmtSize(dFree)} wolne` : "—";
-  if (els.localFillClips) els.localFillClips.style.width = pct(lClips, dTotal) + "%";
-  if (els.localFillOther) els.localFillOther.style.width = pct(dUsed - lClips, dTotal) + "%";
+  
+  if (els.localFree) {
+    els.localFree.textContent = dFree > 0 ? `${fmtSize(dFree)} wolne` : "—";
+    els.localFree.classList.remove("text-red");
+  }
 
-  // ---- cloud (Google Drive) ----
+  let lClipsPct = pct(lClips, dTotal);
+  let lOtherPct = pct(lOther, dTotal);
+
+  // Даем фиолетовой полоске минимум 0.5% ширины (1-2 пикселя), чтобы ее всегда было видно
+  if (lClips > 0 && lClipsPct < 0.2) lClipsPct = 0.5;
+
+  // ИЩЕМ ЭЛЕМЕНТЫ НАПРЯМУЮ, ЧТОБЫ ИЗБЕЖАТЬ ОШИБОК
+  const localFillClips = document.getElementById("local-fill-clips");
+  const localFillOther = document.getElementById("local-fill-other");
+
+  if (localFillClips) localFillClips.style.width = lClipsPct + "%";
+  if (localFillOther) localFillOther.style.width = lOtherPct + "%";
+
+
+  // ---- ОБЛАКО (Google Drive) ----
   const cClips = s.cloud_bytes || 0;
   if (els.cloudClips) els.cloudClips.textContent = fmtSize(cClips);
+  
   const q = _cloudQuota;
+  
+  // Ищем элементы облака напрямую
+  const cloudFillClips = document.getElementById("cloud-fill-clips");
+  const cloudFillOther = document.getElementById("cloud-fill-other");
+  const cloudBarContainer = cloudFillClips ? cloudFillClips.parentElement : null;
+  
   if (q && q.limit) {
+    // ОБЛАКО ПОДКЛЮЧЕНО
     const cUsed = q.usage || 0;
+    const cOther = Math.max(0, cUsed - cClips);
+    const cFree = Math.max(0, q.limit - cUsed);
+    
     if (els.cloudTotal) els.cloudTotal.textContent = fmtSize(q.limit);
-    if (els.cloudFree) els.cloudFree.textContent = `${fmtSize(Math.max(0, q.limit - cUsed))} wolne`;
-    if (els.cloudFillClips) els.cloudFillClips.style.width = pct(cClips, q.limit) + "%";
-    if (els.cloudFillOther) els.cloudFillOther.style.width = pct(cUsed - cClips, q.limit) + "%";
+    if (els.cloudFree) {
+      els.cloudFree.textContent = `${fmtSize(cFree)} wolne`;
+      els.cloudFree.classList.remove("text-red");
+    }
+    
+    let cClipsPct = pct(cClips, q.limit);
+    if (cClips > 0 && cClipsPct < 0.5) cClipsPct = 0.5;
+    let cOtherPct = pct(cOther, q.limit);
+
+    if (cloudFillClips) cloudFillClips.style.width = cClipsPct + "%";
+    if (cloudFillOther) cloudFillOther.style.width = cOtherPct + "%";
+    
+    if (cloudBarContainer) cloudBarContainer.style.visibility = "visible";
+    
   } else {
-    if (els.cloudTotal) els.cloudTotal.textContent = q ? "∞" : "—";
-    if (els.cloudFree) els.cloudFree.textContent = q ? "bez limitu" : (_cloudConnected ? "—" : "niepołączono");
-    if (els.cloudFillClips) els.cloudFillClips.style.width = "0%";
-    if (els.cloudFillOther) els.cloudFillOther.style.width = "0%";
+    // ОБЛАКО ОТКЛЮЧЕНО ИЛИ БЕЗЛИМИТНО
+    if (els.cloudTotal) els.cloudTotal.textContent = (q && _cloudConnected) ? "∞" : "—";
+    
+    if (els.cloudFree) {
+      if (!_cloudConnected) {
+        els.cloudFree.textContent = "niepołączono";
+        els.cloudFree.classList.add("text-red");
+      } else {
+        els.cloudFree.textContent = "bez limitu";
+        els.cloudFree.classList.remove("text-red");
+      }
+    }
+    
+    if (cloudFillClips) cloudFillClips.style.width = "0%";
+    if (cloudFillOther) cloudFillOther.style.width = "0%";
+    
+    if (cloudBarContainer) {
+      cloudBarContainer.style.visibility = _cloudConnected ? "visible" : "hidden";
+    }
   }
 }
 
@@ -320,11 +379,9 @@ async function renderRecent(game, sort = "newest") {
   _repaint();
 }
 
-function thumbImg(clipId) {
-  // Always try to load — backend lazy-generates if file is missing. On failure
-  // (e.g. ffmpeg can't read the source), swap in the placeholder so the card
-  // still looks intentional rather than showing a broken-image icon.
-  return `<img src="/thumb/${clipId}" alt="" loading="lazy" onerror="this.outerHTML='<div class=&quot;placeholder&quot;>&#9205;</div>'" />`;
+function thumbImg(clipId, version = "") {
+  const v = version ? `?v=${version}` : "";
+  return `<img src="/thumb/${clipId}${v}" alt="" loading="lazy" onerror="this.outerHTML='<div class=&quot;placeholder&quot;>&#9205;</div>'" />`;
 }
 
 function clipCard(c) {
@@ -338,7 +395,7 @@ function clipCard(c) {
     : "";
   return `
     <div class="result ${checked ? "selected" : ""}" data-clip-id="${c.id}" data-size="${c.size_bytes || 0}" data-duration="${c.duration || 0}">
-      <div class="thumb">${thumbImg(c.id)}${dur}${cloudChip(c)}${checkbox}</div>
+      <div class="thumb">${thumbImg(c.id, c.size_bytes)}${dur}${cloudChip(c)}${checkbox}</div>
       <div class="result-body">
         <div class="result-game">${escapeHtml(c.game)}</div>
         <div class="result-date">
@@ -367,7 +424,7 @@ function renderResults(rows) {
       return `
         <div class="result ${checked ? "selected" : ""}" data-clip-id="${r.clip_id}" data-start="${r.start_s}" data-size="${r.size_bytes || 0}" data-duration="${r.duration || 0}">
           <div class="thumb">
-            ${thumbImg(r.clip_id)}
+            ${thumbImg(r.clip_id, r.size_bytes)}
             <span class="ts">${fmtTime(r.start_s)}</span>
             ${cloudChip({ id: r.clip_id, storage: r.storage })}
             ${checkbox}
@@ -875,7 +932,7 @@ async function openPlayer(clipId, startAt) {
   updatePlayerCloudBtn(data.clip.storage);
   // Show the clip's thumbnail as a poster so the modal paints the first frame
   // immediately instead of flashing black while the stream starts buffering.
-  els.video.poster = `/thumb/${clipId}`;
+  els.video.poster = `/thumb/${clipId}?v=${data.clip.size_bytes}`;
   // Cache-bust the video URL by size_bytes — when a clip is fixed its content
   // (and size) changes, so this URL changes and the browser refetches instead
   // of serving the old bytes from cache.
@@ -1703,6 +1760,22 @@ els.configOverlay.addEventListener("click", (e) => {
 els.configPath.addEventListener("keydown", (e) => {
   if (e.key === "Enter") els.configSave.click();
 });
+
+if (els.configBrowse) {
+  els.configBrowse.addEventListener("click", async () => {
+    if (window.pywebview && window.pywebview.api) {
+      const selectedPath = await window.pywebview.api.pick_folder();
+      if (selectedPath) {
+        els.configPath.value = selectedPath;
+        // Чтобы сделать UX еще круче: можно автоматически переводить фокус 
+        // на кнопку "Записать", когда папка успешно выбрана:
+        els.configSave.focus();
+      }
+    } else {
+      toast("Wybór folderu działa tylko w aplikacji desktopowej.", "error");
+    }
+  });
+}
 
 els.configSave.addEventListener("click", async () => {
   const newPath = els.configPath.value.trim();

@@ -5,18 +5,20 @@ import socket
 import sys
 import os
 
-# Получаем путь к папке, где лежит main_desktop.py
-base_path = os.path.dirname(os.path.abspath(__file__))
+# 1. Корневая папка проекта (где лежат data и bin)
+root_dir = os.path.dirname(os.path.abspath(__file__))
+os.chdir(root_dir)
 
-# Добавляем backend в sys.path
-sys.path.append(os.path.join(base_path, 'backend'))
+# 2. Добавляем bin в системный PATH (чтобы ffmpeg резал миниатюры)
+bin_dir = os.path.join(root_dir, 'bin')
+os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
 
+# 3. Подключаем backend, чтобы импорты сработали
+backend_dir = os.path.join(root_dir, 'backend')
+sys.path.append(backend_dir)
+
+# Теперь безопасно импортируем приложение (оно само настроит статику)
 from app import app, init_db
-
-# Настраиваем FastAPI на поиск фронтенда и статики в правильных папках
-# Это критически важно, чтобы 404 исчезли
-frontend_dir = os.path.join(base_path, 'frontend')
-app.mount("/static", __import__("fastapi.staticfiles").staticfiles.StaticFiles(directory=frontend_dir), name="static")
 
 def get_free_port():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,6 +43,15 @@ class WindowApi:
     def minimize_window(self):
         if self._window: self._window.minimize()
 
+    def pick_folder(self):
+        if not self._window:
+            return None
+        # Открываем системный диалог выбора папки
+        result = self._window.create_file_dialog(webview.FOLDER_DIALOG)
+        if result and len(result) > 0:
+            return result[0] # Возвращаем выбранный путь
+        return None
+
     def start_native_resize(self):
         import ctypes
         user32 = ctypes.windll.user32
@@ -63,10 +74,7 @@ class WindowApi:
             self._is_maximized = True
 
 if __name__ == '__main__':
-    # Устанавливаем рабочую директорию в backend, чтобы база и ffmpeg были доступны
-    os.chdir(os.path.join(base_path, 'backend'))
     init_db()
-    
     port = get_free_port()
     threading.Thread(target=start_hidden_server, args=(port,), daemon=True).start()
 
