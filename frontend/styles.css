@@ -989,7 +989,7 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
    всегда остаётся вверху при скролле, и двигается вместе с #root при анимациях.
    ========================================= */
 #custom-titlebar {
-  display: flex;
+  display: fixed;
   height: 32px;
   background-color: transparent;
   position: absolute;
