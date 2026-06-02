@@ -1,0 +1,31 @@
+# ---- .NET build output ----
+bin/
+obj/
+publish/
+*.user
+.vs/
+
+# ---- KeepClip runtime data (never commit) ----
+# DB, thumbnails, settings.json, and the user's own OAuth client secret all live here.
+data/
+
+# ---- ffmpeg/ffprobe (huge, user supplies them) ----
+tools/bin/*.exe
+
+# ---- Whisper model (large, downloaded on first run) ----
+models/
+
+# ---- installer build artifacts ----
+# Compiled installers (distributed via GitHub Releases, never committed).
+installer/dist/
+# Downloaded WebView2 bootstrapper (re-fetched by build.ps1).
+installer/redist/
+# OPTIONAL embedded Google OAuth client (a secret) — never commit.
+installer/embed/
+
+# ---- logs ----
+*.log
+
+# ---- editor / agent ----
+.claude/
+.idea/

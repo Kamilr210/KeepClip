@@ -1,0 +1,100 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <!-- net*-windows + WinForms: the app is a native desktop shell (WebView2 in a
+         frameless window) that ALSO hosts the ASP.NET server in-process, exactly like
+         the Python build (pywebview window + uvicorn in a background thread). WinExe =
+         no console window for end users; the "server-only" arg runs headless for dev. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+
+    <!-- Native desktop-app identity: gives KeepClip.exe its own icon (the same one the
+         WebView2 window and installer use) and the metadata Windows shows in the file
+         properties / Add-or-Remove-Programs. -->
+    <ApplicationIcon>..\frontend\icons\icon.ico</ApplicationIcon>
+    <AssemblyName>KeepClip</AssemblyName>
+    <Product>KeepClip</Product>
+    <Company>Kamil</Company>
+    <Authors>Kamil</Authors>
+    <Description>KeepClip — przeglądarka i wyszukiwarka klipów z transkrypcją (Whisper) i offloadem na Google Drive.</Description>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Copyright>© Kamil</Copyright>
+
+    <!-- Self-contained win-x64 publish (runtime bundled, so OTHER users need nothing
+         installed) is driven from installer\build.ps1 and the win-x64 publish profile —
+         NOT pinned here, so a dev `dotnet build`/`run` stays framework-dependent and
+         RID-neutral. The publish is intentionally folder-based (not single-file) and
+         NOT trimmed: WebView2's loader and the Whisper.net native runtimes (Vulkan + CPU
+         under runtimes/) must be real files on disk, FindAppRoot()/the installer expect
+         a folder layout, and WinForms + ASP.NET model-binding are reflection-heavy — the
+         user's top priority is production stability, not a few hundred MB saved. -->
+    <!-- Only ship English framework satellite assemblies (our own UI is Polish HTML, not
+         framework-localized), shrinking the publish tree by dozens of locale folders. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
+    <!-- Speech-to-text engine. Whisper.net is whisper.cpp/GGML (not CTranslate2), so
+         transcripts are functionally equivalent to the Python faster-whisper build but
+         not bit-identical. We reference TWO runtimes and let Whisper.net auto-select the
+         best available at load: Vulkan (GPU on NVIDIA/AMD/Intel — the original ran on the
+         GPU, so this restores that speed and keeps RAM/CPU down) with the CPU runtime as a
+         universal fallback for machines without a usable GPU. Vulkan is portable (it uses
+         the driver's installed Vulkan ICD, no CUDA toolkit needed), which fits the
+         easy-install goal better than an NVIDIA-only CUDA build. -->
+    <PackageReference Include="Whisper.net" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+  </ItemGroup>
+
+  <!-- ===================================================================== -->
+  <!-- MSB3277 fix: the WebView2 package ships BOTH a WinForms and a WPF control
+       assembly. We only host the WinForms one (DesktopShell uses
+       Microsoft.Web.WebView2.WinForms). The unused WPF assembly references
+       WindowsBase 5.0.0.0, which conflicts with the framework's 4.0.0.0 and makes
+       RAR emit "Found conflicts between different versions of WindowsBase". The
+       package's Common.targets adds the WPF flavor as a raw <Reference> by full
+       path at evaluation time, so we strip it from @(Reference) BEFORE RAR runs
+       (matching on filename) — after-RAR removal is too late, the warning is raised
+       inside RAR. Nothing we compile uses the WPF control, so this is safe and also
+       keeps Microsoft.Web.WebView2.Wpf.dll out of the publish output. -->
+  <Target Name="DropWebView2Wpf" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)"
+                 Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
+
+  <!-- ===================================================================== -->
+  <!-- Stage the runtime assets that live OUTSIDE this project (the shared
+       frontend/ and tools/ folders one level up) next to the published exe, so a
+       `dotnet publish` output is a complete, runnable app — exactly the layout
+       FindAppRoot() and the Inno Setup installer expect. Runs only on publish, so
+       dev builds keep their bin/ small. The Whisper model is NOT staged (it
+       auto-downloads on first transcription, ~1.6 GB); data/ is NOT staged (it is
+       per-user runtime state and may hold the Drive OAuth secret). -->
+  <Target Name="StageRuntimeAssets" AfterTargets="Publish">
+    <PropertyGroup>
+      <_Pub>$([MSBuild]::EnsureTrailingSlash('$(PublishDir)'))</_Pub>
+    </PropertyGroup>
+    <ItemGroup>
+      <_FrontendFiles Include="..\frontend\**\*" />
+      <_ToolsFiles Include="..\tools\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_FrontendFiles)"
+          DestinationFiles="@(_FrontendFiles->'$(_Pub)frontend\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_ToolsFiles)"
+          DestinationFiles="@(_ToolsFiles->'$(_Pub)tools\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="KeepClip: staged frontend/ + tools/ into $(_Pub)" />
+  </Target>
+
+</Project>
