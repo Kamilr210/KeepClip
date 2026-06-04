@@ -1057,3 +1057,182 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 .storage-free.text-red {
   color: #ff5c75 !important;
 }
+
+/* =========================================
+   КАСТОМНЫЙ ВИДЕОПЛЕЕР (ПОД ВИДЕО + МИКШЕР)
+   ========================================= */
+#custom-player-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: #000;
+}
+
+.video-center-wrapper {
+  width: 100%;
+  flex: 1; /* Позволяет блоку гибко сжиматься */
+  min-height: 0; /* Обязательно для правильной работы флексов */
+  max-height: 50vh; /* Оставляем 50% высоты экрана под видео, остальное пойдет на кнопки и текст */
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#custom-player-container #player {
+  width: auto;
+  height: 100%;
+  max-height: 50vh; /* Синхронизируем с оберткой */
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Панель управления строго ПОД видео (постоянно видимая) */
+.player-controls-panel {
+  background: var(--card-2);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Ряд кнопок */
+.controls-buttons-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Круглые кнопки (уменьшены с 36px до 30px) */
+.ctrl-round-btn {
+  background: rgba(42, 48, 64, 0.75);
+  border: none;
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.ctrl-round-btn:hover {
+  background: rgba(62, 70, 92, 0.95);
+  transform: scale(1.05);
+}
+
+.ctrl-round-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Центральная кнопка Play (уменьшена с 48px до 40px) */
+.ctrl-round-btn.play-btn {
+  width: 40px;
+  height: 40px;
+  background: rgba(50, 58, 78, 0.9);
+}
+.ctrl-round-btn.play-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* --- ВСПЛЫВАЮЩИЙ МИКШЕР ЗВУКА --- */
+.volume-control-wrap {
+  position: relative;
+}
+
+.volume-mixer-popover {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  z-index: 100; /* <-- Вот это гарантирует, что микшер будет поверх всего */
+  margin-bottom: 8px;
+  display: none;
+}
+
+/* ПОКАЗЫВАЕМ ТОЛЬКО ПО КЛИКУ (класс .show) */
+.volume-mixer-popover.show {
+  display: block;
+}
+
+/* Компактный ползунок внутри микшера */
+.compact-slider {
+  -webkit-appearance: none;
+  width: 70px;
+  height: 4px;
+  background: var(--card-2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.compact-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+/* --- ПОЛЗУНОК ВРЕМЕНИ (НИЖНИЙ РЯД) --- */
+.controls-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.time-text {
+  font-size: 12px;
+  color: #8b92a5;
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: center;
+}
+
+.full-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.15);
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.full-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  cursor: pointer;
+}
+
+/* Фиксы для полноэкранного режима */
+#custom-player-container:fullscreen {
+  height: 100vh;
+  max-height: none;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+#custom-player-container:fullscreen .video-center-wrapper {
+  flex: 1;
+  max-height: none;
+}
+#custom-player-container:fullscreen #player {
+  max-height: calc(100vh - 80px);
+}

@@ -113,6 +113,21 @@ const els = {
   cloudDisconnectBtn: $("#cloud-disconnect-btn"),
   pcloud: $("#player-cloud"),
   btnUploadFolder: $("#btn-upload-folder"),
+  // --- НОВЫЕ ЭЛЕМЕНТЫ ПЛЕЕРА ---
+  ctrlSnap: $("#ctrl-snap"),
+  ctrlMute: $("#ctrl-mute"),
+  ctrlStart: $("#ctrl-start"),
+  ctrlRewind: $("#ctrl-rewind"),
+  ctrlPlay: $("#ctrl-play"),
+  ctrlForward: $("#ctrl-forward"),
+  ctrlEnd: $("#ctrl-end"),
+  ctrlFullscreen: $("#ctrl-fullscreen"),
+  ctrlProgress: $("#ctrl-progress"),
+  ctrlTimeCur: $("#ctrl-time-current"),
+  ctrlTimeTot: $("#ctrl-time-total"),
+  ctrlVolume: $("#ctrl-volume"),
+  playerContainer: $("#custom-player-container"),
+  // -----------------------------
 };
 els.cutRangeFill = els.cutRange.querySelector(".range-fill");
 els.cutRangeStart = els.cutRange.querySelector(".range-thumb.start");
@@ -651,17 +666,23 @@ function updatePlayerCloudBtn(storage) {
   if (!b) return;
   b.classList.remove("busy");
   b.disabled = false;
+
+  // Иконка: Zdejmij z chmury (только SVG, без отступов)
+  const svgDownload = `<svg style="width: 19px; height: 19px;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M12 22V16M12 22L14 20M12 22L10 20" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M22 13.3529C22 15.6958 20.5562 17.7055 18.5 18.5604M14.381 8.02721C14.9767 7.81911 15.6178 7.70588 16.2857 7.70588C16.9404 7.70588 17.5693 7.81468 18.1551 8.01498M7.11616 10.6089C6.8475 10.5567 6.56983 10.5294 6.28571 10.5294C3.91878 10.5294 2 12.4256 2 14.7647C2 16.6611 3.26124 18.2664 5 18.8061M7.11616 10.6089C6.88706 9.9978 6.7619 9.33687 6.7619 8.64706C6.7619 5.52827 9.32028 3 12.4762 3C15.4159 3 17.8371 5.19371 18.1551 8.01498M7.11616 10.6089C7.68059 10.7184 8.20528 10.9374 8.66667 11.2426M18.1551 8.01498C19.0446 8.31916 19.8345 8.83436 20.4633 9.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>`;
+
+  // Иконка: Wyślij do chmury (только SVG, без отступов)
+  const svgUpload = `<svg style="width: 19px; height: 19px;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M12 16V22M12 16L14 18M12 16L10 18" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M22 13.3529C22 15.6958 20.5562 17.7055 18.5 18.5604M14.381 8.02721C14.9767 7.81911 15.6178 7.70588 16.2857 7.70588C16.9404 7.70588 17.5693 7.81468 18.1551 8.01498M7.11616 10.6089C6.8475 10.5567 6.56983 10.5294 6.28571 10.5294C3.91878 10.5294 2 12.4256 2 14.7647C2 16.6611 3.26124 18.2664 5 18.8061M7.11616 10.6089C6.88706 9.9978 6.7619 9.33687 6.7619 8.64706C6.7619 5.52827 9.32028 3 12.4762 3C15.4159 3 17.8371 5.19371 18.1551 8.01498M7.11616 10.6089C7.68059 10.7184 8.20528 10.9374 8.66667 11.2426M18.1551 8.01498C19.0446 8.31916 19.8345 8.83436 20.4633 9.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>`;
+
   if (storage === "cloud") {
-    // Clickable: now offers to bring the clip back down to local disk.
     b.hidden = false;
     b.classList.add("in-cloud");
-    b.textContent = "☁ Zdejmij z chmury";
-    b.title = "Pobierz klip z chmury z powrotem na dysk";
+    b.innerHTML = svgDownload; 
+    b.title = "Pobierz klip z chmury z powrotem na dysk"; // Подсказка при наведении осталась
   } else if (_cloudConnected) {
     b.hidden = false;
     b.classList.remove("in-cloud");
-    b.textContent = "☁ Wyślij do chmury";
-    b.title = "Wyślij klip do chmury (Google Drive)";
+    b.innerHTML = svgUpload;
+    b.title = "Wyślij klip do chmury (Google Drive)"; // Подсказка при наведении осталась
   } else {
     b.hidden = true;
   }
@@ -1559,6 +1580,7 @@ els.pretrans.addEventListener("click", async () => {
     closePlayer();
     setTimeout(() => openPlayer(cid, 0), 200);
     await loadStats();
+    doSearch(); // odśwież siatkę pod odtwarzaczem, żeby klip stracił etykietę „nie transkrybowane"
   } catch (e) {
     toast(`Błąd transkrypcji: ${e.message}`, "error");
   } finally {
@@ -1881,6 +1903,7 @@ async function pollOnce() {
       els.trans.disabled = false;
       els.progClose.hidden = false;
       loadStats();
+      doSearch(); // odśwież siatkę także w trybie pollingu (gdy SSE padło), tak jak robi to happy-path SSE
     }
   } catch {
     setTimeout(pollOnce, 3000);
@@ -2280,3 +2303,123 @@ if (window.pywebview && window.pywebview.api) {
   window.addEventListener('pywebviewready', initTitlebar);
 }
 })();
+// =========================================
+// ПОЛНАЯ ЛОГИКА КАСТОМНОГО ПЛЕЕРА
+// =========================================
+
+const playerIcons = {
+  play: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`,
+  pause: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`,
+  volOn: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>`,
+  volOff: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>`
+};
+
+if (els.video) {
+  // 1. Play / Pause
+  const togglePlay = () => els.video.paused ? els.video.play() : els.video.pause();
+  els.ctrlPlay.addEventListener("click", togglePlay);
+  els.video.addEventListener("click", togglePlay);
+  
+  els.video.addEventListener("play", () => els.ctrlPlay.innerHTML = playerIcons.pause);
+  els.video.addEventListener("pause", () => els.ctrlPlay.innerHTML = playerIcons.play);
+
+  // 2. Управление временем (Перемотка)
+  els.ctrlStart.addEventListener("click", () => els.video.currentTime = 0);
+  els.ctrlEnd.addEventListener("click", () => els.video.currentTime = els.video.duration);
+  els.ctrlRewind.addEventListener("click", () => els.video.currentTime = Math.max(0, els.video.currentTime - 5));
+  els.ctrlForward.addEventListener("click", () => els.video.currentTime = Math.min(els.video.duration, els.video.currentTime + 5));
+
+  // 3. Звук (Открытие микшера по клику)
+  const volumePopover = document.querySelector(".volume-mixer-popover");
+
+  if (els.ctrlMute && volumePopover && els.ctrlVolume) {
+    
+    // Открываем/закрываем меню при клике на кнопку
+    els.ctrlMute.addEventListener("click", (e) => {
+      e.stopPropagation(); // Останавливаем клик, чтобы он не ушел дальше
+      volumePopover.classList.toggle("show");
+    });
+
+    // ВАЖНО: Если кликаем или тянем сам ползунок — меню не должно закрываться!
+    volumePopover.addEventListener("click", (e) => {
+      e.stopPropagation();
+    });
+
+    // Закрываем меню, если кликнули в любое другое место на странице
+    document.addEventListener("click", () => {
+      volumePopover.classList.remove("show");
+    });
+
+    // Изменение звука
+    els.ctrlVolume.addEventListener("input", (e) => {
+      // Принудительно превращаем значение в число
+      const vol = parseFloat(e.target.value); 
+      
+      els.video.volume = vol;
+      els.video.muted = (vol === 0);
+      
+      // Меняем иконку
+      els.ctrlMute.innerHTML = els.video.muted ? playerIcons.volOff : playerIcons.volOn;
+    });
+
+  } else {
+    console.error("Элементы микшера не найдены в HTML!");
+  }
+
+  // 4. Полноэкранный режим
+  els.ctrlFullscreen.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+      els.playerContainer.requestFullscreen().catch(err => console.log(err));
+    } else {
+      document.exitFullscreen();
+    }
+  });
+
+  // 5. Длинный ползунок времени
+  let isDragging = false;
+  
+  els.video.addEventListener("loadedmetadata", () => {
+    els.ctrlProgress.max = els.video.duration;
+    els.ctrlTimeTot.textContent = fmtTime(els.video.duration);
+  });
+
+  els.video.addEventListener("timeupdate", () => {
+    if (!isDragging) {
+      els.ctrlProgress.value = els.video.currentTime;
+      els.ctrlTimeCur.textContent = fmtTime(els.video.currentTime);
+    }
+  });
+
+  els.ctrlProgress.addEventListener("mousedown", () => isDragging = true);
+  els.ctrlProgress.addEventListener("input", () => {
+    els.ctrlTimeCur.textContent = fmtTime(els.ctrlProgress.value);
+  });
+  els.ctrlProgress.addEventListener("change", () => {
+    els.video.currentTime = els.ctrlProgress.value;
+    isDragging = false;
+  });
+
+  // 6. ФИЧА: Кнопка создания скриншота
+  els.ctrlSnap.addEventListener("click", () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = els.video.videoWidth;
+    canvas.height = els.video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(els.video, 0, 0, canvas.width, canvas.height);
+    
+    // Скачиваем картинку
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/jpeg");
+    a.download = `KeepClip_Screenshot_${fmtTime(els.video.currentTime).replace(':','-')}.jpg`;
+    a.click();
+    toast("Скриншот сохранен!"); // Используем твою функцию toast
+  });
+}
+
+// Управление пробелом для плеера
+document.addEventListener("keydown", (e) => {
+  if (e.key === " " && !els.overlay.hidden && !["INPUT", "TEXTAREA"].includes(e.target.tagName)) {
+    e.preventDefault();
+    if(els.video) els.video.paused ? els.video.play() : els.video.pause();
+  }
+});
