@@ -661,6 +661,43 @@ header {
 }
 .toggle-switch.on { background: var(--accent); }
 .toggle-switch.on::after { transform: translateX(16px); }
+
+.lang-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  margin-top: 6px;
+}
+.lang-select-label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.lang-select-label strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+.lang-select {
+  background: var(--card-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+  flex-shrink: 0;
+}
+.lang-select:hover, .lang-select:focus { border-color: var(--accent); }
+
 .main { flex: 1 1 auto; min-width: 0; padding: 22px 28px 90px; padding-top: 54px; /* 32px titlebar + 22px original */ }
 
 /* brand (sidebar) */
@@ -1235,4 +1272,201 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 }
 #custom-player-container:fullscreen #player {
   max-height: calc(100vh - 80px);
+}
+/* ── Боковая панель действий плеера (справа от видео) ── */
+#custom-player-container {
+  flex-direction: row !important;
+  align-items: stretch;
+}
+
+.video-center-wrapper {
+  flex: 1 1 auto;
+}
+
+.player-side-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 6px;
+  background: var(--card-2);
+  border-left: 1px solid var(--border);
+  min-width: 80px;
+  width: 80px;
+  overflow-y: auto;
+  justify-content: flex-start;
+}
+
+.side-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-muted, #aaa);
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+  font-size: 11px;
+  width: 100%;
+  line-height: 1.2;
+}
+
+.side-action-btn svg,
+.side-action-btn .ni-ic {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.side-action-btn:hover {
+  background: var(--card, rgba(255,255,255,.07));
+  border-color: var(--border);
+  color: #fff;
+}
+
+.side-action-btn.primary {
+  color: var(--accent, #7c5cff);
+  border-color: transparent;
+}
+.side-action-btn.primary:hover {
+  background: rgba(124,92,255,.18);
+  border-color: rgba(124,92,255,.4);
+  color: #fff;
+}
+
+.side-action-btn.danger {
+  color: #e05c5c;
+}
+.side-action-btn.danger:hover {
+  background: rgba(224,92,92,.15);
+  border-color: rgba(224,92,92,.35);
+  color: #ff7474;
+}
+
+.side-action-btn.is-fav {
+  color: #ffc24b;
+}
+
+.side-action-label {
+  font-size: 10px;
+  text-align: center;
+  opacity: .75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.side-action-menu-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.side-action-menu-wrap .folders-dropdown {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 0;
+  left: auto;
+}
+
+/* Кликабельная ссылка на файл */
+.player-file-link {
+  color: inherit;
+  text-decoration: none;
+  font-size: inherit;
+  opacity: .7;
+  transition: opacity .15s, color .15s;
+  cursor: pointer;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.player-file-link:hover {
+  opacity: 1;
+  color: var(--accent, #7c5cff);
+  text-decoration: underline;
+}
+
+/* В полноэкранном режиме скрыть боковую панель */
+#custom-player-container:fullscreen .player-side-actions {
+  display: none;
+}
+
+/* ── Кастомный плеер в окне "Wytnij fragment" ── */
+#cut-player-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.cut-video-wrapper {
+  width: 100%;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-height: 40vh;
+}
+
+.cut-video-wrapper #cut-video {
+  width: auto;
+  height: 100%;
+  max-height: 40vh;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.cut-controls-panel {
+  background: var(--card-2);
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Language switcher ── */
+.lang-switcher-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 6px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.lang-switcher-label {
+  font-size: 11px;
+  color: var(--fg-dim, #888);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lang-select {
+  flex: 1;
+  min-width: 0;
+  background: var(--card-2, #1a1a2e);
+  color: var(--fg, #e0e0e0);
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.lang-select:hover,
+.lang-select:focus {
+  border-color: var(--accent, #7c5cff);
 }

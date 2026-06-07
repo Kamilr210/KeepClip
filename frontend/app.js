@@ -1,6 +1,31 @@
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+if (!window.i18n && typeof i18n !== 'undefined') window.i18n = i18n;
 
+const LANG = (() => {
+  const SUPPORTED = ['en', 'uk', 'pl', 'ru', ];
+  // 1. URL-параметр ?lang=
+  try {
+    const urlLang = new URLSearchParams(window.location.search).get('lang');
+    if (urlLang && SUPPORTED.includes(urlLang)) return urlLang;
+  } catch(e) {}
+  // 2. localStorage
+  try {
+    const saved = localStorage.getItem('keepclip_lang');
+    if (saved && SUPPORTED.includes(saved)) return saved;
+  } catch(e) {}
+  // 3. Язык браузера
+  const bl = (navigator.language || '').slice(0, 2).toLowerCase();
+  if (SUPPORTED.includes(bl)) return bl;
+  return 'pl';
+})();
+const t = (key) => {
+  if (!window.i18n) return key;
+  const keys = key.split(".");
+  let node = window.i18n[LANG] ?? window.i18n["pl"] ?? {};
+  for (const k of keys) node = node?.[k];
+  return (typeof node === 'string') ? node : key;
+};
 const els = {
   scan: $("#btn-scan"),
   scanLabel: $("#btn-scan .nav-label"),
@@ -206,7 +231,7 @@ async function loadStats() {
   if (els.statFav) els.statFav.textContent = nf(r.favorites);
   renderStorage();
   const cur = els.gameFilter.value;
-  els.gameFilter.innerHTML = '<option value="">Wszystkie gry</option>' +
+  els.gameFilter.innerHTML = '<option value="">' + t("search.allGames") + '</option>' +
     r.games.map((g) => `<option value="${escapeAttr(g.game)}">${escapeHtml(g.game)} (${g.done}/${g.clips})</option>`).join("");
   if (cur) els.gameFilter.value = cur;
 }
@@ -246,7 +271,7 @@ function renderStorage() {
   if (els.localTotal) els.localTotal.textContent = dTotal ? fmtSize(dTotal) : "—";
   
   if (els.localFree) {
-    els.localFree.textContent = dFree > 0 ? `${fmtSize(dFree)} wolne` : "—";
+    els.localFree.textContent = dFree > 0 ? t("storage.free").replace("{size}", fmtSize(dFree)) : "—";
     els.localFree.classList.remove("text-red");
   }
 
@@ -283,7 +308,7 @@ function renderStorage() {
     
     if (els.cloudTotal) els.cloudTotal.textContent = fmtSize(q.limit);
     if (els.cloudFree) {
-      els.cloudFree.textContent = `${fmtSize(cFree)} wolne`;
+      els.cloudFree.textContent = t("storage.free").replace("{size}", fmtSize(cFree));
       els.cloudFree.classList.remove("text-red");
     }
     
@@ -302,10 +327,10 @@ function renderStorage() {
     
     if (els.cloudFree) {
       if (!_cloudConnected) {
-        els.cloudFree.textContent = "niepołączono";
+        els.cloudFree.textContent = t("storage.notConnected");
         els.cloudFree.classList.add("text-red");
       } else {
-        els.cloudFree.textContent = "bez limitu";
+        els.cloudFree.textContent = t("storage.unlimited");
         els.cloudFree.classList.remove("text-red");
       }
     }
@@ -353,7 +378,7 @@ async function doSearch() {
     await renderRecent(game, sort);
     return;
   }
-  els.results.innerHTML = `<div class="empty">Szukam „${escapeHtml(q)}”…</div>`;
+  els.results.innerHTML = `<div class="empty">${t("search.searching").replace("{q}", escapeHtml(q))}</div>`;
   const r = await fetch(
     `/api/search?q=${encodeURIComponent(q)}&sort=${encodeURIComponent(sort)}&limit=200`
   ).then((r) => r.json());
@@ -383,7 +408,7 @@ async function renderRecent(game, sort = "newest") {
   const clips = await fetch(`/api/clips?${params}`).then((r) => r.json());
   if (!clips.length) {
     _repaint = null;
-    els.results.innerHTML = `<div class="empty">Brak klipów. Kliknij <b>Skanuj folder</b>, a potem <b>Transkrybuj nowe</b>.</div>`;
+    els.results.innerHTML = `<div class="empty">${t("search.noClips")}</div>`;
     return;
   }
   _repaint = () => {
@@ -401,7 +426,7 @@ function thumbImg(clipId, version = "") {
 
 function clipCard(c) {
   const dur = c.duration ? `<span class="ts">${fmtTime(c.duration)}</span>` : "";
-  const status = c.transcribed_at ? "" : ' · <span class="warn">nie transkrybowane</span>';
+  const status = c.transcribed_at ? "" : ' · <span class="warn">' + t("clip.notTranscribed") + '</span>';
   const date = fmtDate(c.mtime);
   const size = fmtSize(c.size_bytes);
   const checked = _selectionMode && _selectedClipIds.has(c.id);
@@ -425,7 +450,7 @@ function clipCard(c) {
 function renderResults(rows) {
   _repaint = null; // wyniki wyszukiwania zostają w kolejności trafień (bez przestawiania ulubionych)
   if (!rows.length) {
-    els.results.innerHTML = `<div class="empty">Brak trafień. Spróbuj innych słów.</div>`;
+    els.results.innerHTML = `<div class="empty">${t("search.noResults")}</div>`;
     return;
   }
   els.results.innerHTML = rows
@@ -483,7 +508,7 @@ async function toggleFavorite(clipId) {
     loadStats();
     if (!els.viewFavorites.hidden) loadFavorites();
   } catch {
-    toast("Nie udało się zmienić ulubionych.", "error");
+    toast(t("toast.folderAddError").replace("{error}", ""), "error");
   }
 }
 
@@ -491,7 +516,7 @@ async function loadFavorites() {
   const clips = await fetch("/api/clips?favorite=1&limit=500").then((r) => r.json());
   els.favCount.textContent = clips.length ? `${clips.length} ${clipsWord(clips.length)}` : "";
   if (!clips.length) {
-    els.favResults.innerHTML = `<div class="empty">Brak ulubionych. Najedź kursorem na klip i kliknij ☆, aby dodać.</div>`;
+    els.favResults.innerHTML = `<div class="empty">${t("search.noFavorites")}</div>`;
     return;
   }
   els.favResults.innerHTML = clips.map((c) => clipCard(c)).join("");
@@ -527,9 +552,9 @@ const CLOUD_DOWN_GLYPH =
 // actionable while an account is connected, via body.cloud-connected).
 function cloudChip(c) {
   if (c && c.storage === "cloud") {
-    return `<button class="cloud-chip cloud-down" data-cloud-down-id="${c.id}" title="Zdejmij z chmury (pobierz z powrotem na dysk)" aria-label="Zdejmij z chmury">${CLOUD_DOWN_GLYPH}</button>`;
+    return `<button class="cloud-chip cloud-down" data-cloud-down-id="${c.id}" title="${t('cloud.downloadTooltip')}" aria-label="${t('cloud.downloadAria')}">${CLOUD_DOWN_GLYPH}</button>`;
   }
-  return `<button class="cloud-chip cloud-up" data-cloud-up-id="${c.id}" title="Wyślij do chmury" aria-label="Wyślij do chmury">${CLOUD_UP_GLYPH}</button>`;
+  return `<button class="cloud-chip cloud-up" data-cloud-up-id="${c.id}" title="${t('cloud.uploadTooltip')}" aria-label="${t('cloud.uploadTooltip')}">${CLOUD_UP_GLYPH}</button>`;
 }
 
 // Toggle the spinning "in progress" state on a clip's chip wherever it shows
@@ -556,8 +581,8 @@ function markClipCloudInDom(clipId) {
     const b = document.createElement("button");
     b.className = "cloud-chip cloud-down";
     b.dataset.cloudDownId = clipId;
-    b.title = "Zdejmij z chmury (pobierz z powrotem na dysk)";
-    b.setAttribute("aria-label", "Zdejmij z chmury");
+    b.title = t("cloud.downloadTooltip");
+    b.setAttribute("aria-label", t("cloud.downloadAria"));
     b.innerHTML = CLOUD_DOWN_GLYPH;
     btn.replaceWith(b);
   });
@@ -569,8 +594,8 @@ function markClipLocalInDom(clipId) {
     const b = document.createElement("button");
     b.className = "cloud-chip cloud-up";
     b.dataset.cloudUpId = clipId;
-    b.title = "Wyślij do chmury";
-    b.setAttribute("aria-label", "Wyślij do chmury");
+    b.title = t("cloud.uploadTooltip");
+    b.setAttribute("aria-label", t("cloud.uploadTooltip"));
     b.innerHTML = CLOUD_UP_GLYPH;
     btn.replaceWith(b);
   });
@@ -586,26 +611,26 @@ function setPlayerCloudBusy(srcBtn, label) {
 
 async function uploadClipToCloud(clipId, srcBtn) {
   if (!_cloudConnected) {
-    toast("Najpierw połącz z Google Drive (zakładka Chmura).", "error");
+    toast(t("toast.cloudConnectFirst"), "error");
     return;
   }
   if (_busyClipIds.has(clipId)) return;  // an op for this clip is already running
   _busyClipIds.add(clipId);
   setClipChipsBusy(clipId, true);
   setPlayerCloudBusy(srcBtn, "☁ Wysyłam…");
-  toast("Wysyłam klip do chmury…");
+  toast(t("toast.cloudUploading"));
   try {
     const r = await fetch(`/api/clips/${clipId}/upload`, { method: "POST" });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
     markClipCloudInDom(clipId);
-    toast(data.already ? "Klip jest już w chmurze." : "Wysłano do chmury. Lokalny plik trafił do Kosza.");
+    toast(data.already ? "" + t("toast.cloudAlreadyUploaded") : "" + t("toast.cloudUploaded"));
     loadStats();
     refreshCloudQuota();
     if (currentClipId === clipId) updatePlayerCloudBtn("cloud");
     if (!els.viewCloud.hidden) loadCloud();
   } catch (e) {
-    toast(`Nie udało się wysłać: ${e.message}`, "error");
+    toast(t("toast.cloudUploadFail").replace("{error}", e.message), "error");
     setClipChipsBusy(clipId, false);
     if (currentClipId === clipId) updatePlayerCloudBtn("local");
   } finally {
@@ -615,26 +640,26 @@ async function uploadClipToCloud(clipId, srcBtn) {
 
 async function downloadClipFromCloud(clipId, srcBtn) {
   if (!_cloudConnected) {
-    toast("Najpierw połącz z Google Drive (zakładka Chmura).", "error");
+    toast(t("toast.cloudConnectFirst"), "error");
     return;
   }
   if (_busyClipIds.has(clipId)) return;  // an op for this clip is already running
   _busyClipIds.add(clipId);
   setClipChipsBusy(clipId, true);
   setPlayerCloudBusy(srcBtn, "☁ Pobieram…");
-  toast("Pobieram klip z chmury na dysk…");
+  toast(t("toast.cloudDownloading"));
   try {
     const r = await fetch(`/api/clips/${clipId}/download`, { method: "POST" });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
     markClipLocalInDom(clipId);
-    toast(data.already ? "Klip jest już lokalnie." : "Zdjęto z chmury — plik wrócił na dysk.");
+    toast(data.already ? "" + t("toast.cloudAlreadyLocal") : "" + t("toast.cloudDownloaded"));
     loadStats();
     refreshCloudQuota();
     if (currentClipId === clipId) updatePlayerCloudBtn("local");
     if (!els.viewCloud.hidden) loadCloud();
   } catch (e) {
-    toast(`Nie udało się zdjąć z chmury: ${e.message}`, "error");
+    toast(t("toast.cloudDownloadFail").replace("{error}", e.message), "error");
     setClipChipsBusy(clipId, false);
     if (currentClipId === clipId) updatePlayerCloudBtn("cloud");
   } finally {
@@ -701,32 +726,32 @@ if (els.pcloud) {
 
 async function uploadFolderToCloud(folderId) {
   if (!_cloudConnected) {
-    toast("Najpierw połącz z Google Drive (zakładka Chmura).", "error");
+    toast(t("toast.cloudConnectFirst"), "error");
     return;
   }
   const ok = await showConfirm({
-    title: "Wysłać folder do chmury?",
-    body: "Wszystkie lokalne klipy z tego folderu trafią na Twój Google Drive, a ich pliki na dysku — do Kosza.",
-    warning: "Przy dużych klipach może to chwilę potrwać.",
-    yesLabel: "Tak, wyślij",
+    title: t("confirm.uploadFolder.title"),
+    body: t("confirm.uploadFolder.body"),
+    warning: t("confirm.uploadFolder.warning"),
+    yesLabel: t("confirm.uploadFolder.yes"),
     yesClass: "primary",
   });
   if (!ok) return;
   els.btnUploadFolder.disabled = true;
-  toast("Wysyłam folder do chmury…");
+  toast(t("toast.cloudFolderUploading"));
   try {
     const r = await fetch(`/api/folders/${folderId}/upload`, { method: "POST" });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
-    let msg = `Wysłano ${data.uploaded} z ${data.total}.`;
-    if (data.skipped) msg += ` ${data.skipped} już w chmurze.`;
-    if (data.failed) msg += ` Nieudane: ${data.failed}.`;
+    let msg = t("toast.cloudFolderUploaded").replace("{uploaded}", data.uploaded).replace("{total}", data.total);
+    if (data.skipped) msg +=  t("toast.cloudFolderSkipped").replace("{skipped}", data.skipped);
+    if (data.failed) msg +=  t("toast.cloudFolderFailed").replace("{failed}", data.failed);
     toast(msg, data.failed ? "error" : "ok");
     loadStats();
     refreshCloudQuota();
     if (_currentFolderId === folderId) openFolder(folderId);
   } catch (e) {
-    toast(`Nie udało się: ${e.message}`, "error");
+    toast(t("toast.cloudFolderFail").replace("{error}", e.message), "error");
   } finally {
     els.btnUploadFolder.disabled = false;
   }
@@ -761,7 +786,7 @@ async function loadCloud() {
   if (!st.configured) { _showCloudPanel("setup"); return; }
   if (!st.connected) { _showCloudPanel("connect"); return; }
 
-  els.cloudAccName.textContent = st.name || "Konto Google";
+  els.cloudAccName.textContent = st.name || t("cloud.accountGoogle");
   els.cloudAccEmail.textContent = st.email || "";
   if (st.photo) { els.cloudAccPhoto.src = st.photo; els.cloudAccPhoto.hidden = false; }
   else { els.cloudAccPhoto.hidden = true; }
@@ -772,11 +797,11 @@ async function loadCloud() {
   if (st.limit && st.usage != null) {
     const pct = Math.min(100, Math.round((st.usage / st.limit) * 100));
     els.cloudQuotaFill.style.width = `${pct}%`;
-    els.cloudQuotaText.textContent = `${fmtSize(st.usage)} z ${fmtSize(st.limit)} (${pct}%)`;
+    els.cloudQuotaText.textContent = t("storage.quotaUsed").replace("{used}", fmtSize(st.usage)).replace("{total}", fmtSize(st.limit)).replace("{pct}", pct);
     bar.hidden = false;
   } else if (st.usage != null) {
     bar.hidden = true;
-    els.cloudQuotaText.textContent = `Wykorzystano ${fmtSize(st.usage)} (limit nieograniczony)`;
+    els.cloudQuotaText.textContent = t("storage.quotaUnlimited").replace("{used}", fmtSize(st.usage));
   } else {
     bar.hidden = true;
     els.cloudQuotaText.textContent = "";
@@ -793,7 +818,7 @@ async function startCloudConnect() {
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
     window.open(data.auth_url, "_blank", "noopener");
-    toast("Otwarto stronę logowania Google w nowej karcie.");
+    toast(t("toast.cloudOpenedLogin"));
     _stopCloudPoll();
     let tries = 0;
     _cloudPollTimer = setInterval(async () => {
@@ -805,13 +830,13 @@ async function startCloudConnect() {
         setCloudConnected(true);
         setCloudQuota(st);
         loadCloud();
-        toast("Połączono z Google Drive.");
+        toast(t("toast.cloudConnected"));
       } else if (tries > 150) {
         _stopCloudPoll(); // ~5 min cap
       }
     }, 2000);
   } catch (e) {
-    toast(`Nie udało się rozpocząć łączenia: ${e.message}`, "error");
+    toast(t("toast.cloudConnectFail").replace("{error}", e.message), "error");
   } finally {
     els.cloudConnectBtn.disabled = false;
   }
@@ -822,10 +847,10 @@ if (els.cloudRecheck) els.cloudRecheck.addEventListener("click", loadCloud);
 if (els.cloudDisconnectBtn) {
   els.cloudDisconnectBtn.addEventListener("click", async () => {
     const ok = await showConfirm({
-      title: "Odłączyć Google Drive?",
-      body: "KeepClip straci dostęp do Twojego Dysku. Klipy już wysłane zostają w chmurze, ale nie odtworzysz ich, dopóki nie połączysz się ponownie.",
+      title: t("confirm.disconnectCloud.title"),
+      body: t("confirm.disconnectCloud.body"),
       warning: "",
-      yesLabel: "Odłącz",
+      yesLabel: t("confirm.disconnectCloud.yes"),
       yesClass: "danger",
     });
     if (!ok) return;
@@ -834,7 +859,7 @@ if (els.cloudDisconnectBtn) {
     setCloudQuota(null);
     _stopCloudPoll();
     loadCloud();
-    toast("Odłączono Google Drive.");
+    toast(t("toast.cloudDisconnected"));
   });
 }
 
@@ -968,7 +993,7 @@ async function openPlayer(clipId, startAt) {
             `<div class="seg" data-start="${s.start_s}" data-id="${s.id}">
                <div class="seg-ts">${fmtTime(s.start_s)}</div>
                <div class="seg-text">${escapeHtml(s.text)}</div>
-               <button class="seg-edit" title="Popraw tekst" aria-label="Popraw tekst">✎</button>
+               <button class="seg-edit" title="${t('player.editSegment')}" aria-label="${t('player.editSegment')}">✎</button>
              </div>`
         )
         .join("")
@@ -1059,9 +1084,9 @@ function enterSegEdit(segEl) {
   box.innerHTML = `
     <textarea class="seg-edit-input" rows="2"></textarea>
     <div class="seg-edit-actions">
-      <span class="seg-edit-hint">Ctrl+Enter zapisuje · Esc anuluje</span>
-      <button class="btn ghost seg-edit-cancel">Anuluj</button>
-      <button class="btn primary seg-edit-save">Zapisz</button>
+      <span class="seg-edit-hint">${t('player.editHint')}</span>
+      <button class="btn ghost seg-edit-cancel">${t('nav.cancel')}</button>
+      <button class="btn primary seg-edit-save">${t('player.editSave')}</button>
     </div>`;
   // Clicks inside the editor must never seek the video.
   box.addEventListener("click", (e) => e.stopPropagation());
@@ -1086,7 +1111,7 @@ function enterSegEdit(segEl) {
     if (newText === seg.text) { finish(); return; }
     const saveBtn = box.querySelector(".seg-edit-save");
     saveBtn.disabled = true;
-    saveBtn.textContent = "Zapisuję…";
+    saveBtn.textContent = t("player.editSaving");
     try {
       const r = await fetch(`/api/segments/${id}`, {
         method: "PATCH",
@@ -1098,11 +1123,11 @@ function enterSegEdit(segEl) {
       seg.text = d.text;
       textDiv.innerHTML = escapeHtml(d.text);
       finish();
-      toast("Zapisano poprawkę.");
+      toast(t("toast.editSaved"));
     } catch (e) {
       saveBtn.disabled = false;
-      saveBtn.textContent = "Zapisz";
-      toast(`Nie udało się zapisać: ${e.message}`, "error");
+      saveBtn.textContent = t("folders.addBtn");
+      toast(t("toast.editSaveError").replace("{error}", e.message), "error");
     }
   };
 
@@ -1141,10 +1166,10 @@ const _confirmWarnEl = document.querySelector("#confirm-box .confirm-warn");
 const _defaultWarn = _confirmWarnEl ? _confirmWarnEl.innerHTML : "";
 
 function showConfirm({
-  title = "Na pewno?",
+  title = t("confirm.retranscribeAll.title"),
   body = "",
   warning = null,
-  yesLabel = "Tak, usuń",
+  yesLabel = t("confirm.deleteClip.yes"),
   yesClass = "danger",
 } = {}) {
   els.confirmTitle.textContent = title;
@@ -1335,7 +1360,7 @@ function updateCutEstimate() {
   const { start, end, duration } = _currentCutTimes();
   const valid = isFinite(start) && isFinite(end) && duration > 0;
   if (!valid) {
-    els.cutEstimate.textContent = "Zaznacz zakres na pasku.";
+    els.cutEstimate.textContent = t("cutEstimate.selectRange");
     els.cutEstimate.classList.add("warn");
     return;
   }
@@ -1347,9 +1372,9 @@ function updateCutEstimate() {
     const srcDur = parseFloat(src?.dataset?.duration || "0");
     if (srcSize && srcDur) {
       const estMb = (srcSize / srcDur * duration) / 1024 / 1024;
-      els.cutEstimate.innerHTML = `Bez kompresji — szacowany rozmiar: <b>~${estMb.toFixed(1)} MB</b> (jakość 1:1 z oryginałem).`;
+      els.cutEstimate.innerHTML = t("cutEstimate.noCompressionSize").replace("{mb}", estMb.toFixed(1));
     } else {
-      els.cutEstimate.innerHTML = `Bez kompresji — jakość 1:1 z oryginałem.`;
+      els.cutEstimate.innerHTML = t("cutEstimate.noCompression");
     }
     els.cutEstimate.classList.remove("warn");
     return;
@@ -1361,17 +1386,16 @@ function updateCutEstimate() {
   const audioBytes = (audioKbps * 1000 / 8) * duration;
   const videoBytes = targetBytes - audioBytes - 50000;
   if (videoBytes < 100_000) {
-    els.cutEstimate.innerHTML = `⚠ ${_cutTargetMb} MB to za mało na <b>${duration.toFixed(1)}s</b> wideo. Zwiększ rozmiar albo skróć fragment.`;
+    els.cutEstimate.innerHTML = t("cutEstimate.tooSmall").replace("{mb}", _cutTargetMb).replace("{sec}", duration.toFixed(1));
     els.cutEstimate.classList.add("warn");
     return;
   }
   const videoKbps = Math.floor((videoBytes * 8) / duration / 1000);
-  let quality = "świetna";
-  if (videoKbps < 1500) quality = "słaba (rozmazane)";
-  else if (videoKbps < 3000) quality = "średnia";
-  else if (videoKbps < 6000) quality = "dobra";
-  els.cutEstimate.innerHTML =
-    `Cel: <b>${_cutTargetMb} MB</b> · bitrate wideo ~${videoKbps} kbps · jakość: <b>${quality}</b>`;
+  let quality = t("cutEstimate.quality.great");
+  if (videoKbps < 1500) quality = t("cutEstimate.quality.bad");
+  else if (videoKbps < 3000) quality = t("cutEstimate.quality.medium");
+  else if (videoKbps < 6000) quality = t("cutEstimate.quality.good");
+  els.cutEstimate.innerHTML = t("cutEstimate.summary").replace("{mb}", _cutTargetMb).replace("{kbps}", videoKbps).replace("{quality}", quality);
   els.cutEstimate.classList.toggle("warn", videoKbps < 1500);
 }
 
@@ -1403,13 +1427,13 @@ els.cutOverlay.addEventListener("click", (e) => {
 els.cutGo.addEventListener("click", async () => {
   const { start, end, duration } = _currentCutTimes();
   if (!isFinite(start) || !isFinite(end) || duration <= 0) {
-    els.cutError.textContent = "Wpisz prawidłowy zakres (Od < Do).";
+    els.cutError.textContent = t("toast.cutError");
     els.cutError.hidden = false;
     return;
   }
   els.cutError.hidden = true;
   els.cutGo.disabled = true;
-  els.cutGo.textContent = "Wycinam…";
+  els.cutGo.textContent = t("toast.cutting");
   try {
     const r = await fetch(`/api/clips/${currentClipId}/cut`, {
       method: "POST",
@@ -1434,23 +1458,23 @@ els.cutGo.addEventListener("click", async () => {
     els.cutError.hidden = false;
   } finally {
     els.cutGo.disabled = false;
-    els.cutGo.textContent = "Wytnij fragment";
+    els.cutGo.textContent = t("toast.cutGoBtn");
   }
 });
 
 function showCutSuccess(data) {
   // Re-use the confirm modal as a "done" dialog with custom buttons
   const ok = showConfirm({
-    title: "Gotowe!",
+    title: t("cutSuccess.title"),
     body: `${data.output_name} — ${data.size_mb} MB`,
     warning: `Plik zapisano w folderze:<br><code>${escapeHtml(data.cuts_root)}</code>`,
-    yesLabel: "Pokaż w folderze",
+    yesLabel: t("cutSuccess.showInFolder"),
     yesClass: "primary",
   });
   // Override the cancel button text to "Zamknij" for this dialog
-  els.confirmNo.textContent = "Zamknij";
+  els.confirmNo.textContent = t("confirm.closeBtn");
   ok.then(async (clicked) => {
-    els.confirmNo.textContent = "Anuluj";  // restore default
+    els.confirmNo.textContent = t("confirm.cancelBtn");
     if (clicked) {
       try {
         await fetch("/api/show-in-explorer", {
@@ -1459,7 +1483,7 @@ function showCutSuccess(data) {
           body: JSON.stringify({ path: data.output_path }),
         });
       } catch (e) {
-        toast(`Nie udało się otworzyć folderu: ${e.message}`, "error");
+        toast(t("toast.showFolderFail").replace("{error}", e.message), "error");
       }
     }
   });
@@ -1481,7 +1505,7 @@ async function openFoldersDropdown() {
 
   let html = "";
   if (allFolders.length === 0) {
-    html += `<div class="folders-dropdown-empty">Brak folderów. Utwórz pierwszy poniżej.</div>`;
+    html += `<div class="folders-dropdown-empty">${t('folders.noFolders')}</div>`;
   } else {
     html += allFolders.map((f) => `
       <label class="folders-dropdown-item">
@@ -1491,7 +1515,7 @@ async function openFoldersDropdown() {
   }
   html += `
     <div class="folders-dropdown-new">
-      <input id="player-new-folder-name" type="text" placeholder="nowy folder..." autocomplete="off" />
+      <input id="player-new-folder-name" type="text" placeholder="${t('folders.newFolderPlaceholder')}" autocomplete="off" />
       <button id="player-new-folder-btn" class="btn primary" style="padding: 6px 12px; font-size: 13px;">Dodaj</button>
     </div>`;
   els.pfoldersDropdown.innerHTML = html;
@@ -1531,7 +1555,7 @@ async function openFoldersDropdown() {
       if (!r.ok) throw new Error(data.detail || r.statusText);
       // add the clip to the new folder automatically
       await fetch(`/api/folders/${data.id}/clips/${currentClipId}`, { method: "POST" });
-      toast(`Utworzono „${data.name}" i dodano klip.`);
+      toast(t("toast.folderCreated").replace("{name}", data.name));
       await openFoldersDropdown();
     } catch (e) {
       toast(e.message, "error");
@@ -1570,19 +1594,19 @@ els.pretrans.addEventListener("click", async () => {
   if (!currentClipId) return;
   els.pretrans.disabled = true;
   const orig = els.pretrans.textContent;
-  els.pretrans.textContent = "🔁 Transkrybuję…";
+  els.pretrans.textContent = t("toast.retranscribeBtn");
   try {
     const r = await fetch(`/api/clips/${currentClipId}/retranscribe`, { method: "POST" });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
-    toast(`Transkrybowano ponownie — ${data.segments} segmentów w ${data.seconds}s.`);
+    toast(t("toast.transcribeRetranscribed").replace("{segments}", data.segments).replace("{seconds}", data.seconds));
     const cid = currentClipId;
     closePlayer();
     setTimeout(() => openPlayer(cid, 0), 200);
     await loadStats();
     doSearch(); // odśwież siatkę pod odtwarzaczem, żeby klip stracił etykietę „nie transkrybowane"
   } catch (e) {
-    toast(`Błąd transkrypcji: ${e.message}`, "error");
+    toast(t("toast.transcribeError").replace("{error}", e.message), "error");
   } finally {
     els.pretrans.disabled = false;
     els.pretrans.textContent = orig;
@@ -1594,22 +1618,22 @@ els.pfix.addEventListener("click", async () => {
   if (!currentClipId) return;
   const filename = els.pfile.textContent;
   const ok = await showConfirm({
-    title: "Napraw klip?",
+    title: t("confirm.fixClip.title"),
     body: filename,
-    warning: "Próba naprawy pliku z NVIDIA ShadowPlay: ffmpeg zremuxuje plik (i jeśli trzeba — odetnie uszkodzone intro). Oryginał trafi do Kosza Windows. Może zająć od kilku sekund do minuty zależnie od wielkości.",
-    yesLabel: "Tak, napraw",
+    warning: t("confirm.fixClip.warning"),
+    yesLabel: t("confirm.fixClip.yes"),
     yesClass: "primary",
   });
   if (!ok) return;
   els.pfix.disabled = true;
-  els.pfix.textContent = "🔧 Naprawiam…";
+  els.pfix.textContent = t("playerActions.fixing");
   try {
     const r = await fetch(`/api/clips/${currentClipId}/fix`, { method: "POST" });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
     const msg = data.trimmed_seconds > 0
-      ? `Naprawiono — odcięto pierwsze ${data.trimmed_seconds.toFixed(0)}s uszkodzonego intra.`
-      : "Naprawiono przez remux (bez utraty zawartości).";
+      ? t("toast.fixRepaired").replace("{seconds}", data.trimmed_seconds.toFixed(0))
+      : t("toast.fixRemuxed");
     toast(msg);
     // reload video with cache-busting param so the browser refetches
     const cid = currentClipId;
@@ -1617,10 +1641,10 @@ els.pfix.addEventListener("click", async () => {
     setTimeout(() => openPlayer(cid, 0), 200);
     await loadStats();
   } catch (e) {
-    toast(`Naprawa nie powiodła się: ${e.message}`, "error");
+    toast(t("toast.fixFail").replace("{error}", e.message), "error");
   } finally {
     els.pfix.disabled = false;
-    els.pfix.textContent = "🔧 Napraw klip";
+    els.pfix.textContent = "🔧 " + t("playerActions.fix");
   }
 });
 
@@ -1629,7 +1653,7 @@ els.pdelete.addEventListener("click", async () => {
   if (!currentClipId) return;
   const filename = els.pfile.textContent;
   const ok = await showConfirm({
-    title: "Usuń klip?",
+    title: t("confirm.deleteClip.title"),
     body: filename,
   });
   if (!ok) return;
@@ -1649,16 +1673,16 @@ els.pdelete.addEventListener("click", async () => {
     }
     const data = await r.json();
     if (data.file_sent_to_trash) {
-      toast(`Usunięto „${data.filename}" — plik trafił do Kosza.`);
+      toast(t("toast.deleteSuccess").replace("{filename}", data.filename));
     } else if (data.trash_error) {
-      toast(`Wpis usunięty, ale pliku nie udało się przenieść do Kosza: ${data.trash_error}`, "error");
+      toast(t("toast.deleteTrashFail").replace("{error}", data.trash_error), "error");
     } else {
-      toast(`Usunięto „${data.filename}".`);
+      toast(t("toast.deleteSuccessOnly").replace("{filename}", data.filename));
     }
     await loadStats();
     await doSearch();
   } catch (e) {
-    toast(`Błąd usuwania: ${e.message}`, "error");
+    toast(t("toast.deleteError").replace("{error}", e.message), "error");
   } finally {
     els.pdelete.disabled = false;
   }
@@ -1677,19 +1701,20 @@ els.sort.addEventListener("change", doSearch);
 async function runScan({ showToastAlways = false } = {}) {
   const r = await fetch("/api/scan", { method: "POST" }).then((r) => r.json());
   const parts = [];
-  if (r.added) parts.push(`+${r.added} nowych`);
-  if (r.removed) parts.push(`-${r.removed} usuniętych`);
+  if (r.added) parts.push(t("toast.scanParts.added").replace("{n}", r.added));
+  if (r.removed) parts.push(t("toast.scanParts.removed").replace("{n}", r.removed));
+  if (!parts.length) parts.push(t("toast.scanParts.noChanges"));
   if (r.added || r.removed) {
     toast(`Skan: ${parts.join(", ")}`);
   } else if (showToastAlways) {
-    toast("Skan zakończony — bez zmian.");
+    toast(t("toast.scanNoChanges"));
   }
   return r;
 }
 
 els.scan.addEventListener("click", async () => {
   els.scan.disabled = true;
-  els.scanLabel.textContent = "Skanuję…";
+  els.scanLabel.textContent = t("toast.scanning");
   try {
     const r = await runScan({ showToastAlways: true });
     const parts = [];
@@ -1702,7 +1727,7 @@ els.scan.addEventListener("click", async () => {
   } finally {
     setTimeout(() => {
       els.scan.disabled = false;
-      els.scanLabel.textContent = "Skanuj folder";
+      els.scanLabel.textContent = t("toast.scanLabel");
     }, 2000);
   }
 });
@@ -1713,15 +1738,15 @@ async function startTranscribe(force = false) {
   const url = force ? "/api/transcribe/start?force=true" : "/api/transcribe/start";
   const r = await fetch(url, { method: "POST" }).then((r) => r.json());
   if (!r.started) {
-    toast("Transkrypcja już trwa.", "error");
+    toast(t("toast.transcribeAlreadyRunning"), "error");
     return;
   }
   // Nothing to do: skip the progress bar entirely and just notify at the bottom.
   if (r.total === 0) {
-    toast(force ? "Brak klipów do transkrypcji." : "Brak nowych klipów do transkrypcji.");
+    toast(force ? t("toast.transcribeNoAll") : t("toast.transcribeNoNew"));
     return;
   }
-  toast(force ? "Rozpoczęto transkrypcję wszystkich klipów…" : "Rozpoczęto transkrypcję nowych klipów…");
+  toast(force ? t("toast.transcribeStartedAll") : t("toast.transcribeStartedNew"));
   attachStream();
 }
 els.trans.addEventListener("click", () => startTranscribe(false));
@@ -1729,10 +1754,10 @@ els.trans.addEventListener("click", () => startTranscribe(false));
 async function retranscribeAll() {
   const stats = await fetch("/api/stats").then((r) => r.json());
   const ok = await showConfirm({
-    title: "Transkrybuj ponownie wszystkie klipy?",
-    body: `${stats.clips} klipów zostanie przetranskrybowanych od nowa (istniejące segmenty zostaną nadpisane).`,
-    warning: "Może zająć kilkanaście minut. Przyda się, jeśli aktualizowaliśmy logikę transkrypcji (np. dokładniejsze znaczniki czasu) — wcześniejsze klipy nadal mają stare segmenty.",
-    yesLabel: "Tak, transkrybuj wszystkie",
+    title: t("confirm.retranscribeAll.title"),
+    body: t("confirm.retranscribeAll.body").replace("{clips}", stats.clips),
+    warning: t("confirm.retranscribeAll.warning"),
+    yesLabel: t("confirm.retranscribeAll.yes"),
     yesClass: "primary",
   });
   if (!ok) return;
@@ -1752,20 +1777,17 @@ document.querySelectorAll(".nav-tool[data-action]").forEach((btn) => {
 async function openConfigModal({ mode = "change" } = {}) {
   const cfg = await fetch("/api/config").then((r) => r.json());
   if (mode === "first") {
-    els.configTitle.textContent = "Witaj w Klipy!";
+    els.configTitle.textContent = t("config.titleFirst");
     els.configIntro.innerHTML =
-      "Aby zacząć, wskaż folder z klipami. Aplikacja przeszuka go wraz z pod-folderami " +
-      "(typowo każda gra ma osobny pod-folder). Najczęściej dla NVIDIA ShadowPlay jest to " +
-      "<code>C:\\Users\\&lt;ty&gt;\\Videos\\NVIDIA</code>.";
+      t("config.introFirst");
     els.configCancel.hidden = true;
-    els.configSave.textContent = "Użyj tego folderu";
+    els.configSave.textContent = t("config.saveFirst");
   } else {
-    els.configTitle.textContent = "Zmień folder z klipami";
+    els.configTitle.textContent = t("config.titleChange");
     els.configIntro.innerHTML =
-      "Po zmianie folderu klipy z poprzedniej lokalizacji znikną z listy " +
-      "(pliki na dysku zostają nienaruszone). Z nowego folderu zostaną wczytane od nowa.";
+      t("config.introChange");
     els.configCancel.hidden = false;
-    els.configSave.textContent = "Zapisz i przeskanuj";
+    els.configSave.textContent = t("config.saveChange");
   }
   els.configPath.value = cfg.clips_root || "";
   els.configError.hidden = true;
@@ -1800,7 +1822,7 @@ if (els.configBrowse) {
         els.configSave.focus();
       }
     } else {
-      toast("Wybór folderu działa tylko w aplikacji desktopowej.", "error");
+      toast(t("toast.folderPickerDesktopOnly"), "error");
     }
   });
 }
@@ -1808,12 +1830,12 @@ if (els.configBrowse) {
 els.configSave.addEventListener("click", async () => {
   const newPath = els.configPath.value.trim();
   if (!newPath) {
-    els.configError.textContent = "Wpisz ścieżkę do folderu.";
+    els.configError.textContent = t("toast.configPathError");
     els.configError.hidden = false;
     return;
   }
   els.configSave.disabled = true;
-  els.configSave.textContent = "Sprawdzam…";
+  els.configSave.textContent = t("config.checking");
   try {
     const r = await fetch("/api/config", {
       method: "POST",
@@ -1836,7 +1858,7 @@ els.configSave.addEventListener("click", async () => {
     els.configError.hidden = false;
   } finally {
     els.configSave.disabled = false;
-    els.configSave.textContent = els.configCancel.hidden ? "Użyj tego folderu" : "Zapisz i przeskanuj";
+    els.configSave.textContent = els.configCancel.hidden ? t("config.saveFirst") : t("config.saveChange");
   }
 });
 els.cancel.addEventListener("click", async () => {
@@ -1965,21 +1987,21 @@ async function saveSelection() {
   const ids = Array.from(_selectedClipIds);
   if (!folderId || !ids.length) return;
   els.selAdd.disabled = true;
-  els.selAdd.textContent = "Dodaję…";
+  els.selAdd.textContent = t("selection.adding");
   try {
     await Promise.all(
       ids.map((cid) =>
         fetch(`/api/folders/${folderId}/clips/${cid}`, { method: "POST" })
       )
     );
-    toast(`Dodano ${ids.length} ${clipsWord(ids.length)} do folderu „${_selectionTargetFolderName}".`);
+    toast(t("toast.folderAdded").replace("{n}", ids.length).replace("{word}", t("selection.selectedWord")).replace("{folder}", _selectionTargetFolderName));
     const fid = folderId;
     exitSelectionMode();
     // Jump back into the folder detail view to show the result
     setView("folders");
     openFolder(fid);
   } catch (e) {
-    toast(`Błąd dodawania: ${e.message}`, "error");
+    toast(t("toast.folderAddError").replace("{error}", e.message), "error");
     _updateSelectionUI();
   }
 }
@@ -2108,7 +2130,7 @@ function folderCard(f) {
 }
 
 async function promptNewFolder() {
-  const name = window.prompt("Nazwa nowego folderu:");
+  const name = window.prompt(t("folders.promptName"));
   if (!name || !name.trim()) return;
   try {
     const r = await fetch("/api/folders", {
@@ -2118,7 +2140,7 @@ async function promptNewFolder() {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
-    toast(`Utworzono folder „${data.name}".`);
+    toast(t("toast.folderCreateStandalone").replace("{name}", data.name));
     await loadFoldersIndex();
   } catch (e) {
     toast(e.message, "error");
@@ -2136,7 +2158,7 @@ async function openFolder(folderId) {
   els.folderDetailCount.textContent = `${n} ${clipsWord(n)}`;
   if (!n) {
     els.folderDetailGrid.innerHTML =
-      `<div class="empty">Folder jest pusty. Otwórz dowolny klip i kliknij <b>📁 Foldery</b> w playerze, żeby go dodać.</div>`;
+      `<div class="empty">${t("folders.emptyFolder")}</div>`;
   } else {
     els.folderDetailGrid.innerHTML = data.clips.map(clipCard).join("");
     els.folderDetailGrid.querySelectorAll(".result").forEach((el) =>
@@ -2155,7 +2177,7 @@ els.btnBackFolders.addEventListener("click", () => {
 els.btnRenameFolder.addEventListener("click", async () => {
   if (_currentFolderId == null) return;
   const oldName = els.folderDetailName.textContent;
-  const newName = window.prompt("Nowa nazwa folderu:", oldName);
+  const newName = window.prompt(t("folders.promptRename"), oldName);
   if (!newName || newName.trim() === oldName) return;
   try {
     const r = await fetch(`/api/folders/${_currentFolderId}`, {
@@ -2166,7 +2188,7 @@ els.btnRenameFolder.addEventListener("click", async () => {
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
     els.folderDetailName.textContent = newName.trim();
-    toast("Zmieniono nazwę folderu.");
+    toast(t("toast.folderRenamed"));
   } catch (e) {
     toast(e.message, "error");
   }
@@ -2179,10 +2201,10 @@ els.btnDeleteFolder.addEventListener("click", async () => {
   if (_currentFolderId == null) return;
   const name = els.folderDetailName.textContent;
   const ok = await showConfirm({
-    title: "Usunąć folder?",
-    body: `Folder „${name}" zostanie usunięty. Klipy same w sobie zostają.`,
-    warning: "Nie można cofnąć — będziesz musiał utworzyć folder ponownie i dodać klipy.",
-    yesLabel: "Tak, usuń folder",
+    title: t("confirm.deleteFolder.title"),
+    body: t("confirm.deleteFolder.body").replace("{name}", name),
+    warning: t("confirm.deleteFolder.warning"),
+    yesLabel: t("confirm.deleteFolder.yes"),
     yesClass: "danger",
   });
   if (!ok) return;
@@ -2190,7 +2212,7 @@ els.btnDeleteFolder.addEventListener("click", async () => {
     const r = await fetch(`/api/folders/${_currentFolderId}`, { method: "DELETE" });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
-    toast(`Usunięto folder „${data.deleted_name}".`);
+    toast(t("toast.folderDeleted").replace("{name}", data.deleted_name));
     _currentFolderId = null;
     els.folderDetail.hidden = true;
     els.foldersIndex.hidden = false;
@@ -2412,7 +2434,7 @@ if (els.video) {
     a.href = canvas.toDataURL("image/jpeg");
     a.download = `KeepClip_Screenshot_${fmtTime(els.video.currentTime).replace(':','-')}.jpg`;
     a.click();
-    toast("Скриншот сохранен!"); // Используем твою функцию toast
+    toast(t("toast.screenshotSaved")); // Используем твою функцию toast
   });
 }
 
@@ -2423,3 +2445,74 @@ document.addEventListener("keydown", (e) => {
     if(els.video) els.video.paused ? els.video.play() : els.video.pause();
   }
 });
+/* ── Кастомный плеер для окна "Wytnij fragment" ── */
+(function() {
+  const video = document.getElementById('cut-video');
+  const btnPlay    = document.getElementById('cut-ctrl-play');
+  const btnMute    = document.getElementById('cut-ctrl-mute');
+  const btnStart   = document.getElementById('cut-ctrl-start');
+  const btnRewind  = document.getElementById('cut-ctrl-rewind');
+  const btnForward = document.getElementById('cut-ctrl-forward');
+  const btnEnd     = document.getElementById('cut-ctrl-end');
+  const volume     = document.getElementById('cut-ctrl-volume');
+  const progress   = document.getElementById('cut-ctrl-progress');
+  const timeCur    = document.getElementById('cut-ctrl-time-current');
+  const timeTotal  = document.getElementById('cut-ctrl-time-total');
+
+  if (!video || !btnPlay || !progress) return;
+
+  const fmt = (s) => {
+    if (!isFinite(s)) return '0:00';
+    const m = Math.floor(s / 60), sec = Math.floor(s % 60);
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  };
+
+  const syncPlayIcon = () => {
+    btnPlay.innerHTML = video.paused
+      ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+  };
+
+  const syncMuteIcon = () => {
+    btnMute.innerHTML = video.muted
+      ? '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>';
+  };
+
+  btnPlay.addEventListener('click', () => { video.paused ? video.play() : video.pause(); });
+  video.addEventListener('play', syncPlayIcon);
+  video.addEventListener('pause', syncPlayIcon);
+
+  btnMute.addEventListener('click', () => { video.muted = !video.muted; syncMuteIcon(); });
+  volume.addEventListener('input', () => { video.volume = volume.value; video.muted = false; syncMuteIcon(); });
+
+  btnStart.addEventListener('click', () => { video.currentTime = 0; });
+  btnEnd.addEventListener('click', () => { video.currentTime = video.duration || 0; });
+  btnRewind.addEventListener('click', () => { video.currentTime = Math.max(0, video.currentTime - 5); });
+  btnForward.addEventListener('click', () => { video.currentTime = Math.min(video.duration || 0, video.currentTime + 5); });
+
+  video.addEventListener('loadedmetadata', () => {
+    progress.max = video.duration;
+    timeTotal.textContent = fmt(video.duration);
+  });
+
+  let dragging = false;
+  video.addEventListener('timeupdate', () => {
+    if (!dragging) {
+      progress.value = video.currentTime;
+      timeCur.textContent = fmt(video.currentTime);
+    }
+  });
+  progress.addEventListener('mousedown', () => dragging = true);
+  progress.addEventListener('input', () => { timeCur.textContent = fmt(progress.value); });
+  progress.addEventListener('change', () => { video.currentTime = progress.value; dragging = false; });
+
+  // Пробел работает и в cut-overlay
+  document.addEventListener('keydown', (e) => {
+    if (e.key === ' ' && document.getElementById('cut-overlay') && !document.getElementById('cut-overlay').hidden
+        && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
+      e.preventDefault();
+      video.paused ? video.play() : video.pause();
+    }
+  });
+})();
