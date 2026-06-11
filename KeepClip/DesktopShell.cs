@@ -68,6 +68,50 @@ internal sealed class ShellForm : Form
         Controls.Add(_web);
 
         Load += async (_, _) => await InitWebViewAsync();
+
+        // Instant-replay "save" hotkey: this form's handle hosts the system-wide
+        // RegisterHotKey (fires even with a fullscreen game focused). The service's
+        // notifier renders saves as an on-screen toast over the game.
+        HandleCreated += (_, _) =>
+        {
+            HotkeyManager.Attach(this);
+            ReplayService.Notifier = SafeToast;
+        };
+    }
+
+    /// <summary>WM_HOTKEY → dump the replay ring. Fire-and-forget: the save runs on the
+    /// thread pool so a multi-second concat never freezes the UI thread. The outcome
+    /// shows as an on-screen toast (visible over the game), marshaled back here.</summary>
+    protected override void WndProc(ref Message m)
+    {
+        if (HotkeyManager.HandleMessage(ref m))
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    // Success shows itself via ReplayService.Notifier (one toast for
+                    // every save source); only the failure needs reporting here.
+                    await ReplayService.SaveAsync("hotkey");
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Powtórka (hotkey): {ex.Message}");
+                    SafeToast(false, "Nie udało się zapisać powtórki", ex.Message);
+                }
+            });
+            return;
+        }
+        base.WndProc(ref m);
+    }
+
+    private void SafeToast(bool ok, string title, string subtitle)
+    {
+        try
+        {
+            if (!IsDisposed) BeginInvoke(() => ReplayToast.Display(ok, title, subtitle));
+        }
+        catch { /* window torn down mid-save */ }
     }
 
     private void TryLoadIcon()

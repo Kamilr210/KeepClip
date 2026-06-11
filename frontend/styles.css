@@ -574,6 +574,43 @@ header {
 }
 #config-actions { margin-top: 18px; }
 
+/* --- instant replay modal --- */
+#replay-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2500;
+  display: flex; align-items: center; justify-content: center;
+}
+#replay-box {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 22px 24px; max-width: 560px; width: 92vw;
+  box-shadow: 0 20px 60px rgba(0,0,0,.5);
+}
+#replay-box h3 { margin: 0 0 10px; font-size: 18px; }
+.replay-status { display: flex; align-items: center; gap: 9px; margin: 14px 0 4px; }
+.replay-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex: none;
+  background: var(--muted); transition: background .2s, box-shadow .2s;
+}
+.replay-dot.on { background: var(--good, #46d169); box-shadow: 0 0 8px rgba(70,209,105,.7); }
+.replay-dot.err { background: #ff6b81; box-shadow: 0 0 8px rgba(255,107,129,.6); }
+.replay-toggle-row {
+  display: flex; align-items: center; gap: 10px; margin: 16px 0 4px;
+  cursor: pointer; font-size: 14px; user-select: none;
+}
+.replay-toggle-row input { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
+.replay-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 4px;
+}
+.replay-grid select, #replay-hotkey {
+  width: 100%; background: var(--card-2); border: 1px solid var(--border);
+  color: var(--text); border-radius: 8px; padding: 9px 12px; font-size: 14px;
+}
+#replay-hotkey { cursor: pointer; font-family: 'Consolas', monospace; }
+#replay-hotkey.capturing { outline: 2px solid var(--accent); border-color: var(--accent); }
+.replay-actions { margin-top: 20px; align-items: center; }
+.replay-actions-spacer { flex: 1; }
+/* feature off → the whole tuning grid greys out */
+#replay-box.off .replay-grid, #replay-box.off #replay-save-now { opacity: .45; pointer-events: none; }
+
 /* --- toast --- */
 #toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -661,6 +698,43 @@ header {
 }
 .toggle-switch.on { background: var(--accent); }
 .toggle-switch.on::after { transform: translateX(16px); }
+
+.lang-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  margin-top: 6px;
+}
+.lang-select-label {
+  flex: 1;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.lang-select-label strong {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+.lang-select {
+  background: var(--card-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+  flex-shrink: 0;
+}
+.lang-select:hover, .lang-select:focus { border-color: var(--accent); }
+
 .main { flex: 1 1 auto; min-width: 0; padding: 22px 28px 90px; padding-top: 54px; /* 32px titlebar + 22px original */ }
 
 /* brand (sidebar) */
@@ -1056,4 +1130,380 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 
 .storage-free.text-red {
   color: #ff5c75 !important;
+}
+
+/* =========================================
+   КАСТОМНЫЙ ВИДЕОПЛЕЕР (ПОД ВИДЕО + МИКШЕР)
+   ========================================= */
+#custom-player-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: #000;
+}
+
+.video-center-wrapper {
+  width: 100%;
+  flex: 1; /* Позволяет блоку гибко сжиматься */
+  min-height: 0; /* Обязательно для правильной работы флексов */
+  max-height: 50vh; /* Оставляем 50% высоты экрана под видео, остальное пойдет на кнопки и текст */
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#custom-player-container #player {
+  width: auto;
+  height: 100%;
+  max-height: 50vh; /* Синхронизируем с оберткой */
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Панель управления строго ПОД видео (постоянно видимая) */
+.player-controls-panel {
+  background: var(--card-2);
+  border-top: 1px solid var(--border);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Ряд кнопок */
+.controls-buttons-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Круглые кнопки (уменьшены с 36px до 30px) */
+.ctrl-round-btn {
+  background: rgba(42, 48, 64, 0.75);
+  border: none;
+  color: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.ctrl-round-btn:hover {
+  background: rgba(62, 70, 92, 0.95);
+  transform: scale(1.05);
+}
+
+.ctrl-round-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* Центральная кнопка Play (уменьшена с 48px до 40px) */
+.ctrl-round-btn.play-btn {
+  width: 40px;
+  height: 40px;
+  background: rgba(50, 58, 78, 0.9);
+}
+.ctrl-round-btn.play-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* --- ВСПЛЫВАЮЩИЙ МИКШЕР ЗВУКА --- */
+.volume-control-wrap {
+  position: relative;
+}
+
+.volume-mixer-popover {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+  z-index: 100; /* <-- Вот это гарантирует, что микшер будет поверх всего */
+  margin-bottom: 8px;
+  display: none;
+}
+
+/* ПОКАЗЫВАЕМ ТОЛЬКО ПО КЛИКУ (класс .show) */
+.volume-mixer-popover.show {
+  display: block;
+}
+
+/* Компактный ползунок внутри микшера */
+.compact-slider {
+  -webkit-appearance: none;
+  width: 70px;
+  height: 4px;
+  background: var(--card-2);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+.compact-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+/* --- ПОЛЗУНОК ВРЕМЕНИ (НИЖНИЙ РЯД) --- */
+.controls-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.time-text {
+  font-size: 12px;
+  color: #8b92a5;
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: center;
+}
+
+.full-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.15);
+  height: 4px;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.full-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  cursor: pointer;
+}
+
+/* Фиксы для полноэкранного режима */
+#custom-player-container:fullscreen {
+  height: 100vh;
+  max-height: none;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+#custom-player-container:fullscreen .video-center-wrapper {
+  flex: 1;
+  max-height: none;
+}
+#custom-player-container:fullscreen #player {
+  max-height: calc(100vh - 80px);
+}
+/* ── Боковая панель действий плеера (справа от видео) ── */
+#custom-player-container {
+  flex-direction: row !important;
+  align-items: stretch;
+}
+
+.video-center-wrapper {
+  flex: 1 1 auto;
+}
+
+.player-side-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 6px;
+  background: var(--card-2);
+  border-left: 1px solid var(--border);
+  min-width: 80px;
+  width: 80px;
+  overflow-y: auto;
+  justify-content: flex-start;
+}
+
+.side-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-muted, #aaa);
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+  font-size: 11px;
+  width: 100%;
+  line-height: 1.2;
+}
+
+.side-action-btn svg,
+.side-action-btn .ni-ic {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.side-action-btn:hover {
+  background: var(--card, rgba(255,255,255,.07));
+  border-color: var(--border);
+  color: #fff;
+}
+
+.side-action-btn.primary {
+  color: var(--accent, #7c5cff);
+  border-color: transparent;
+}
+.side-action-btn.primary:hover {
+  background: rgba(124,92,255,.18);
+  border-color: rgba(124,92,255,.4);
+  color: #fff;
+}
+
+.side-action-btn.danger {
+  color: #e05c5c;
+}
+.side-action-btn.danger:hover {
+  background: rgba(224,92,92,.15);
+  border-color: rgba(224,92,92,.35);
+  color: #ff7474;
+}
+
+.side-action-btn.is-fav {
+  color: #ffc24b;
+}
+
+.side-action-label {
+  font-size: 10px;
+  text-align: center;
+  opacity: .75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.side-action-menu-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.side-action-menu-wrap .folders-dropdown {
+  position: absolute;
+  right: calc(100% + 8px);
+  top: 0;
+  left: auto;
+}
+
+/* Кликабельная ссылка на файл */
+.player-file-link {
+  color: inherit;
+  text-decoration: none;
+  font-size: inherit;
+  opacity: .7;
+  transition: opacity .15s, color .15s;
+  cursor: pointer;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.player-file-link:hover {
+  opacity: 1;
+  color: var(--accent, #7c5cff);
+  text-decoration: underline;
+}
+
+/* В полноэкранном режиме скрыть боковую панель */
+#custom-player-container:fullscreen .player-side-actions {
+  display: none;
+}
+
+/* ── Кастомный плеер в окне "Wytnij fragment" ── */
+#cut-player-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.cut-video-wrapper {
+  width: 100%;
+  background: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-height: 40vh;
+}
+
+.cut-video-wrapper #cut-video {
+  width: auto;
+  height: 100%;
+  max-height: 40vh;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.cut-controls-panel {
+  background: var(--card-2);
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Language switcher ── */
+.lang-switcher-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 6px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.lang-switcher-label {
+  font-size: 11px;
+  color: var(--fg-dim, #888);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lang-select {
+  flex: 1;
+  min-width: 0;
+  background: var(--card-2, #1a1a2e);
+  color: var(--fg, #e0e0e0);
+  border: 1px solid var(--border, #333);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.lang-select:hover,
+.lang-select:focus {
+  border-color: var(--accent, #7c5cff);
 }

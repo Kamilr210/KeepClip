@@ -20,9 +20,9 @@
     <Company>Kamil</Company>
     <Authors>Kamil</Authors>
     <Description>KeepClip — przeglądarka i wyszukiwarka klipów z transkrypcją (Whisper) i offloadem na Google Drive.</Description>
-    <Version>1.0.0</Version>
-    <FileVersion>1.0.0.0</FileVersion>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Version>2.0.0</Version>
+    <FileVersion>2.0.0.0</FileVersion>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
     <Copyright>© Kamil</Copyright>
 
     <!-- Self-contained win-x64 publish (runtime bundled, so OTHER users need nothing
@@ -52,6 +52,11 @@
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
+    <!-- System-audio capture for the instant-replay buffer (ReplayService). ffmpeg on
+         Windows has no built-in WASAPI loopback, so we capture the default render
+         device in-process and pipe raw PCM into ffmpeg's stdin alongside the ddagrab
+         video. NAudio is managed + COM interop only, so self-contained publish works. -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
   <!-- ===================================================================== -->

@@ -43,6 +43,13 @@ public static class Config
     /// </summary>
     public const string CutsSubdir = "Wycinki";
 
+    /// <summary>
+    /// Instant-replay saves land in this subfolder of the clips root (same pattern
+    /// as <see cref="CutsSubdir"/>): the scanner picks them up as game "Powtórki"
+    /// and the filename carries the foreground game + timestamp.
+    /// </summary>
+    public const string ReplaySubdir = "Powtórki";
+
     public static readonly HashSet<string> VideoExts =
         new(StringComparer.OrdinalIgnoreCase) { ".mp4", ".mkv", ".mov", ".avi", ".webm" };
 

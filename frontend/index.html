@@ -1,9 +1,3 @@
-<!--
-Icons
-https://www.svgrepo.com/collection/solar-broken-line-icons
-Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
--->
-
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -19,18 +13,16 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
 <div id="custom-titlebar">
     <div class="titlebar-drag-region pywebview-drag-region"></div>
     <div class="titlebar-controls">
-      <button id="btn-minimize" class="titlebar-btn minimize" title="Свернуть">🗕</button>
-      <button id="btn-maximize" class="titlebar-btn maximize" title="Развернуть/Восстановить">🗖</button>
-      <button id="btn-close" class="titlebar-btn close" title="Закрыть">✕</button>
+      <button id="btn-minimize" class="titlebar-btn minimize" data-i18n-title="titlebar.minimize" title="Свернуть">🗕</button>
+      <button id="btn-maximize" class="titlebar-btn maximize" data-i18n-title="titlebar.maximize" title="Развернуть/Восстановить">🗖</button>
+      <button id="btn-close" class="titlebar-btn close" data-i18n-title="titlebar.close" title="Закрыть">✕</button>
     </div>
 </div>
-<!-- ФОНОВЫЕ ИСТОЧНИКИ СВЕТА -->
 <div id="bg-orbs" aria-hidden="true">
   <div class="orb orb-1" id="orb1"></div>
   <div class="orb orb-2" id="orb2"></div>
 </div>
 
-<!-- SNAP-ИНДИКАТОР -->
 <div id="snap-hint" aria-hidden="true"></div>
 
 <div class="app-shell">
@@ -62,52 +54,66 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
     </div>
 
     <nav class="side-nav">
-      <div class="nav-section">Główne</div>
+      <div class="nav-section" data-i18n="nav.sectionMain">Główne</div>
       <button class="nav-item active" data-view="clips" type="button">
-      <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M19.5617 7C19.7904 5.69523 18.7863 4.5 17.4617 4.5H6.53788C5.21323 4.5 4.20922 5.69523 4.43784 7" stroke="#ffffff" stroke-width="1.5"></path> <path d="M17.4999 4.5C17.5283 4.24092 17.5425 4.11135 17.5427 4.00435C17.545 2.98072 16.7739 2.12064 15.7561 2.01142C15.6497 2 15.5194 2 15.2588 2H8.74099C8.48035 2 8.35002 2 8.24362 2.01142C7.22584 2.12064 6.45481 2.98072 6.45704 4.00434C6.45727 4.11135 6.47146 4.2409 6.49983 4.5" stroke="#ffffff" stroke-width="1.5"></path> <path d="M21.1935 16.793C20.8437 19.2739 20.6689 20.5143 19.7717 21.2572C18.8745 22 17.5512 22 14.9046 22H9.09536C6.44881 22 5.12553 22 4.22834 21.2572C3.33115 20.5143 3.15626 19.2739 2.80648 16.793L2.38351 13.793C1.93748 10.6294 1.71447 9.04765 2.66232 8.02383C3.61017 7 5.29758 7 8.67239 7H15.3276C18.7024 7 20.3898 7 21.3377 8.02383C22.0865 8.83268 22.1045 9.98979 21.8592 12" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M14.5812 13.6159C15.1396 13.9621 15.1396 14.8582 14.5812 15.2044L11.2096 17.2945C10.6669 17.6309 10 17.1931 10 16.5003L10 12.32C10 11.6273 10.6669 11.1894 11.2096 11.5258L14.5812 13.6159Z" stroke="#ffffff" stroke-width="1.5"></path> </g></svg>        <span class="nav-label">Klipy</span>
+      <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M19.5617 7C19.7904 5.69523 18.7863 4.5 17.4617 4.5H6.53788C5.21323 4.5 4.20922 5.69523 4.43784 7" stroke="#ffffff" stroke-width="1.5"></path> <path d="M17.4999 4.5C17.5283 4.24092 17.5425 4.11135 17.5427 4.00435C17.545 2.98072 16.7739 2.12064 15.7561 2.01142C15.6497 2 15.5194 2 15.2588 2H8.74099C8.48035 2 8.35002 2 8.24362 2.01142C7.22584 2.12064 6.45481 2.98072 6.45704 4.00434C6.45727 4.11135 6.47146 4.2409 6.49983 4.5" stroke="#ffffff" stroke-width="1.5"></path> <path d="M21.1935 16.793C20.8437 19.2739 20.6689 20.5143 19.7717 21.2572C18.8745 22 17.5512 22 14.9046 22H9.09536C6.44881 22 5.12553 22 4.22834 21.2572C3.33115 20.5143 3.15626 19.2739 2.80648 16.793L2.38351 13.793C1.93748 10.6294 1.71447 9.04765 2.66232 8.02383C3.61017 7 5.29758 7 8.67239 7H15.3276C18.7024 7 20.3898 7 21.3377 8.02383C22.0865 8.83268 22.1045 9.98979 21.8592 12" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M14.5812 13.6159C15.1396 13.9621 15.1396 14.8582 14.5812 15.2044L11.2096 17.2945C10.6669 17.6309 10 17.1931 10 16.5003L10 12.32C10 11.6273 10.6669 11.1894 11.2096 11.5258L14.5812 13.6159Z" stroke="#ffffff" stroke-width="1.5"></path> </g></svg>        <span class="nav-label" data-i18n="nav.clips">Klipy</span>
       </button>
       <button class="nav-item" data-view="folders" type="button">
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M22 11L2 11" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M22 11.7979C22 9.16554 22 7.84935 21.2305 6.99383C21.1598 6.91514 21.0849 6.84024 21.0062 6.76946C20.1506 6 18.8345 6 16.2021 6H15.8284C14.6747 6 14.0979 6 13.5604 5.84678C13.2651 5.7626 12.9804 5.64471 12.7121 5.49543C12.2237 5.22367 11.8158 4.81578 11 4L10.4497 3.44975C10.1763 3.17633 10.0396 3.03961 9.89594 2.92051C9.27652 2.40704 8.51665 2.09229 7.71557 2.01738C7.52976 2 7.33642 2 6.94975 2C6.06722 2 5.62595 2 5.25839 2.06935C3.64031 2.37464 2.37464 3.64031 2.06935 5.25839C2 5.62595 2 6.06722 2 6.94975M21.9913 16C21.9554 18.4796 21.7715 19.8853 20.8284 20.8284C19.6569 22 17.7712 22 14 22H10C6.22876 22 4.34315 22 3.17157 20.8284C2 19.6569 2 17.7712 2 14V11" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
-        <span class="nav-label">Foldery</span>
+        <span class="nav-label" data-i18n="nav.folders">Foldery</span>
       </button>
       <button class="nav-item" data-view="favorites" type="button">
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M8.96173 18.9109L9.42605 18.3219L8.96173 18.9109ZM12 5.50063L11.4596 6.02073C11.601 6.16763 11.7961 6.25063 12 6.25063C12.2039 6.25063 12.399 6.16763 12.5404 6.02073L12 5.50063ZM15.0383 18.9109L15.5026 19.4999L15.0383 18.9109ZM7.00061 16.4209C6.68078 16.1577 6.20813 16.2036 5.94491 16.5234C5.68169 16.8432 5.72758 17.3159 6.04741 17.5791L7.00061 16.4209ZM2.34199 13.4115C2.54074 13.7749 2.99647 13.9084 3.35988 13.7096C3.7233 13.5108 3.85677 13.0551 3.65801 12.6917L2.34199 13.4115ZM2.75 9.1371C2.75 6.98623 3.96537 5.18252 5.62436 4.42419C7.23607 3.68748 9.40166 3.88258 11.4596 6.02073L12.5404 4.98053C10.0985 2.44352 7.26409 2.02539 5.00076 3.05996C2.78471 4.07292 1.25 6.42503 1.25 9.1371H2.75ZM8.49742 19.4999C9.00965 19.9037 9.55954 20.3343 10.1168 20.6599C10.6739 20.9854 11.3096 21.25 12 21.25V19.75C11.6904 19.75 11.3261 19.6293 10.8736 19.3648C10.4213 19.1005 9.95208 18.7366 9.42605 18.3219L8.49742 19.4999ZM15.5026 19.4999C16.9292 18.3752 18.7528 17.0866 20.1833 15.4758C21.6395 13.8361 22.75 11.8026 22.75 9.1371H21.25C21.25 11.3345 20.3508 13.0282 19.0617 14.4798C17.7469 15.9603 16.0896 17.1271 14.574 18.3219L15.5026 19.4999ZM22.75 9.1371C22.75 6.42503 21.2153 4.07292 18.9992 3.05996C16.7359 2.02539 13.9015 2.44352 11.4596 4.98053L12.5404 6.02073C14.5983 3.88258 16.7639 3.68748 18.3756 4.42419C20.0346 5.18252 21.25 6.98623 21.25 9.1371H22.75ZM14.574 18.3219C14.0479 18.7366 13.5787 19.1005 13.1264 19.3648C12.6739 19.6293 12.3096 19.75 12 19.75V21.25C12.6904 21.25 13.3261 20.9854 13.8832 20.6599C14.4405 20.3343 14.9903 19.9037 15.5026 19.4999L14.574 18.3219ZM9.42605 18.3219C8.63014 17.6945 7.82129 17.0963 7.00061 16.4209L6.04741 17.5791C6.87768 18.2624 7.75472 18.9144 8.49742 19.4999L9.42605 18.3219ZM3.65801 12.6917C3.0968 11.6656 2.75 10.5033 2.75 9.1371H1.25C1.25 10.7746 1.66995 12.1827 2.34199 13.4115L3.65801 12.6917Z" fill="#ffffff"></path> </g></svg>
-        <span class="nav-label">Ulubione</span>
+        <span class="nav-label" data-i18n="nav.favorites">Ulubione</span>
       </button>
       <button class="nav-item" data-view="cloud" type="button">
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M12 16V22M12 16L14 18M12 16L10 18" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M22 13.3529C22 15.6958 20.5562 17.7055 18.5 18.5604M14.381 8.02721C14.9767 7.81911 15.6178 7.70588 16.2857 7.70588C16.9404 7.70588 17.5693 7.81468 18.1551 8.01498M7.11616 10.6089C6.8475 10.5567 6.56983 10.5294 6.28571 10.5294C3.91878 10.5294 2 12.4256 2 14.7647C2 16.6611 3.26124 18.2664 5 18.8061M7.11616 10.6089C6.88706 9.9978 6.7619 9.33687 6.7619 8.64706C6.7619 5.52827 9.32028 3 12.4762 3C15.4159 3 17.8371 5.19371 18.1551 8.01498M7.11616 10.6089C7.68059 10.7184 8.20528 10.9374 8.66667 11.2426M18.1551 8.01498C19.0446 8.31916 19.8345 8.83436 20.4633 9.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
-        <span class="nav-label">Chmura</span>
+        <span class="nav-label" data-i18n="nav.cloud">Chmura</span>
         <span class="nav-dot" id="cloud-nav-dot" hidden></span>
       </button>
 
-      <div class="nav-section">Narzędzia</div>
+      <div class="nav-section" data-i18n="nav.sectionTools">Narzędzia</div>
       <button class="nav-tool" id="btn-scan" type="button">
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M18.5 18.5L22 22" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M6.75 3.27093C8.14732 2.46262 9.76964 2 11.5 2C16.7467 2 21 6.25329 21 11.5C21 16.7467 16.7467 21 11.5 21C6.25329 21 2 16.7467 2 11.5C2 9.76964 2.46262 8.14732 3.27093 6.75" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
-        <span class="nav-label">Skanuj folder</span>
+        <span class="nav-label" data-i18n="nav.scanFolder">Skanuj folder</span>
       </button>
       <button class="nav-tool" id="btn-transcribe" type="button">
-        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M10.5026 5.01692L9.96661 3.65785C9.62068 2.78072 8.37933 2.78072 8.03339 3.65784L6.96137 6.37599C6.85576 6.64378 6.64378 6.85575 6.37599 6.96137L3.65785 8.03339C2.78072 8.37932 2.78072 9.62067 3.65784 9.96661L6.37599 11.0386C6.64378 11.1442 6.85575 11.3562 6.96137 11.624L8.03339 14.3422C8.37932 15.2193 9.62067 15.2193 9.96661 14.3422L11.0386 11.624C11.1442 11.3562 11.3562 11.1442 11.624 11.0386L14.3422 9.96661C15.2193 9.62068 15.2193 8.37933 14.3422 8.03339L12.9831 7.49738" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M16.4885 13.3481C16.6715 12.884 17.3285 12.884 17.5115 13.3481L18.3121 15.3781C18.368 15.5198 18.4802 15.632 18.6219 15.6879L20.6519 16.4885C21.116 16.6715 21.116 17.3285 20.6519 17.5115L18.6219 18.3121C18.4802 18.368 18.368 18.4802 18.3121 18.6219L17.5115 20.6519C17.3285 21.116 16.6715 21.116 16.4885 20.6519L15.6879 18.6219C15.632 18.4802 15.5198 18.368 15.3781 18.3121L13.3481 17.5115C12.884 17.3285 12.884 16.6715 13.3481 16.4885L15.3781 15.6879C15.5198 15.632 15.632 15.5198 15.6879 15.3781L16.4885 13.3481Z" stroke="#ffffff" stroke-width="1.5"></path> </g></svg>        <span class="nav-label">Transkrybuj nowe</span>
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M10.5026 5.01692L9.96661 3.65785C9.62068 2.78072 8.37933 2.78072 8.03339 3.65784L6.96137 6.37599C6.85576 6.64378 6.64378 6.85575 6.37599 6.96137L3.65785 8.03339C2.78072 8.37932 2.78072 9.62067 3.65784 9.96661L6.37599 11.0386C6.64378 11.1442 6.85575 11.3562 6.96137 11.624L8.03339 14.3422C8.37932 15.2193 9.62067 15.2193 9.96661 14.3422L11.0386 11.624C11.1442 11.3562 11.3562 11.1442 11.624 11.0386L14.3422 9.96661C15.2193 9.62068 15.2193 8.37933 14.3422 8.03339L12.9831 7.49738" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M16.4885 13.3481C16.6715 12.884 17.3285 12.884 17.5115 13.3481L18.3121 15.3781C18.368 15.5198 18.4802 15.632 18.6219 15.6879L20.6519 16.4885C21.116 16.6715 21.116 17.3285 20.6519 17.5115L18.6219 18.3121C18.4802 18.368 18.368 18.4802 18.3121 18.6219L17.5115 20.6519C17.3285 21.116 16.6715 21.116 16.4885 20.6519L15.6879 18.6219C15.632 18.4802 15.5198 18.368 15.3781 18.3121L13.3481 17.5115C12.884 17.3285 12.884 16.6715 13.3481 16.4885L15.3781 15.6879C15.5198 15.632 15.632 15.5198 15.6879 15.3781L16.4885 13.3481Z" stroke="#ffffff" stroke-width="1.5"></path> </g></svg>        <span class="nav-label" data-i18n="nav.transcribeNew">Transkrybuj nowe</span>
       </button>
       <button class="nav-tool" id="btn-cancel" type="button" hidden>
-        <!--na razie nie zmieniłem xD-->
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        <span class="nav-label">Anuluj</span>
+        <span class="nav-label" data-i18n="nav.cancel">Anuluj</span>
       </button>
       <button class="nav-tool" data-action="change-folder" type="button">
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M22 14C22 17.7712 22 19.6569 20.8284 20.8284C19.6569 22 17.7712 22 14 22H10C6.22876 22 4.34315 22 3.17157 20.8284C2.51839 20.1752 2.22937 19.3001 2.10149 18M2 12V6.94975C2 6.06722 2 5.62595 2.06935 5.25839C2.37464 3.64031 3.64031 2.37464 5.25839 2.06935C5.62595 2 6.06722 2 6.94975 2C7.33642 2 7.52976 2 7.71557 2.01738C8.51665 2.09229 9.27652 2.40704 9.89594 2.92051C10.0396 3.03961 10.1763 3.17633 10.4497 3.44975L11 4C11.8158 4.81578 12.2237 5.22367 12.7121 5.49543C12.9804 5.64471 13.2651 5.7626 13.5604 5.84678C14.0979 6 14.6747 6 15.8284 6H16.2021C18.8345 6 20.1506 6 21.0062 6.76946C21.0849 6.84024 21.1598 6.91514 21.2305 6.99383C21.8004 7.62741 21.9482 8.51364 21.9866 10" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M2 15C8.44365 15 6.55635 15 13 15M13 15L8.875 12M13 15L8.875 18" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
-        <span class="nav-label">Zmień folder z klipami</span>
+        <span class="nav-label" data-i18n="nav.changeFolder">Zmień folder z klipami</span>
       </button>
       <button class="nav-tool" data-action="retranscribe-all" type="button">
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M9.5 19.75C9.91421 19.75 10.25 19.4142 10.25 19C10.25 18.5858 9.91421 18.25 9.5 18.25V19.75ZM11 5V5.75C11.3033 5.75 11.5768 5.56727 11.6929 5.28701C11.809 5.00676 11.7448 4.68417 11.5303 4.46967L11 5ZM9.53033 2.46967C9.23744 2.17678 8.76256 2.17678 8.46967 2.46967C8.17678 2.76256 8.17678 3.23744 8.46967 3.53033L9.53033 2.46967ZM1.25 12C1.25 12.4142 1.58579 12.75 2 12.75C2.41421 12.75 2.75 12.4142 2.75 12H1.25ZM3.86991 15.5709C3.63293 15.2312 3.16541 15.1479 2.82569 15.3849C2.48596 15.6219 2.40267 16.0894 2.63965 16.4291L3.86991 15.5709ZM9.5 18.25H9.00028V19.75H9.5V18.25ZM9 5.75H11V4.25H9V5.75ZM11.5303 4.46967L9.53033 2.46967L8.46967 3.53033L10.4697 5.53033L11.5303 4.46967ZM2.75 12C2.75 8.54822 5.54822 5.75 9 5.75V4.25C4.71979 4.25 1.25 7.71979 1.25 12H2.75ZM2.63965 16.4291C4.03893 18.435 6.36604 19.75 9.00028 19.75V18.25C6.87703 18.25 5.00068 17.1919 3.86991 15.5709L2.63965 16.4291Z" fill="#ffffff"></path> <path d="M13 19V18.25C12.6967 18.25 12.4232 18.4327 12.3071 18.713C12.191 18.9932 12.2552 19.3158 12.4697 19.5303L13 19ZM14.4697 21.5303C14.7626 21.8232 15.2374 21.8232 15.5303 21.5303C15.8232 21.2374 15.8232 20.7626 15.5303 20.4697L14.4697 21.5303ZM14.5 4.25C14.0858 4.25 13.75 4.58579 13.75 5C13.75 5.41421 14.0858 5.75 14.5 5.75V4.25ZM22.75 12C22.75 11.5858 22.4142 11.25 22 11.25C21.5858 11.25 21.25 11.5858 21.25 12H22.75ZM20.1302 8.42907C20.3671 8.76881 20.8347 8.85211 21.1744 8.61514C21.5141 8.37817 21.5974 7.91066 21.3604 7.57093L20.1302 8.42907ZM15 18.25H13V19.75H15V18.25ZM12.4697 19.5303L14.4697 21.5303L15.5303 20.4697L13.5303 18.4697L12.4697 19.5303ZM14.5 5.75H15V4.25H14.5V5.75ZM21.25 12C21.25 15.4518 18.4518 18.25 15 18.25V19.75C19.2802 19.75 22.75 16.2802 22.75 12H21.25ZM21.3604 7.57093C19.9613 5.56497 17.6342 4.25 15 4.25V5.75C17.1232 5.75 18.9995 6.80806 20.1302 8.42907L21.3604 7.57093Z" fill="#ffffff"></path> </g></svg>
-        <span class="nav-label">Transkrybuj ponownie</span>
+        <span class="nav-label" data-i18n="nav.retranscribeAll">Transkrybuj ponownie</span>
+      </button>
+      <button class="nav-tool" data-action="replay" type="button">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M10.5 9.5v5l4.5-2.5z" fill="#ffffff"/></svg>
+        <span class="nav-label" data-i18n="nav.replay">Natychmiastowa powtórka</span>
+        <span class="nav-dot" id="replay-nav-dot" hidden></span>
       </button>
     </nav>
 
-    <!-- ПЕРЕКЛЮЧАТЕЛЬ АНИМАЦИИ ФОНА -->
+    <div class="lang-switcher-wrap">
+      <label class="lang-switcher-label" data-i18n="ui.language">Język</label>
+      <select id="lang-select" class="lang-select">
+        <option value="en">English</option>
+        <option value="pl">Polski</option>
+        <option value="uk">Українська</option>
+        <option value="ru">Русский</option>
+        
+      </select>
+    </div>
+
     <div class="orb-toggle-wrap" id="orb-toggle" role="button" tabindex="0" aria-label="Включить/выключить анимацию фона">
       <div class="orb-toggle-label">
-        <strong>Tło animowane</strong>
-        Źródła światła
+        <strong data-i18n="orb.label">Tło animowane</strong>
+        <span data-i18n="orb.sublabel">Źródła światła</span>
       </div>
       <div class="toggle-switch on" id="toggle-knob"></div>
     </div>
@@ -116,7 +122,7 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
 
   <main class="main">
     <section id="progress" class="card" hidden>
-      <button id="progress-close" class="progress-close" type="button" title="Zamknij" aria-label="Zamknij" hidden>✕</button>
+      <button id="progress-close" class="progress-close" type="button" data-i18n-title="progress.close" data-i18n-aria="progress.close" title="Zamknij" aria-label="Zamknij" hidden>✕</button>
       <div class="progress-row">
         <div class="progress-bar"><div id="progress-fill"></div></div>
         <div id="progress-text">0 / 0</div>
@@ -124,27 +130,25 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
       <div id="progress-current" class="subtle"></div>
     </section>
 
-    <!-- Selection bar (shown only in selection mode) -->
     <div id="selection-bar" class="card" hidden>
       <div class="sel-info">
-        Wybierasz klipy do folderu „<b id="sel-folder-name"></b>"
-        <span class="subtle">— <span id="sel-count">0</span> zaznaczonych</span>
+        <span data-i18n="selection.info">Wybierasz klipy do folderu</span> „<b id="sel-folder-name"></b>"
+        <span class="subtle">— <span id="sel-count">0</span> <span data-i18n="selection.selectedWord">zaznaczonych</span></span>
       </div>
       <div class="sel-actions">
-        <button id="sel-cancel" class="btn ghost">Anuluj</button>
-        <button id="sel-add" class="btn primary" disabled>Dodaj zaznaczone</button>
+        <button id="sel-cancel" class="btn ghost" data-i18n="selection.cancel">Anuluj</button>
+        <button id="sel-add" class="btn primary" data-i18n="selection.addSelected" disabled>Dodaj zaznaczone</button>
       </div>
     </div>
 
-    <!-- VIEW: all clips (default) -->
     <div id="view-clips">
       <section class="search-bar card">
         <input id="q" type="search" placeholder="Szukaj klipów, map, słów z transkrypcji…" autocomplete="off" autofocus />
         <div class="view-toggle" role="group" aria-label="Układ klipów">
-          <button id="layout-grid" class="view-toggle-btn active" data-layout="grid" type="button" title="Równa siatka" aria-label="Równa siatka">
+          <button id="layout-grid" class="view-toggle-btn active" data-layout="grid" type="button" data-i18n-title="ui.layoutGrid" title="Równa siatka" aria-label="Równa siatka">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="8" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/><rect x="13" y="13" width="8" height="8" rx="1.6"/></svg>
           </button>
-          <button id="layout-mosaic" class="view-toggle-btn" data-layout="mosaic" type="button" title="Mozaika — różne rozmiary" aria-label="Mozaika">
+          <button id="layout-mosaic" class="view-toggle-btn" data-layout="mosaic" type="button" data-i18n-title="ui.layoutMosaic" title="Mozaika — różne rozmiary" aria-label="Mozaika">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="11" height="11" rx="1.6"/><rect x="16" y="3" width="5" height="5" rx="1.2"/><rect x="16" y="10" width="5" height="4" rx="1.2"/><rect x="3" y="16" width="6" height="5" rx="1.2"/><rect x="11" y="16" width="10" height="5" rx="1.2"/></svg>
           </button>
         </div>
@@ -167,7 +171,7 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
           </div>
           <div class="stat-meta">
             <div class="stat-num" id="stat-clips">…</div>
-            <div class="stat-label">Wszystkie klipy</div>
+            <div class="stat-label" data-i18n="stat.allClips">Wszystkie klipy</div>
           </div>
         </div>
         <div class="stat-card">
@@ -176,7 +180,7 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
           </div>
           <div class="stat-meta">
             <div class="stat-num" id="stat-trans">…</div>
-            <div class="stat-label">Transkrybowane</div>
+            <div class="stat-label" data-i18n="stat.transcribed">Transkrybowane</div>
           </div>
         </div>
         <div class="stat-card">
@@ -185,7 +189,7 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
           </div>
           <div class="stat-meta">
             <div class="stat-num" id="stat-fav">…</div>
-            <div class="stat-label">Ulubione</div>
+            <div class="stat-label" data-i18n="stat.favorites">Ulubione</div>
           </div>
         </div>
       </section>
@@ -196,7 +200,7 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
             <span class="storage-ic" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M17 22V21C17 19.1144 17 18.1716 16.4142 17.5858C15.8284 17 14.8856 17 13 17H11C9.11438 17 8.17157 17 7.58579 17.5858C7 18.1716 7 19.1144 7 21V22" stroke="#ffffff" stroke-width="1.5"></path> <path d="M7 8H13" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C12.3415 2 12.5122 2 12.6858 2.01515C13.4951 2.08581 14.2874 2.414 14.9097 2.93631C15.0431 3.04835 15.1668 3.17206 15.4142 3.41944L20.5806 8.58578C20.828 8.83317 20.9516 8.95687 21.0637 9.09034C21.586 9.71257 21.9142 10.5049 21.9848 11.3142C22 11.4878 22 11.6585 22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22C7.28595 22 4.92893 22 3.46447 20.5355C2.49073 19.5618 2.16444 18.1934 2.0551 16" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
             </span>
-            <span class="storage-title">Dysk lokalny</span>
+            <span class="storage-title" data-i18n="storageTitle.localDisk">Dysk lokalny</span>
             <span class="storage-free" id="local-free">…</span>
           </div>
           <div class="storage-bar">
@@ -204,8 +208,8 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
             <span class="seg seg-other" id="local-fill-other"></span>
           </div>
           <div class="storage-legend">
-            <span><i class="dot dot-clips"></i>Klipy <b id="local-clips">…</b></span>
-            <span>z <b id="local-total">…</b></span>
+            <span><i class="dot dot-clips"></i><span data-i18n="storageLabel.clips">Klipy</span> <b id="local-clips">…</b></span>
+            <span><span data-i18n="storageLabel.of">z</span> <b id="local-total">…</b></span>
           </div>
         </div>
         <div class="storage-box cloud">
@@ -213,7 +217,7 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
             <span class="storage-ic" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M22 13.3529C22 16.0599 20.0726 18.3221 17.5 18.8722M6.28571 19C3.91878 19 2 17.1038 2 14.7647C2 12.4256 3.91878 10.5294 6.28571 10.5294C6.56983 10.5294 6.8475 10.5567 7.11616 10.6089M14.381 8.02721C14.9767 7.81911 15.6178 7.70588 16.2857 7.70588C16.9404 7.70588 17.5693 7.81468 18.1551 8.01498M7.11616 10.6089C6.88706 9.9978 6.7619 9.33687 6.7619 8.64706C6.7619 5.52827 9.32028 3 12.4762 3C15.4159 3 17.8371 5.19371 18.1551 8.01498M7.11616 10.6089C7.68059 10.7184 8.20528 10.9374 8.66667 11.2426M18.1551 8.01498C18.8381 8.24853 19.4623 8.60648 20 9.06141" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M14 19H12L10 19" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
             </span>
-            <span class="storage-title">Chmura (Google Drive)</span>
+            <span class="storage-title" data-i18n="storageTitle.cloudDrive">Chmura (Google Drive)</span>
             <span class="storage-free" id="cloud-free">…</span>
           </div>
           <div class="storage-bar">
@@ -221,8 +225,8 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
             <span class="seg seg-other" id="cloud-fill-other"></span>
           </div>
           <div class="storage-legend">
-            <span><i class="dot dot-cloud"></i>Klipy <b id="cloud-clips">…</b></span>
-            <span>z <b id="cloud-total">…</b></span>
+            <span><i class="dot dot-cloud"></i><span data-i18n="storageLabel.clips">Klipy</span> <b id="cloud-clips">…</b></span>
+            <span><span data-i18n="storageLabel.of">z</span> <b id="cloud-total">…</b></span>
           </div>
         </div>
       </section>
@@ -230,64 +234,57 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
       <section id="results" class="grid"></section>
     </div>
 
-    <!-- VIEW: folders -->
     <div id="view-folders" hidden>
-      <!-- folders index -->
       <div id="folders-index">
         <div class="folders-header">
-          <h2>Twoje foldery</h2>
-          <button id="btn-new-folder" class="btn primary">+ Nowy folder</button>
+          <h2 data-i18n="folders.yourFolders">Twoje foldery</h2>
+          <button id="btn-new-folder" class="btn primary" data-i18n="folders.newFolderBtn">+ Nowy folder</button>
         </div>
         <div id="folders-grid" class="grid folder-grid"></div>
       </div>
-      <!-- folder detail (when one is open) -->
       <div id="folder-detail" hidden>
         <div class="folders-header">
-          <button id="btn-back-folders" class="btn ghost">← Foldery</button>
+          <button id="btn-back-folders" class="btn ghost" data-i18n="folderDetail.back">← Foldery</button>
           <h2 id="folder-detail-name"></h2>
           <span class="subtle" id="folder-detail-count"></span>
           <div class="folder-detail-actions">
-            <button id="btn-add-clips-to-folder" class="btn primary">+ Wybierz klipy</button>
-            <button id="btn-upload-folder" class="btn" title="Wyślij wszystkie klipy z folderu do chmury" hidden>☁ Wyślij folder do chmury</button>
-            <button id="btn-rename-folder" class="btn ghost" title="Zmień nazwę">✎</button>
-            <button id="btn-delete-folder" class="btn danger" title="Usuń folder">🗑</button>
+            <button id="btn-add-clips-to-folder" class="btn primary" data-i18n="folderDetail.selectClips">+ Wybierz klipy</button>
+            <button id="btn-upload-folder" class="btn" data-i18n-title="folderDetail.uploadCloud" data-i18n="folderDetail.uploadCloudBtn" title="Wyślij wszystkie klipy z folderu do chmury" hidden>☁ Wyślij folder do chmury</button>
+            <button id="btn-rename-folder" class="btn ghost" data-i18n-title="folderDetail.rename" title="Zmień nazwę">✎</button>
+            <button id="btn-delete-folder" class="btn danger" data-i18n-title="folderDetail.delete" title="Usuń folder">🗑</button>
           </div>
         </div>
         <div id="folder-detail-grid" class="grid"></div>
       </div>
     </div>
 
-    <!-- VIEW: favorites -->
     <div id="view-favorites" hidden>
       <div class="view-head">
-        <h2>Ulubione</h2>
+        <h2 data-i18n="nav.favorites">Ulubione</h2>
         <span class="subtle" id="fav-count"></span>
       </div>
       <section id="fav-results" class="grid"></section>
     </div>
 
-    <!-- VIEW: cloud -->
     <div id="view-cloud" hidden>
       <div class="view-head">
-        <h2>Chmura</h2>
-        <span class="subtle">Przechowuj klipy na własnym Google Drive i odtwarzaj je strumieniowo.</span>
+        <h2 data-i18n="nav.cloud">Chmura</h2>
+        <span class="subtle" data-i18n="cloud.subtitle">Przechowuj klipy na własnym Google Drive i odtwarzaj je strumieniowo.</span>
       </div>
 
       <div id="cloud-loading" class="cloud-panel card">
         <div class="spinner"></div>
-        <span class="subtle">Sprawdzam stan połączenia…</span>
+        <span class="subtle" data-i18n="cloudPanel.loading">Sprawdzam stan połączenia…</span>
       </div>
 
-      <!-- STATE: no google_client.json yet -->
       <div id="cloud-setup" class="cloud-panel card" hidden>
         <div class="cloud-hero">
           <div class="cloud-hero-ic" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.2 3.9 3.9 0 0 1 17 18z"/></svg>
           </div>
-          <h3>Podłącz własny Google Drive</h3>
+          <h3 data-i18n="cloudPanel.setupTitle">Podłącz własny Google Drive</h3>
           <p class="subtle">
-            KeepClip nie ma własnego serwera — używasz <b>swojego</b> konta Google Drive.
-            Aby to zadziałało, jednorazowo utwórz darmowego klienta OAuth i wgraj go do aplikacji.
+            <span data-i18n-html="cloudPanel.setupBody">KeepClip nie ma własnego serwera — używasz <b>swojego</b> konta Google Drive. Aby to zadziałało, jednorazowo utwórz darmowego klienta OAuth i wgraj go do aplikacji.</span>
           </p>
         </div>
         <ol class="cloud-steps">
@@ -298,33 +295,30 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
           <li>Zmień jego nazwę na <code>google_client.json</code> i wrzuć do folderu <code id="cloud-data-path">data</code> w katalogu KeepClip.</li>
         </ol>
         <div class="cloud-setup-actions">
-          <button id="cloud-recheck" class="btn primary" type="button">Sprawdź ponownie</button>
-          <span class="subtle">Po wgraniu pliku kliknij „Sprawdź ponownie".</span>
+          <button id="cloud-recheck" class="btn primary" type="button" data-i18n="cloudPanel.recheckBtn">Sprawdź ponownie</button>
+          <span class="subtle" data-i18n="cloudPanel.recheckHint">Po wgraniu pliku kliknij „Sprawdź ponownie".</span>
         </div>
       </div>
 
-      <!-- STATE: configured but not connected -->
       <div id="cloud-connect" class="cloud-panel card" hidden>
         <div class="cloud-hero">
           <div class="cloud-hero-ic" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.2 3.9 3.9 0 0 1 17 18z"/><path d="M12 12v5M9.5 14.5 12 12l2.5 2.5"/></svg>
           </div>
-          <h3>Połącz z Google Drive</h3>
+          <h3 data-i18n="cloudPanel.connectTitle">Połącz z Google Drive</h3>
           <p class="subtle">
-            Klient OAuth jest gotowy. Kliknij poniżej i zaloguj się na swoje konto Google,
-            aby KeepClip mógł zapisywać klipy w folderze <b>KeepClip</b> na Twoim Dysku.
+            <span data-i18n="cloudPanel.connectBody">Klient OAuth jest gotowy. Kliknij poniżej i zaloguj się na swoje konto Google, aby KeepClip mógł zapisywać klipy w folderze <b>KeepClip</b>.</span>
           </p>
         </div>
         <div class="cloud-setup-actions">
-          <button id="cloud-connect-btn" class="btn primary" type="button">Połącz z Google Drive</button>
+          <button id="cloud-connect-btn" class="btn primary" type="button" data-i18n="cloudPanel.connectBtn">Połącz z Google Drive</button>
         </div>
-        <p class="subtle cloud-note">
-          KeepClip prosi tylko o dostęp do plików, które sam tworzy (zakres <code>drive.file</code>) —
-          nie widzi reszty Twojego Dysku. Token logowania trzymany jest w Menedżerze poświadczeń Windows.
+        <p class="subtle cloud-note" data-i18n="cloudPanel.connectNote">
+          KeepClip prosi tylko o dostęp do plików, które sam tworzy
+          nie widzi pozostałych plików na Twoim Dysku. Token autoryzacji jest przechowywany lokalnie w Windows.
         </p>
-      </div>
+      </div>  
 
-      <!-- STATE: connected -->
       <div id="cloud-account" class="cloud-panel card" hidden>
         <div class="cloud-acc-head">
           <img id="cloud-acc-photo" class="cloud-acc-photo" alt="" hidden />
@@ -332,8 +326,8 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
             <div class="cloud-acc-name" id="cloud-acc-name"></div>
             <div class="subtle" id="cloud-acc-email"></div>
           </div>
-          <span class="cloud-badge connected">● Połączono</span>
-          <button id="cloud-disconnect-btn" class="btn ghost" type="button">Odłącz</button>
+          <span class="cloud-badge connected" data-i18n="cloudPanel.connectedBadge">● Połączono</span>
+          <button id="cloud-disconnect-btn" class="btn ghost" type="button" data-i18n="cloudPanel.disconnectBtn">Odłącz</button>
         </div>
         <div class="cloud-quota">
           <div class="cloud-quota-bar"><div id="cloud-quota-fill"></div></div>
@@ -341,37 +335,34 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
         </div>
         <div id="cloud-acc-error" class="config-error" hidden></div>
         <p class="subtle cloud-note">
-          Wyślij klip do chmury z menu „⋯" na kafelku klipu albo z okna odtwarzania.
-          Cały folder wyślesz przyciskiem w jego nagłówku. Klipy w chmurze odtwarzają się strumieniowo.
+          <span data-i18n="cloudPanel.accountNote">Wyślij klip do chmury z menu „⋯" na kafelku klipu albo z okna odtwarzania. Cały folder wyślesz przyciskiem w jego nagłówku. Klipy w chmurze odtwarzają się strumieniowo.</span>
         </p>
       </div>
     </div>
   </main>
 </div>
-</div><!-- /#root -->
-
-<div id="confirm-overlay" hidden>
+</div><div id="confirm-overlay" hidden>
   <div id="confirm-box">
-    <h3 id="confirm-title">Usuń klip?</h3>
+    <h3 id="confirm-title" data-i18n="confirmDefault.title">Na pewno?</h3>
     <p id="confirm-body" class="subtle"></p>
-    <p class="confirm-warn">Plik zostanie przeniesiony do <b>Kosza Windows</b> — w razie pomyłki możesz go odzyskać.</p>
+    <p class="confirm-warn" data-i18n-html="confirmDefault.warn">Plik zostanie przeniesiony do <b>Kosza Windows</b> — w razie pomyłki możesz go odzyskać.</p>
     <div class="confirm-actions">
-      <button id="confirm-no" class="btn ghost">Anuluj</button>
-      <button id="confirm-yes" class="btn danger">Tak, usuń</button>
+      <button id="confirm-no" class="btn ghost" data-i18n="confirm.cancelBtn">Anuluj</button>
+      <button id="confirm-yes" class="btn danger" data-i18n="confirmDefault.yesLabel">Tak, usuń</button>
     </div>
   </div>
 </div>
 
 <div id="config-overlay" hidden>
   <div id="config-box">
-    <h3 id="config-title">Wskaż folder z klipami</h3>
+    <h3 id="config-title">…</h3>
     <p id="config-intro" class="subtle">
       Aplikacja przeszuka ten folder i wszystkie pod-foldery w poszukiwaniu plików wideo.
       Typowa lokalizacja klipów NVIDIA ShadowPlay to <code>C:\Users\&lt;ty&gt;\Videos\NVIDIA</code>.
     </p>
-    <label class="config-label">Ścieżka folderu</label>
+    <label class="config-label" data-i18n="configLabel.folderPath">Ścieżka folderu</label>
     <div class="folder-input-wrap">
-      <button id="btn-browse-folder" type="button" class="btn-browse" title="Wybierz folder (Przeglądaj)" aria-label="Wybierz folder">
+      <button id="btn-browse-folder" type="button" class="btn-browse" data-i18n-title="ui.browseFolder" title="Wybierz folder (Przeglądaj)" aria-label="Wybierz folder">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
         </svg>
@@ -380,8 +371,75 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
     </div>
     <div id="config-error" class="config-error" hidden></div>
     <div id="config-actions" class="confirm-actions">
-      <button id="config-cancel" class="btn ghost">Anuluj</button>
-      <button id="config-save" class="btn primary">Zapisz</button>
+      <button id="config-cancel" class="btn ghost" data-i18n="confirm.cancelBtn">Anuluj</button>
+      <button id="config-save" class="btn primary">…</button>
+    </div>
+  </div>
+</div>
+
+<!-- Instant replay (ShadowPlay-style rolling buffer) settings -->
+<div id="replay-overlay" hidden>
+  <div id="replay-box">
+    <h3 data-i18n="replay.title">Natychmiastowa powtórka</h3>
+    <p class="subtle" data-i18n="replay.intro">
+      Gdy włączona, pulpit nagrywa się w tle w pętli. Wciśnij skrót w trakcie gry,
+      a ostatnie minuty zapiszą się jako klip w folderze „Powtórki”.
+    </p>
+
+    <div class="replay-status">
+      <span class="replay-dot" id="replay-dot"></span>
+      <span id="replay-status-text" class="subtle">…</span>
+    </div>
+    <div id="replay-hotkey-warn" class="config-error" hidden></div>
+    <div id="replay-error" class="config-error" hidden></div>
+
+    <label class="replay-toggle-row">
+      <input type="checkbox" id="replay-enabled" />
+      <span data-i18n="replay.enabled">Nagrywanie w tle włączone</span>
+    </label>
+    <label class="replay-toggle-row">
+      <input type="checkbox" id="replay-mic" />
+      <span data-i18n="replay.mic">Nagrywaj mikrofon (miksowany z dźwiękiem gry)</span>
+    </label>
+
+    <div class="replay-grid">
+      <div>
+        <label class="config-label" for="replay-duration" data-i18n="replay.duration">Długość powtórki</label>
+        <select id="replay-duration">
+          <option value="30">30 s</option>
+          <option value="60">1 min</option>
+          <option value="120" selected>2 min</option>
+          <option value="180">3 min</option>
+          <option value="300">5 min</option>
+        </select>
+      </div>
+      <div>
+        <label class="config-label" for="replay-fps" data-i18n="replay.fps">Klatki na sekundę</label>
+        <select id="replay-fps">
+          <option value="30">30 FPS</option>
+          <option value="60" selected>60 FPS</option>
+        </select>
+      </div>
+      <div>
+        <label class="config-label" for="replay-quality" data-i18n="replay.quality">Jakość</label>
+        <select id="replay-quality">
+          <option value="low" data-i18n="replay.qLow">Niska (8 Mb/s)</option>
+          <option value="medium" data-i18n="replay.qMedium">Średnia (15 Mb/s)</option>
+          <option value="high" selected data-i18n="replay.qHigh">Wysoka (30 Mb/s)</option>
+        </select>
+      </div>
+      <div>
+        <label class="config-label" for="replay-hotkey" data-i18n="replay.hotkey">Skrót zapisu</label>
+        <input id="replay-hotkey" type="text" readonly value="Alt+F10"
+               data-i18n-title="replay.hotkeyHint" title="Kliknij i wciśnij kombinację (np. Alt+F10)" />
+      </div>
+    </div>
+
+    <div class="confirm-actions replay-actions">
+      <button id="replay-save-now" class="btn ghost" data-i18n="replay.saveNow" disabled>Zapisz teraz</button>
+      <span class="replay-actions-spacer"></span>
+      <button id="replay-close" class="btn ghost" data-i18n="replay.close">Zamknij</button>
+      <button id="replay-apply" class="btn primary" data-i18n="replay.apply">Zapisz ustawienia</button>
     </div>
   </div>
 </div>
@@ -389,31 +447,69 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
 <div id="cut-overlay" hidden>
   <div id="cut-box">
     <header class="cut-head">
-      <h3>Wytnij fragment</h3>
+      <h3 data-i18n="cutOverlay.title">Wytnij fragment</h3>
       <button id="cut-close" class="btn ghost">✕</button>
     </header>
     <p class="subtle" id="cut-source-name"></p>
 
-    <video id="cut-video" controls preload="metadata"></video>
+    <div id="cut-player-container">
+      <div class="cut-video-wrapper">
+        <video id="cut-video" preload="metadata" playsinline></video>
+      </div>
+      <div class="cut-controls-panel">
+        <div class="controls-buttons-row">
+          <div class="volume-control-wrap">
+            <button id="cut-ctrl-mute" class="ctrl-round-btn" data-i18n-title="player.titlebar.mute" title="Wył/Wł dźwięk">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+            </button>
+            <div class="volume-mixer-popover">
+              <input type="range" id="cut-ctrl-volume" class="compact-slider" value="1" min="0" max="1" step="0.05" />
+            </div>
+          </div>
+          <button id="cut-ctrl-start" class="ctrl-round-btn" data-i18n-title="player.titlebar.start" title="Na początek">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+          </button>
+          <button id="cut-ctrl-rewind" class="ctrl-round-btn" data-i18n-title="player.titlebar.rewind" title="Cofnij 5 sek">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+          </button>
+          <button id="cut-ctrl-play" class="ctrl-round-btn play-btn" data-i18n-title="player.titlebar.play" title="Play / Pause">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button id="cut-ctrl-forward" class="ctrl-round-btn" data-i18n-title="player.titlebar.forward" title="Naprzód 5 sek">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+          </button>
+          <button id="cut-ctrl-end" class="ctrl-round-btn" data-i18n-title="player.titlebar.end" title="Na koniec">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+        </div>
+
+        <div class="controls-progress-row">
+          <span id="cut-ctrl-time-current" class="time-text">0:00</span>
+          <input type="range" id="cut-ctrl-progress" class="full-slider" value="0" min="0" step="0.01" />
+          <span id="cut-ctrl-time-total" class="time-text">0:00</span>
+        </div>
+
+      </div>
+    </div>
 
     <div class="cut-range-wrap">
       <div id="cut-range" class="range-slider">
         <div class="range-track"></div>
         <div class="range-fill"></div>
-        <div class="range-thumb start" data-which="start" title="Przeciągnij — początek"></div>
-        <div class="range-thumb end" data-which="end" title="Przeciągnij — koniec"></div>
+        <div class="range-thumb start" data-which="start" data-i18n-title="cutOverlay.thumbStart" title="Przeciągnij — początek"></div>
+        <div class="range-thumb end" data-which="end" data-i18n-title="cutOverlay.thumbEnd" title="Przeciągnij — koniec"></div>
         <div class="range-playhead"></div>
       </div>
       <div class="cut-range-labels">
-        <span><b id="cut-start-label">0:00.00</b><span class="subtle"> — początek</span></span>
-        <span class="cut-range-duration">Długość: <b id="cut-duration-label">0.00 s</b></span>
-        <span class="cut-end-side"><span class="subtle">koniec — </span><b id="cut-end-label">0:00.00</b></span>
+        <span><b id="cut-start-label">0:00.00</b><span class="subtle" data-i18n="cutOverlay.startLabel"> — początek</span></span>
+        <span class="cut-range-duration"><span data-i18n="cutOverlay.durationLabel">Długość:</span> <b id="cut-duration-label">0.00 s</b></span>
+        <span class="cut-end-side"><span class="subtle" data-i18n="cutOverlay.endLabel">koniec — </span><b id="cut-end-label">0:00.00</b></span>
       </div>
     </div>
 
-    <label class="cut-label">Docelowy rozmiar pliku</label>
+    <label class="cut-label" data-i18n="cutOverlay.targetLabel">Docelowy rozmiar pliku</label>
     <div class="cut-target-grid">
-      <button class="cut-preset active" data-mb="">Bez kompresji</button>
+      <button class="cut-preset active" data-mb="" data-i18n="cutOverlay.noComprBtn">Bez kompresji</button>
       <button class="cut-preset" data-mb="10">10 MB (Discord)</button>
       <button class="cut-preset" data-mb="25">25 MB</button>
       <button class="cut-preset" data-mb="50">50 MB (Nitro Basic)</button>
@@ -421,8 +517,8 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
       <button class="cut-preset" data-mb="500">500 MB (Nitro)</button>
     </div>
     <div class="cut-target-custom">
-      <label class="subtle">albo własny rozmiar:</label>
-      <input id="cut-custom-mb" type="number" min="1" step="1" placeholder="np. 16" />
+      <label class="subtle" data-i18n="cutOverlay.customLabel">albo własny rozmiar:</label>
+      <input id="cut-custom-mb" type="number" min="1" step="1" placeholder="np. 16" data-i18n-placeholder="cutOverlay.customPlaceholder" />
       <span class="subtle">MB</span>
     </div>
 
@@ -430,8 +526,8 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
     <div id="cut-error" class="config-error" hidden></div>
 
     <div class="confirm-actions">
-      <button id="cut-cancel" class="btn ghost">Anuluj</button>
-      <button id="cut-go" class="btn primary">Wytnij fragment</button>
+      <button id="cut-cancel" class="btn ghost" data-i18n="cutOverlay.cancelBtn">Anuluj</button>
+      <button id="cut-go" class="btn primary" data-i18n="cutOverlay.goBtn">Wytnij fragment</button>
     </div>
   </div>
 </div>
@@ -445,34 +541,222 @@ Solar Broken Line Icons by Solar Icons, licensed under CC BY 4.0
         <strong id="player-game"></strong>
         <div class="subtle" id="player-file"></div>
       </div>
-      <div class="player-actions">
-        <button id="player-fav" class="fav-btn player-fav" data-fav-id="" title="Dodaj do ulubionych" aria-label="Dodaj do ulubionych">☆</button>
-        <button id="player-cut" class="btn primary" title="Wytnij fragment do udostępnienia">
-          <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M14.5008 17.1L8 6M18 16.2C18 17.1941 17.1605 18 16.125 18C15.0895 18 14.25 17.1941 14.25 16.2C14.25 15.2059 15.0895 14.4 16.125 14.4C17.1605 14.4 18 15.2059 18 16.2Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M9.49916 17.1L16 6M6 16.2C6 17.1941 6.83947 18 7.875 18C8.91053 18 9.75 17.1941 9.75 16.2C9.75 15.2059 8.91053 14.4 7.875 14.4C6.83947 14.4 6 15.2059 6 16.2Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22C7.28595 22 4.92893 22 3.46447 20.5355C2 19.0711 2 16.714 2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C16.714 2 19.0711 2 20.5355 3.46447C21.5093 4.43821 21.8356 5.80655 21.9449 8" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
+      <button id="player-close" class="btn ghost" data-i18n-title="ui.playerClose" title="Zamknij (Esc)">✕</button>
+    </header>
+    
+    <div id="custom-player-container">
+      <div class="video-center-wrapper">
+        <video id="player" preload="auto" playsinline></video>
+      </div>
+
+      <!-- Боковая панель с кнопками действий (справа от видео) -->
+      <aside class="player-side-actions">
+        <button id="player-fav" class="side-action-btn fav-btn player-fav" data-fav-id="" data-i18n-title="ui.addToFav" title="Dodaj do ulubionych" aria-label="Dodaj do ulubionych">
+          ☆
+          <span class="side-action-label" data-i18n="playerActions.favorite">Ulubione</span>
         </button>
-        <button id="player-cloud" class="btn" title="Wyślij klip do chmury (Google Drive)" hidden>☁ Wyślij do chmury</button>
-        <div class="menu-wrap">
-          <button id="player-folders" class="btn" title="Dodaj/usuń z folderów">
-            <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M22 11L2 11" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M22 11.7979C22 9.16554 22 7.84935 21.2305 6.99383C21.1598 6.91514 21.0849 6.84024 21.0062 6.76946C20.1506 6 18.8345 6 16.2021 6H15.8284C14.6747 6 14.0979 6 13.5604 5.84678C13.2651 5.7626 12.9804 5.64471 12.7121 5.49543C12.2237 5.22367 11.8158 4.81578 11 4L10.4497 3.44975C10.1763 3.17633 10.0396 3.03961 9.89594 2.92051C9.27652 2.40704 8.51665 2.09229 7.71557 2.01738C7.52976 2 7.33642 2 6.94975 2C6.06722 2 5.62595 2 5.25839 2.06935C3.64031 2.37464 2.37464 3.64031 2.06935 5.25839C2 5.62595 2 6.06722 2 6.94975M21.9913 16C21.9554 18.4796 21.7715 19.8853 20.8284 20.8284C19.6569 22 17.7712 22 14 22H10C6.22876 22 4.34315 22 3.17157 20.8284C2 19.6569 2 17.7712 2 14V11" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg></button>
+        <button id="player-cut" class="side-action-btn primary" data-i18n-title="cutOverlay.title" title="Wytnij fragment do udostępnienia">
+          <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M14.5008 17.1L8 6M18 16.2C18 17.1941 17.1605 18 16.125 18C15.0895 18 14.25 17.1941 14.25 16.2C14.25 15.2059 15.0895 14.4 16.125 14.4C17.1605 14.4 18 15.2059 18 16.2Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M9.49916 17.1L16 6M6 16.2C6 17.1941 6.83947 18 7.875 18C8.91053 18 9.75 17.1941 9.75 16.2C9.75 15.2059 8.91053 14.4 7.875 14.4C6.83947 14.4 6 15.2059 6 16.2Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22C7.28595 22 4.92893 22 3.46447 20.5355C2 19.0711 2 16.714 2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C16.714 2 19.0711 2 20.5355 3.46447C21.5093 4.43821 21.8356 5.80655 21.9449 8" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
+          <span class="side-action-label" data-i18n="playerActions.cut">Wytnij</span>
+        </button>
+        <button id="player-cloud" class="side-action-btn" data-i18n-title="ui.uploadToCloud" title="Wyślij klip do chmury (Google Drive)" hidden>
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M12 16V22M12 16L14 18M12 16L10 18" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M22 13.3529C22 15.6958 20.5562 17.7055 18.5 18.5604M14.381 8.02721C14.9767 7.81911 15.6178 7.70588 16.2857 7.70588C16.9404 7.70588 17.5693 7.81468 18.1551 8.01498M7.11616 10.6089C6.8475 10.5567 6.56983 10.5294 6.28571 10.5294C3.91878 10.5294 2 12.4256 2 14.7647C2 16.6611 3.26124 18.2664 5 18.8061M7.11616 10.6089C6.88706 9.9978 6.7619 9.33687 6.7619 8.64706C6.7619 5.52827 9.32028 3 12.4762 3C15.4159 3 17.8371 5.19371 18.1551 8.01498M7.11616 10.6089C7.68059 10.7184 8.20528 10.9374 8.66667 11.2426M18.1551 8.01498C19.0446 8.31916 19.8345 8.83436 20.4633 9.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
+          <span class="side-action-label" data-i18n="playerActions.cloud">Chmura</span>
+        </button>
+        <div class="menu-wrap side-action-menu-wrap">
+          <button id="player-folders" class="side-action-btn" data-i18n-title="ui.manageFolders" title="Dodaj/usuń z folderów">
+            <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M22 11L2 11" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M22 11.7979C22 9.16554 22 7.84935 21.2305 6.99383C21.1598 6.91514 21.0849 6.84024 21.0062 6.76946C20.1506 6 18.8345 6 16.2021 6H15.8284C14.6747 6 14.0979 6 13.5604 5.84678C13.2651 5.7626 12.9804 5.64471 12.7121 5.49543C12.2237 5.22367 11.8158 4.81578 11 4L10.4497 3.44975C10.1763 3.17633 10.0396 3.03961 9.89594 2.92051C9.27652 2.40704 8.51665 2.09229 7.71557 2.01738C7.52976 2 7.33642 2 6.94975 2C6.06722 2 5.62595 2 5.25839 2.06935C3.64031 2.37464 2.37464 3.64031 2.06935 5.25839C2 5.62595 2 6.06722 2 6.94975M21.9913 16C21.9554 18.4796 21.7715 19.8853 20.8284 20.8284C19.6569 22 17.7712 22 14 22H10C6.22876 22 4.34315 22 3.17157 20.8284C2 19.6569 2 17.7712 2 14V11" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
+            <span class="side-action-label" data-i18n="playerActions.folders">Foldery</span>
+          </button>
           <div id="player-folders-dropdown" class="folders-dropdown" hidden></div>
         </div>
-        <button id="player-retranscribe" class="btn" title="Transkrybuj ponownie ten klip">
+        <button id="player-retranscribe" class="side-action-btn" data-i18n-title="ui.retranscribeClip" title="Transkrybuj ponownie ten klip">
           <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M9.5 19.75C9.91421 19.75 10.25 19.4142 10.25 19C10.25 18.5858 9.91421 18.25 9.5 18.25V19.75ZM11 5V5.75C11.3033 5.75 11.5768 5.56727 11.6929 5.28701C11.809 5.00676 11.7448 4.68417 11.5303 4.46967L11 5ZM9.53033 2.46967C9.23744 2.17678 8.76256 2.17678 8.46967 2.46967C8.17678 2.76256 8.17678 3.23744 8.46967 3.53033L9.53033 2.46967ZM1.25 12C1.25 12.4142 1.58579 12.75 2 12.75C2.41421 12.75 2.75 12.4142 2.75 12H1.25ZM3.86991 15.5709C3.63293 15.2312 3.16541 15.1479 2.82569 15.3849C2.48596 15.6219 2.40267 16.0894 2.63965 16.4291L3.86991 15.5709ZM9.5 18.25H9.00028V19.75H9.5V18.25ZM9 5.75H11V4.25H9V5.75ZM11.5303 4.46967L9.53033 2.46967L8.46967 3.53033L10.4697 5.53033L11.5303 4.46967ZM2.75 12C2.75 8.54822 5.54822 5.75 9 5.75V4.25C4.71979 4.25 1.25 7.71979 1.25 12H2.75ZM2.63965 16.4291C4.03893 18.435 6.36604 19.75 9.00028 19.75V18.25C6.87703 18.25 5.00068 17.1919 3.86991 15.5709L2.63965 16.4291Z" fill="#ffffff"></path> <path d="M13 19V18.25C12.6967 18.25 12.4232 18.4327 12.3071 18.713C12.191 18.9932 12.2552 19.3158 12.4697 19.5303L13 19ZM14.4697 21.5303C14.7626 21.8232 15.2374 21.8232 15.5303 21.5303C15.8232 21.2374 15.8232 20.7626 15.5303 20.4697L14.4697 21.5303ZM14.5 4.25C14.0858 4.25 13.75 4.58579 13.75 5C13.75 5.41421 14.0858 5.75 14.5 5.75V4.25ZM22.75 12C22.75 11.5858 22.4142 11.25 22 11.25C21.5858 11.25 21.25 11.5858 21.25 12H22.75ZM20.1302 8.42907C20.3671 8.76881 20.8347 8.85211 21.1744 8.61514C21.5141 8.37817 21.5974 7.91066 21.3604 7.57093L20.1302 8.42907ZM15 18.25H13V19.75H15V18.25ZM12.4697 19.5303L14.4697 21.5303L15.5303 20.4697L13.5303 18.4697L12.4697 19.5303ZM14.5 5.75H15V4.25H14.5V5.75ZM21.25 12C21.25 15.4518 18.4518 18.25 15 18.25V19.75C19.2802 19.75 22.75 16.2802 22.75 12H21.25ZM21.3604 7.57093C19.9613 5.56497 17.6342 4.25 15 4.25V5.75C17.1232 5.75 18.9995 6.80806 20.1302 8.42907L21.3604 7.57093Z" fill="#ffffff"></path> </g></svg>
+          <span class="side-action-label" data-i18n="playerActions.retranscribe">Transkrypcja</span>
         </button>
-        <button id="player-fix" class="btn" title="Napraw klip (uszkodzone intro z NVIDIA ShadowPlay)">
+        <button id="player-fix" class="side-action-btn" data-i18n-title="ui.fixClip" title="Napraw klip (uszkodzone intro z NVIDIA ShadowPlay)">
           <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M12.765 20.4155C14.8777 22.5282 18.3029 22.5282 20.4155 20.4155C22.5282 18.3029 22.5282 14.8777 20.4155 12.765M12.765 20.4155L20.4155 12.765M12.765 20.4155L8.17476 15.8252M3.58447 11.235C1.47184 9.12233 1.47184 5.69709 3.58447 3.58447C5.69709 1.47184 9.12233 1.47184 11.235 3.58447M3.58447 11.235L11.235 3.58447M3.58447 11.235L5 12.6505M20.4155 12.765L19 11.3495M11.235 3.58447L15.8252 8.17476" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <circle cx="9.17154" cy="12" r="1" transform="rotate(-45 9.17154 12)" fill="#ffffff"></circle> <circle cx="11.9999" cy="14.8286" r="1" transform="rotate(-45 11.9999 14.8286)" fill="#ffffff"></circle> <circle cx="11.9999" cy="9.17139" r="1" transform="rotate(-45 11.9999 9.17139)" fill="#ffffff"></circle> <circle cx="14.8285" cy="12" r="1" transform="rotate(-45 14.8285 12)" fill="#ffffff"></circle> </g></svg>
+          <span class="side-action-label" data-i18n="playerActions.fix">Napraw</span>
         </button>
-        <button id="player-delete" class="btn danger" title="Usuń klip (do kosza)">
+        <button id="player-delete" class="side-action-btn danger" data-i18n-title="confirm.deleteClip.title" title="Usuń klip (do kosza)">
           <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M9.17065 4C9.58249 2.83481 10.6937 2 11.9999 2C13.3062 2 14.4174 2.83481 14.8292 4" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M20.5 6H3.49988" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M18.3735 15.3991C18.1965 18.054 18.108 19.3815 17.243 20.1907C16.378 21 15.0476 21 12.3868 21H11.6134C8.9526 21 7.6222 21 6.75719 20.1907C5.89218 19.3815 5.80368 18.054 5.62669 15.3991L5.16675 8.5M18.8334 8.5L18.6334 11.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M9.5 11L10 16" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M14.5 11L14 16" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
+          <span class="side-action-label" data-i18n="playerActions.delete">Usuń</span>
         </button>
-        <button id="player-close" class="btn ghost" title="Zamknij (Esc)">✕</button>
+      </aside>
+    </div>
+
+    <div class="player-controls-panel">
+        <div class="controls-buttons-row">
+          <button id="ctrl-snap" class="ctrl-round-btn" title="Сделать скриншот">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm5.56 5.44l-1.42 1.41-2.12-2.12-1.42 1.42 2.12 2.12-1.41 1.41H17v-4.24z"/></svg>
+          </button>
+          
+          <div class="volume-control-wrap">
+            <button id="ctrl-mute" class="ctrl-round-btn" title="Вкл/Выкл звук">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+            </button>
+            <div class="volume-mixer-popover">
+              <input type="range" id="ctrl-volume" class="compact-slider" value="1" min="0" max="1" step="0.05" />
+            </div>
+          </div>
+
+          <button id="ctrl-start" class="ctrl-round-btn" title="В начало">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+          </button>
+          <button id="ctrl-rewind" class="ctrl-round-btn" title="Назад на 5 сек">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+          </button>
+          <button id="ctrl-play" class="ctrl-round-btn play-btn" title="Play / Pause">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+          <button id="ctrl-forward" class="ctrl-round-btn" title="Вперед на 5 сек">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+          </button>
+          <button id="ctrl-end" class="ctrl-round-btn" title="В конец">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+          <button id="ctrl-fullscreen" class="ctrl-round-btn" title="На весь экран">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+          </button>
+        </div>
+
+        <div class="controls-progress-row">
+          <span id="ctrl-time-current" class="time-text">0:00</span>
+          <input type="range" id="ctrl-progress" class="full-slider" value="0" min="0" step="0.01" />
+          <span id="ctrl-time-total" class="time-text">0:00</span>
+        </div>
       </div>
-    </header>
-    <video id="player" controls preload="auto" playsinline></video>
+
     <div id="player-segments" class="segments"></div>
   </div>
 </div>
 
+<script src="/static/i18n.js"></script>
+<script>
+/* ── i18n: инициализация ДО app.js ── */
+(function() {
+  var SUPPORTED = ['en', 'uk', 'pl', 'ru', ];
+
+  // 1. Определяем язык: URL-параметр ?lang= → localStorage → язык браузера → pl
+  var lang = null;
+
+  // URL-параметр (надёжно работает в pywebview после reload)
+  try {
+    var urlLang = new URLSearchParams(window.location.search).get('lang');
+    if (urlLang && SUPPORTED.indexOf(urlLang) !== -1) {
+      lang = urlLang;
+      // Синхронизируем localStorage с тем что пришло в URL
+      try { localStorage.setItem('keepclip_lang', lang); } catch(e) {}
+    }
+  } catch(e) {}
+
+  // localStorage
+  if (!lang) {
+    try {
+      var saved = localStorage.getItem('keepclip_lang');
+      if (saved && SUPPORTED.indexOf(saved) !== -1) lang = saved;
+    } catch(e) {}
+  }
+
+  // Язык браузера
+  if (!lang) {
+    var bl = (navigator.language || '').slice(0, 2).toLowerCase();
+    if (SUPPORTED.indexOf(bl) !== -1) lang = bl;
+  }
+
+  // Fallback
+  if (!lang) lang = 'pl';
+
+  window.LANG = lang;
+
+  // Нормализуем: const i18n из файла → window.i18n
+  if (!window.i18n && typeof i18n !== 'undefined') window.i18n = i18n;
+
+  // 2. Функция перевода
+  window.t = function(key) {
+    if (!window.i18n) return key;
+    var keys = key.split('.');
+    var node = window.i18n[lang] || window.i18n['pl'] || {};
+    for (var i = 0; i < keys.length; i++) { node = node ? node[keys[i]] : undefined; }
+    return (typeof node === 'string') ? node : key;
+  };
+
+  // 3. Вспомогательные функции
+  function qs(sel) { return document.querySelector(sel); }
+  function setAttr(id, attr, key) { var e = document.getElementById(id); if (e) e.setAttribute(attr, t(key)); }
+
+  // 4. Все [data-i18n] элементы (textContent)
+  Array.from(document.querySelectorAll('[data-i18n]')).forEach(function(el) {
+    var val = t(el.getAttribute('data-i18n'));
+    if (val) el.textContent = val;
+  });
+
+  // 4b. [data-i18n-html] — innerHTML (строки с тегами <b>, <code>)
+  Array.from(document.querySelectorAll('[data-i18n-html]')).forEach(function(el) {
+    var val = t(el.getAttribute('data-i18n-html'));
+    if (val) el.innerHTML = val;
+  });
+
+  // 4c. [data-i18n-title] — атрибут title
+  Array.from(document.querySelectorAll('[data-i18n-title]')).forEach(function(el) {
+    var val = t(el.getAttribute('data-i18n-title'));
+    if (val) el.title = val;
+  });
+
+  // 4d. [data-i18n-aria] — атрибут aria-label
+  Array.from(document.querySelectorAll('[data-i18n-aria]')).forEach(function(el) {
+    var val = t(el.getAttribute('data-i18n-aria'));
+    if (val) el.setAttribute('aria-label', val);
+  });
+
+  // 4e. [data-i18n-placeholder] — атрибут placeholder
+  Array.from(document.querySelectorAll('[data-i18n-placeholder]')).forEach(function(el) {
+    var val = t(el.getAttribute('data-i18n-placeholder'));
+    if (val) el.placeholder = val;
+  });
+
+  // 5. Атрибуты title / placeholder / aria-label
+  setAttr('btn-minimize',    'title', 'titlebar.minimize');
+  setAttr('btn-maximize',    'title', 'titlebar.maximize');
+  setAttr('btn-close',       'title', 'titlebar.close');
+  setAttr('ctrl-snap',       'title', 'player.titlebar.snap');
+  setAttr('ctrl-mute',       'title', 'player.titlebar.mute');
+  setAttr('ctrl-start',      'title', 'player.titlebar.start');
+  setAttr('ctrl-rewind',     'title', 'player.titlebar.rewind');
+  setAttr('ctrl-play',       'title', 'player.titlebar.play');
+  setAttr('ctrl-forward',    'title', 'player.titlebar.forward');
+  setAttr('ctrl-end',        'title', 'player.titlebar.end');
+  setAttr('ctrl-fullscreen', 'title', 'player.titlebar.fullscreen');
+  setAttr('progress-close',  'title',      'progress.close');
+  setAttr('progress-close',  'aria-label', 'progress.close');
+
+  var qEl = document.getElementById('q');
+  if (qEl) qEl.placeholder = t('search.placeholder');
+
+  // 6. Select опции
+  var gfOpt = qs('#game-filter option[value=""]');
+  if (gfOpt) gfOpt.textContent = t('search.allGames');
+
+  var sortMap = { newest:'search.sortNewest', oldest:'search.sortOldest', largest:'search.sortLargest', smallest:'search.sortSmallest', relevance:'search.sortRelevance' };
+  Array.from(document.querySelectorAll('#sort option')).forEach(function(o) {
+    if (sortMap[o.value]) o.textContent = t(sortMap[o.value]);
+  });
+
+  // 7. Переключатель языка
+  var langSel = document.getElementById('lang-select');
+  if (langSel) {
+    langSel.value = lang;
+    langSel.addEventListener('change', function() {
+      var chosen = langSel.value;
+      // Сохраняем в localStorage
+      try { localStorage.setItem('keepclip_lang', chosen); } catch(e) {}
+      // Перезагружаем с ?lang= чтобы гарантировать смену языка в pywebview
+      var url = window.location.href.split('?')[0];
+      window.location.href = url + '?lang=' + chosen;
+    });
+  }
+})();
+</script>
 <script src="/static/app.js"></script>
 
 <script>
