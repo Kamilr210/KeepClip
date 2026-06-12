@@ -1,0 +1,62 @@
+# Automatyczny release: wypchnięcie tagu "v*" (np. v2.1.0) buduje na czysto
+# self-contained publish + instalator Inno Setup i publikuje KeepClip-Setup.exe
+# w GitHub Releases. Dzięki temu "exe na GitHubie" nigdy nie jest stary —
+# nowy release = jedna komenda: git tag vX.Y.Z && git push origin vX.Y.Z
+#
+# Czego CI NIE ma z natury (i jak to jest rozwiązane):
+#  - ffmpeg/ffprobe (gitignored, za duże) -> pobiera je setup.ps1, ten sam
+#    skrypt, którego używa świeży klon na maszynie dewelopera.
+#  - installer/embed/google_client.json (sekret OAuth, nigdy w repo) ->
+#    opcjonalny sekret repozytorium GOOGLE_CLIENT_JSON_B64 (base64 pliku);
+#    gdy go brak, instalator po prostu powstaje bez wbudowanej chmury,
+#    a aplikacja pokazuje panel ręcznej konfiguracji Drive.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write   # gh release create
+
+# Krokowy "if" nie czyta secrets wprost — flaga liczona raz, na poziomie workflow.
+env:
+  HAS_GOOGLE_SECRET: ${{ secrets.GOOGLE_CLIENT_JSON_B64 != '' }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Pobierz ffmpeg (setup.ps1)
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File setup.ps1
+
+      - name: Wbuduj klienta OAuth Google (opcjonalny sekret)
+        if: ${{ env.HAS_GOOGLE_SECRET == 'true' }}
+        env:
+          GOOGLE_CLIENT_JSON_B64: ${{ secrets.GOOGLE_CLIENT_JSON_B64 }}
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force installer\embed | Out-Null
+          [IO.File]::WriteAllBytes("installer\embed\google_client.json",
+            [Convert]::FromBase64String($env:GOOGLE_CLIENT_JSON_B64))
+
+      - name: Zbuduj publish + instalator
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File installer\build.ps1
+
+      - name: Utwórz release i wgraj instalator
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$env:GITHUB_REF_NAME" `
+            "installer/dist/KeepClip-Setup.exe#KeepClip-Setup-$env:GITHUB_REF_NAME.exe" `
+            --title "KeepClip $env:GITHUB_REF_NAME" `
+            --generate-notes
