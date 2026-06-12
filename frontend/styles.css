@@ -1295,66 +1295,20 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
   cursor: pointer;
 }
 
-/* ── Tryb pełnoekranowy: fullscreen dostaje CAŁY #player-box, więc nagłówek
-   z ✕, pasek przewijania, prędkość i przycisk wyjścia są widoczne. Wideo
-   rozciąga się na całą dostępną przestrzeń z zachowaniem proporcji. ── */
-#player-box:fullscreen {
-  width: 100vw;
+/* Фиксы для полноэкранного режима */
+#custom-player-container:fullscreen {
   height: 100vh;
-  max-height: 100vh;
-  border-radius: 0;
-  border: none;
-  background: #000;
-  position: relative;
-}
-/* Wideo wypełnia CAŁY ekran — paski są nakładkami nad nim, nie zabierają
-   miejsca w układzie, więc obraz jest maksymalny bez ramek przez cały czas. */
-#player-box:fullscreen #custom-player-container {
-  position: absolute;
-  inset: 0;
-}
-#player-box:fullscreen .video-center-wrapper { max-height: none; }
-#player-box:fullscreen #custom-player-container #player {
-  width: 100%;
-  height: 100%;
   max-height: none;
-  object-fit: contain;   /* maksymalny rozmiar bez zniekształcania proporcji */
+  background: #000;
+  display: flex;
+  flex-direction: column;
 }
-#player-box:fullscreen .player-head {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  z-index: 10;
-  background: linear-gradient(rgba(0, 0, 0, .8), transparent);
-  border-bottom: none;
-  transition: opacity .25s;
+#custom-player-container:fullscreen .video-center-wrapper {
+  flex: 1;
+  max-height: none;
 }
-#player-box:fullscreen .player-controls-panel {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  z-index: 10;
-  background: linear-gradient(transparent, rgba(0, 0, 0, .85));
-  transition: opacity .25s;
-}
-/* segmenty i boczne akcje schodzą z drogi — liczy się obraz */
-#player-box:fullscreen #player-segments { display: none; }
-#player-box:fullscreen .player-side-actions { display: none; }
-/* bezruch myszy → paski i kursor znikają (klasa nadawana z app.js) */
-#player-box:fullscreen.chrome-hidden .player-head,
-#player-box:fullscreen.chrome-hidden .player-controls-panel {
-  opacity: 0;
-  pointer-events: none;
-}
-#player-box:fullscreen.chrome-hidden { cursor: none; }
-
-/* przycisk prędkości: tekstowa pigułka w rzędzie okrągłych przycisków */
-.ctrl-speed-btn {
-  width: auto;
-  min-width: 46px;
-  padding: 0 10px;
-  border-radius: 999px;
-  font-size: 12.5px;
-  font-weight: 700;
-  letter-spacing: .02em;
+#custom-player-container:fullscreen #player {
+  max-height: calc(100vh - 80px);
 }
 /* ── Боковая панель действий плеера (справа от видео) ── */
 #custom-player-container {
@@ -1549,7 +1503,270 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
   transition: border-color 0.15s;
 }
 
-.lang-select:hover,
-.lang-select:focus {
-  border-color: var(--accent, #7c5cff);
+
+/* =========================================
+   SETTINGS OVERLAY
+   ========================================= */
+#settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4000;
+  backdrop-filter: blur(8px);
 }
+#settings-overlay[hidden] { display: none !important; }
+
+#settings-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  width: min(540px, 96vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 32px 80px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.05) inset;
+  display: flex;
+  flex-direction: column;
+  scrollbar-width: thin;
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  z-index: 1;
+  border-radius: 20px 20px 0 0;
+}
+.settings-head-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.settings-head-icon {
+  width: 20px;
+  height: 20px;
+  stroke: var(--accent, #9c6ffd);
+  flex-shrink: 0;
+}
+.settings-head h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -.2px;
+}
+.settings-close-btn {
+  background: rgba(255,255,255,.06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.settings-close-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
+
+.settings-section {
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-section:last-child { border-bottom: none; padding-bottom: 22px; }
+
+.settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .9px;
+  color: var(--muted);
+  margin-bottom: 14px;
+  font-weight: 700;
+}
+.settings-section-icon {
+  font-size: 13px;
+  opacity: .8;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row--folder { align-items: flex-start; padding-top: 8px; }
+
+.settings-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.settings-row-label {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+.settings-row-sub {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.settings-select {
+  flex-shrink: 0;
+  min-width: 145px;
+  font-size: 13px;
+}
+
+.settings-folder-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 13px;
+  padding: 7px 13px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+/* orb-toggle inside settings (smaller inline style) */
+#settings-box .orb-toggle-wrap {
+  padding: 0;
+  border: none;
+  background: transparent;
+  margin: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+/* Toggle rows (checkboxes) */
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.settings-toggle-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--accent, #9c6ffd);
+  cursor: pointer;
+}
+.settings-toggle-info { display: flex; flex-direction: column; gap: 1px; }
+
+/* Replay inside settings */
+.settings-replay-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.replay-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.replay-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.replay-field > span {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--muted);
+}
+.replay-field select,
+.replay-field input {
+  font-size: 13px;
+  border-radius: 8px;
+}
+
+.settings-replay-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  margin-top: 4px;
+}
+
+/* =========================================
+   FULLSCREEN CONTROLS OVERLAY
+   ========================================= */
+.fs-controls-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,.85));
+  padding: 32px 16px 14px;
+  display: none; /* hidden by default, shown in fullscreen */
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity .25s;
+  z-index: 10;
+}
+
+/* Show overlay only when in fullscreen */
+#custom-player-container:fullscreen .fs-controls-overlay {
+  display: flex;
+}
+
+/* Auto-hide: fade out after idle, show on hover/move */
+#custom-player-container:fullscreen .fs-controls-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+#custom-player-container:fullscreen .fs-controls-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.fs-controls-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Make player fill fullscreen properly */
+#custom-player-container:fullscreen {
+  position: relative !important;
+}
+#custom-player-container:fullscreen .player-controls-panel {
+  display: none; /* hide the normal controls panel in fullscreen */
+}
+#custom-player-container:fullscreen .video-center-wrapper {
+  flex: 1;
+  max-height: none;
+  height: 100%;
+}
+#custom-player-container:fullscreen #player {
+  max-height: 100%;
+  height: 100%;
+}
+

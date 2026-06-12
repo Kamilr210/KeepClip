@@ -168,8 +168,25 @@ const els = {
   ctrlTimeTot: $("#ctrl-time-total"),
   ctrlVolume: $("#ctrl-volume"),
   playerContainer: $("#custom-player-container"),
-  playerBox: $("#player-box"),
-  ctrlSpeed: $("#ctrl-speed"),
+  // --- НАСТРОЙКИ ---
+  settingsOverlay: $("#settings-overlay"),
+  settingsClose: $("#settings-close"),
+  btnSettings: $("#btn-settings"),
+  // --- FULLSCREEN CONTROLS ---
+  fsOverlay: $("#fs-controls-overlay"),
+  fsCtrlPlay: $("#fs-ctrl-play"),
+  fsCtrlMute: $("#fs-ctrl-mute"),
+  fsCtrlVolume: $("#fs-ctrl-volume"),
+  fsVolumePopover: $("#fs-volume-popover"),
+  fsCtrlStart: $("#fs-ctrl-start"),
+  fsCtrlRewind: $("#fs-ctrl-rewind"),
+  fsCtrlForward: $("#fs-ctrl-forward"),
+  fsCtrlEnd: $("#fs-ctrl-end"),
+  fsCtrlProgress: $("#fs-ctrl-progress"),
+  fsCtrlTimeCur: $("#fs-ctrl-time-current"),
+  fsCtrlTimeTot: $("#fs-ctrl-time-total"),
+  fsCtrlSnap: $("#fs-ctrl-snap"),
+  fsCtrlExitFullscreen: $("#fs-ctrl-fullscreen-exit"),
   // -----------------------------
 };
 els.cutRangeFill = els.cutRange.querySelector(".range-fill");
@@ -894,7 +911,7 @@ function applyLayout(mode) {
   if (_repaint) _repaint(); // przełączenie układu przestawia ulubione do góry (mozaika)
 }
 els.layoutBtns.forEach((b) => b.addEventListener("click", () => applyLayout(b.dataset.layout)));
-applyLayout((() => { try { return localStorage.getItem("keepclip_layout"); } catch { return null; } })() || "mosaic");
+applyLayout((() => { try { return localStorage.getItem("keepclip_layout"); } catch { return null; } })() || "grid");
 
 // ---------- hover preview (YouTube-style) ----------
 const HOVER_DELAY_MS = 250;
@@ -1158,9 +1175,6 @@ function enterSegEdit(segEl) {
 }
 
 function closePlayer() {
-  // Zamknięcie ✕ w trybie pełnoekranowym musi też opuścić fullscreen,
-  // inaczej zostaje czarny pełny ekran bez niczego.
-  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   els.overlay.hidden = true;
   els.video.pause();
   els.video.removeAttribute("src");
@@ -1176,9 +1190,6 @@ els.overlay.addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    // W fullscreen Esc obsługuje natywnie przeglądarka (wychodzi z pełnego
-    // ekranu) — nie zamykaj wtedy całego odtwarzacza w tym samym naciśnięciu.
-    if (document.fullscreenElement) return;
     if (!els.confirmOverlay.hidden) hideConfirm();
     else if (!els.overlay.hidden && editingSegId === null) closePlayer();
   }
@@ -1795,6 +1806,15 @@ document.querySelectorAll(".nav-tool[data-action]").forEach((btn) => {
     if (action === "retranscribe-all") retranscribeAll();
     else if (action === "change-folder") openConfigModal({ mode: "change" });
     else if (action === "replay") openReplayModal();
+  });
+});
+
+// ---------- settings overlay: change-folder button ----------
+document.querySelectorAll(".settings-folder-btn[data-action='change-folder']").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    // close settings first, then open config modal
+    if (els.settingsOverlay) els.settingsOverlay.hidden = true;
+    openConfigModal({ mode: "change" });
   });
 });
 
@@ -2600,59 +2620,13 @@ if (els.video) {
     console.error("Элементы микшера не найдены в HTML!");
   }
 
-  // 4. Pełny ekran — celem jest CAŁY #player-box (nagłówek z ✕ + wideo + panel
-  // sterowania z paskiem przewijania), nie sam kontener wideo: fullscreen na
-  // kontenerze zostawiał użytkownika bez seeka, prędkości i widocznego wyjścia.
-  const fsIcons = {
-    expand: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`,
-    compress: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>`,
-  };
-  const toggleFullscreen = () => {
+  // 4. Полноэкранный режим
+  els.ctrlFullscreen.addEventListener("click", () => {
     if (!document.fullscreenElement) {
-      els.playerBox.requestFullscreen().catch(err => console.log(err));
+      els.playerContainer.requestFullscreen().catch(err => console.log(err));
     } else {
       document.exitFullscreen();
     }
-  };
-  els.ctrlFullscreen.addEventListener("click", toggleFullscreen);
-
-  // 4a. Auto-chowanie pasków w fullscreen: po ~2,5 s bezruchu myszy nagłówek
-  // i panel sterowania znikają (są nakładkami — obraz cały czas zajmuje pełny
-  // ekran), wracają przy ruchu myszy/klawiszu. Przy pauzie zostają widoczne.
-  let _fsChromeTimer = null;
-  function fsShowChrome() {
-    els.playerBox.classList.remove("chrome-hidden");
-    clearTimeout(_fsChromeTimer);
-    if (document.fullscreenElement && !els.video.paused) {
-      _fsChromeTimer = setTimeout(() => els.playerBox.classList.add("chrome-hidden"), 2500);
-    }
-  }
-  els.playerBox.addEventListener("mousemove", () => {
-    if (document.fullscreenElement) fsShowChrome();
-  });
-  els.video.addEventListener("pause", fsShowChrome);
-  els.video.addEventListener("play", () => {
-    if (document.fullscreenElement) fsShowChrome();
-  });
-  document.addEventListener("fullscreenchange", () => {
-    els.ctrlFullscreen.innerHTML = document.fullscreenElement ? fsIcons.compress : fsIcons.expand;
-    if (document.fullscreenElement) fsShowChrome();
-    else {
-      clearTimeout(_fsChromeTimer);
-      els.playerBox.classList.remove("chrome-hidden");
-    }
-  });
-
-  // 4b. Prędkość odtwarzania — przycisk cyklicznie przełącza typowe wartości;
-  // nowy klip zawsze startuje od 1× (loadedmetadata niżej).
-  const SPEEDS = [1, 1.25, 1.5, 2, 0.5, 0.75];
-  const setSpeed = (v) => {
-    els.video.playbackRate = v;
-    els.ctrlSpeed.textContent = `${v}×`;
-  };
-  els.ctrlSpeed.addEventListener("click", () => {
-    const i = SPEEDS.indexOf(els.video.playbackRate);
-    setSpeed(SPEEDS[(i + 1) % SPEEDS.length] ?? 1);
   });
 
   // 5. Длинный ползунок времени
@@ -2661,7 +2635,6 @@ if (els.video) {
   els.video.addEventListener("loadedmetadata", () => {
     els.ctrlProgress.max = els.video.duration;
     els.ctrlTimeTot.textContent = fmtTime(els.video.duration);
-    setSpeed(1); // każdy klip startuje w normalnym tempie
   });
 
   els.video.addEventListener("timeupdate", () => {
@@ -2772,6 +2745,205 @@ document.addEventListener("keydown", (e) => {
         && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
       e.preventDefault();
       video.paused ? video.play() : video.pause();
+    }
+  });
+})();
+
+// =========================================
+// НАСТРОЙКИ (Settings overlay)
+// =========================================
+(function() {
+  const overlay = els.settingsOverlay;
+  const btnOpen = els.btnSettings;
+  const btnClose = els.settingsClose;
+
+  if (!overlay || !btnOpen) return;
+
+  function openSettings() {
+    overlay.hidden = false;
+    // sync replay state from the main replay overlay controls
+    const fields = ['enabled','mic','duration','fps','quality','hotkey'];
+    fields.forEach(f => {
+      const src = document.getElementById('replay-' + f);
+      const dst = document.getElementById('settings-replay-' + f);
+      if (!src || !dst) return;
+      if (src.type === 'checkbox') dst.checked = src.checked;
+      else dst.value = src.value;
+    });
+    // sync replay status dot and text
+    const srcDot  = document.getElementById('replay-dot');
+    const dstDot  = document.getElementById('settings-replay-dot');
+    const srcText = document.getElementById('replay-status-text');
+    const dstText = document.getElementById('settings-replay-status-text');
+    if (srcDot && dstDot) dstDot.className = srcDot.className;
+    if (srcText && dstText) dstText.textContent = srcText.textContent;
+  }
+
+  function closeSettings() {
+    overlay.hidden = true;
+  }
+
+  btnOpen.addEventListener('click', openSettings);
+  btnClose.addEventListener('click', closeSettings);
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeSettings();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !overlay.hidden) closeSettings();
+  });
+
+  // Sync settings-replay-* controls back to the main replay controls when Apply is clicked
+  const applyBtn = document.getElementById('settings-replay-apply');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', () => {
+      const fields = ['enabled','mic','duration','fps','quality','hotkey'];
+      fields.forEach(f => {
+        const src = document.getElementById('settings-replay-' + f);
+        const dst = document.getElementById('replay-' + f);
+        if (!src || !dst) return;
+        if (src.type === 'checkbox') { dst.checked = src.checked; dst.dispatchEvent(new Event('change')); }
+        else { dst.value = src.value; dst.dispatchEvent(new Event('change')); }
+      });
+      // Fire replay apply button
+      const mainApply = document.getElementById('replay-apply');
+      if (mainApply) mainApply.click();
+      closeSettings();
+    });
+  }
+
+  const saveNowBtn = document.getElementById('settings-replay-save-now');
+  if (saveNowBtn) {
+    saveNowBtn.addEventListener('click', () => {
+      const mainSave = document.getElementById('replay-save-now');
+      if (mainSave) mainSave.click();
+    });
+  }
+})();
+
+// =========================================
+// FULLSCREEN CONTROLS
+// =========================================
+(function() {
+  const video = els.video;
+  if (!video || !els.fsOverlay) return;
+
+  const icons = {
+    play:  `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`,
+    pause: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`,
+    volOn: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>`,
+    volOff:`<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3z"/></svg>`
+  };
+
+  // Sync play icon
+  const syncPlay = () => {
+    if (els.fsCtrlPlay) els.fsCtrlPlay.innerHTML = video.paused ? icons.play : icons.pause;
+  };
+  video.addEventListener('play', syncPlay);
+  video.addEventListener('pause', syncPlay);
+
+  // Sync progress
+  let fsDragging = false;
+  video.addEventListener('loadedmetadata', () => {
+    if (els.fsCtrlProgress) { els.fsCtrlProgress.max = video.duration; }
+    if (els.fsCtrlTimeTot) els.fsCtrlTimeTot.textContent = fmtTime(video.duration);
+  });
+  video.addEventListener('timeupdate', () => {
+    if (!fsDragging && document.fullscreenElement) {
+      if (els.fsCtrlProgress) els.fsCtrlProgress.value = video.currentTime;
+      if (els.fsCtrlTimeCur) els.fsCtrlTimeCur.textContent = fmtTime(video.currentTime);
+    }
+  });
+
+  if (els.fsCtrlProgress) {
+    els.fsCtrlProgress.addEventListener('mousedown', () => fsDragging = true);
+    els.fsCtrlProgress.addEventListener('input', () => {
+      if (els.fsCtrlTimeCur) els.fsCtrlTimeCur.textContent = fmtTime(els.fsCtrlProgress.value);
+    });
+    els.fsCtrlProgress.addEventListener('change', () => {
+      video.currentTime = els.fsCtrlProgress.value;
+      fsDragging = false;
+    });
+  }
+
+  // Buttons
+  if (els.fsCtrlPlay) els.fsCtrlPlay.addEventListener('click', () => video.paused ? video.play() : video.pause());
+  if (els.fsCtrlStart) els.fsCtrlStart.addEventListener('click', () => { video.currentTime = 0; });
+  if (els.fsCtrlEnd) els.fsCtrlEnd.addEventListener('click', () => { video.currentTime = video.duration || 0; });
+  if (els.fsCtrlRewind) els.fsCtrlRewind.addEventListener('click', () => { video.currentTime = Math.max(0, video.currentTime - 5); });
+  if (els.fsCtrlForward) els.fsCtrlForward.addEventListener('click', () => { video.currentTime = Math.min(video.duration || 0, video.currentTime + 5); });
+
+  if (els.fsCtrlExitFullscreen) {
+    els.fsCtrlExitFullscreen.addEventListener('click', () => { document.exitFullscreen(); });
+  }
+
+  // Volume
+  if (els.fsCtrlMute && els.fsVolumePopover && els.fsCtrlVolume) {
+    els.fsCtrlMute.addEventListener('click', (e) => {
+      e.stopPropagation();
+      els.fsVolumePopover.classList.toggle('show');
+    });
+    els.fsVolumePopover.addEventListener('click', (e) => e.stopPropagation());
+    document.addEventListener('click', () => {
+      if (els.fsVolumePopover) els.fsVolumePopover.classList.remove('show');
+    });
+    els.fsCtrlVolume.addEventListener('input', (e) => {
+      const vol = parseFloat(e.target.value);
+      video.volume = vol;
+      video.muted = (vol === 0);
+      // sync main volume too
+      if (els.ctrlVolume) els.ctrlVolume.value = vol;
+      els.fsCtrlMute.innerHTML = video.muted ? icons.volOff : icons.volOn;
+      if (els.ctrlMute) els.ctrlMute.innerHTML = video.muted ? icons.volOff : icons.volOn;
+    });
+  }
+
+  // Screenshot
+  if (els.fsCtrlSnap) {
+    els.fsCtrlSnap.addEventListener('click', () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/jpeg');
+      a.download = `KeepClip_Screenshot_${fmtTime(video.currentTime).replace(':','-')}.jpg`;
+      a.click();
+      toast(t('toast.screenshotSaved'));
+    });
+  }
+
+  // Auto-hide controls on mouse idle in fullscreen
+  let hideTimer;
+  const showFsControls = () => {
+    if (!document.fullscreenElement) return;
+    els.fsOverlay.classList.add('visible');
+    els.fsOverlay.classList.remove('hidden');
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => {
+      els.fsOverlay.classList.add('hidden');
+      els.fsOverlay.classList.remove('visible');
+    }, 3000);
+  };
+
+  els.playerContainer.addEventListener('mousemove', showFsControls);
+  els.playerContainer.addEventListener('click', showFsControls);
+
+  // When entering fullscreen — initialize
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement === els.playerContainer) {
+      // sync progress max
+      if (els.fsCtrlProgress && video.duration) {
+        els.fsCtrlProgress.max = video.duration;
+        els.fsCtrlProgress.value = video.currentTime;
+      }
+      if (els.fsCtrlTimeTot) els.fsCtrlTimeTot.textContent = fmtTime(video.duration || 0);
+      if (els.fsCtrlTimeCur) els.fsCtrlTimeCur.textContent = fmtTime(video.currentTime || 0);
+      // sync volume
+      if (els.fsCtrlVolume) els.fsCtrlVolume.value = video.volume;
+      syncPlay();
+      showFsControls();
     }
   });
 })();

@@ -79,7 +79,7 @@ const i18n = {
     },
     player: {
       titlebar: {
-        snap:       "Сделать скриншот", /* TODO */
+        snap:       "Zrób zrzut ekranu",
         mute:       "Wył/Wł dźwięk",
         start:      "Na początek",
         rewind:     "Cofnij 5 sek",
@@ -87,7 +87,6 @@ const i18n = {
         forward:    "Naprzód 5 sek",
         end:        "Na koniec",
         fullscreen: "Pełny ekran",
-        speed:      "Prędkość odtwarzania",
       },
       editSegment:    "Popraw tekst",
       notTranscribed: "Ten klip nie był jeszcze transkrybowany.",
@@ -347,6 +346,16 @@ const i18n = {
       language:          "Język",
       title:             "KeepClip — Twoje najlepsze akcje",
     },
+    settings: {
+      title:             "Ustawienia",
+      sectionDisplay:    "Język i wygląd",
+      sectionFolder:     "Folder z klipami",
+      sectionReplay:     "Natychmiastowa powtórka",
+      langSub:           "Zmień język interfejsu",
+      folderLabel:       "Lokalizacja klipów",
+      folderSub:         "Folder główny skanowany przez aplikację",
+      changeFolderBtn:   "Zmień folder",
+    },
   },
 
   // ===========================================================================
@@ -440,7 +449,6 @@ const i18n = {
         forward:    "Вперёд на 5 сек",
         end:        "В конец",
         fullscreen: "На весь экран",
-        speed:      "Скорость воспроизведения",
       },
       editSegment:    "Исправить текст",
       notTranscribed: "Клип ещё не транскрибировался.",
@@ -700,6 +708,16 @@ const i18n = {
       language:          "Язык",
       title:             "KeepClip — Ваши лучшие моменты",
     },
+    settings: {
+      title:             "Настройки",
+      sectionDisplay:    "Язык и оформление",
+      sectionFolder:     "Папка с клипами",
+      sectionReplay:     "Мгновенный повтор",
+      langSub:           "Изменить язык интерфейса",
+      folderLabel:       "Расположение клипов",
+      folderSub:         "Главная папка, сканируемая приложением",
+      changeFolderBtn:   "Изменить папку",
+    },
   },
 
   // ===========================================================================
@@ -793,7 +811,6 @@ const i18n = {
         forward:    "Forward 5 sec",
         end:        "Go to end",
         fullscreen: "Fullscreen",
-        speed:      "Playback speed",
       },
       editSegment:    "Edit text",
       notTranscribed: "This clip hasn't been transcribed yet.",
@@ -1053,6 +1070,16 @@ const i18n = {
       language:          "Language",
       title:             "KeepClip — Your best actions",
     },
+    settings: {
+      title:             "Settings",
+      sectionDisplay:    "Language & appearance",
+      sectionFolder:     "Clips folder",
+      sectionReplay:     "Instant Replay",
+      langSub:           "Change the interface language",
+      folderLabel:       "Clips location",
+      folderSub:         "Main folder scanned by the app",
+      changeFolderBtn:   "Change folder",
+    },
   },
 
   // ===========================================================================
@@ -1146,7 +1173,6 @@ const i18n = {
         forward:    "Вперед на 5 сек",
         end:        "У кінець",
         fullscreen: "На весь екран",
-        speed:      "Швидкість відтворення",
       },
       editSegment:    "Виправити текст",
       notTranscribed: "Кліп ще не транскрибувався.",
@@ -1405,6 +1431,16 @@ const i18n = {
       fixClip:           "Виправити кліп (пошкоджена заставка NVIDIA ShadowPlay)",
       language:          "Мова",
       title:             "KeepClip — Ваші найкращі моменти",
+    },
+    settings: {
+      title:             "Налаштування",
+      sectionDisplay:    "Мова та вигляд",
+      sectionFolder:     "Папка з кліпами",
+      sectionReplay:     "Миттєвий повтор",
+      langSub:           "Змінити мову інтерфейсу",
+      folderLabel:       "Розташування кліпів",
+      folderSub:         "Головна папка, яку сканує застосунок",
+      changeFolderBtn:   "Змінити папку",
     },
   },
 };

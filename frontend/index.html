@@ -84,39 +84,15 @@
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
         <span class="nav-label" data-i18n="nav.cancel">Anuluj</span>
       </button>
-      <button class="nav-tool" data-action="change-folder" type="button">
-        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M22 14C22 17.7712 22 19.6569 20.8284 20.8284C19.6569 22 17.7712 22 14 22H10C6.22876 22 4.34315 22 3.17157 20.8284C2.51839 20.1752 2.22937 19.3001 2.10149 18M2 12V6.94975C2 6.06722 2 5.62595 2.06935 5.25839C2.37464 3.64031 3.64031 2.37464 5.25839 2.06935C5.62595 2 6.06722 2 6.94975 2C7.33642 2 7.52976 2 7.71557 2.01738C8.51665 2.09229 9.27652 2.40704 9.89594 2.92051C10.0396 3.03961 10.1763 3.17633 10.4497 3.44975L11 4C11.8158 4.81578 12.2237 5.22367 12.7121 5.49543C12.9804 5.64471 13.2651 5.7626 13.5604 5.84678C14.0979 6 14.6747 6 15.8284 6H16.2021C18.8345 6 20.1506 6 21.0062 6.76946C21.0849 6.84024 21.1598 6.91514 21.2305 6.99383C21.8004 7.62741 21.9482 8.51364 21.9866 10" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M2 15C8.44365 15 6.55635 15 13 15M13 15L8.875 12M13 15L8.875 18" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
-        <span class="nav-label" data-i18n="nav.changeFolder">Zmień folder z klipami</span>
+      <button class="nav-tool" id="btn-settings" type="button">
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.6224 10.3954L18.5247 7.7448L20 6L18 4L16.2647 5.48295L13.5578 4.36974L13.0954 2H10.9046L10.4422 4.36974L7.73528 5.48295L6 4L4 6L5.47534 7.7448L4.37764 10.3954L2 10.9046V13.0954L4.37764 13.6046L5.47534 16.2552L4 18L6 20L7.73528 18.517L10.4422 19.6303L10.9046 22H13.0954L13.5578 19.6303L16.2647 18.517L18 20L20 18L18.5247 16.2552L19.6224 13.6046L22 13.0954V10.9046L19.6224 10.3954Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="nav-label" data-i18n="nav.settings">Ustawienia</span>
       </button>
       <button class="nav-tool" data-action="retranscribe-all" type="button">
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M9.5 19.75C9.91421 19.75 10.25 19.4142 10.25 19C10.25 18.5858 9.91421 18.25 9.5 18.25V19.75ZM11 5V5.75C11.3033 5.75 11.5768 5.56727 11.6929 5.28701C11.809 5.00676 11.7448 4.68417 11.5303 4.46967L11 5ZM9.53033 2.46967C9.23744 2.17678 8.76256 2.17678 8.46967 2.46967C8.17678 2.76256 8.17678 3.23744 8.46967 3.53033L9.53033 2.46967ZM1.25 12C1.25 12.4142 1.58579 12.75 2 12.75C2.41421 12.75 2.75 12.4142 2.75 12H1.25ZM3.86991 15.5709C3.63293 15.2312 3.16541 15.1479 2.82569 15.3849C2.48596 15.6219 2.40267 16.0894 2.63965 16.4291L3.86991 15.5709ZM9.5 18.25H9.00028V19.75H9.5V18.25ZM9 5.75H11V4.25H9V5.75ZM11.5303 4.46967L9.53033 2.46967L8.46967 3.53033L10.4697 5.53033L11.5303 4.46967ZM2.75 12C2.75 8.54822 5.54822 5.75 9 5.75V4.25C4.71979 4.25 1.25 7.71979 1.25 12H2.75ZM2.63965 16.4291C4.03893 18.435 6.36604 19.75 9.00028 19.75V18.25C6.87703 18.25 5.00068 17.1919 3.86991 15.5709L2.63965 16.4291Z" fill="#ffffff"></path> <path d="M13 19V18.25C12.6967 18.25 12.4232 18.4327 12.3071 18.713C12.191 18.9932 12.2552 19.3158 12.4697 19.5303L13 19ZM14.4697 21.5303C14.7626 21.8232 15.2374 21.8232 15.5303 21.5303C15.8232 21.2374 15.8232 20.7626 15.5303 20.4697L14.4697 21.5303ZM14.5 4.25C14.0858 4.25 13.75 4.58579 13.75 5C13.75 5.41421 14.0858 5.75 14.5 5.75V4.25ZM22.75 12C22.75 11.5858 22.4142 11.25 22 11.25C21.5858 11.25 21.25 11.5858 21.25 12H22.75ZM20.1302 8.42907C20.3671 8.76881 20.8347 8.85211 21.1744 8.61514C21.5141 8.37817 21.5974 7.91066 21.3604 7.57093L20.1302 8.42907ZM15 18.25H13V19.75H15V18.25ZM12.4697 19.5303L14.4697 21.5303L15.5303 20.4697L13.5303 18.4697L12.4697 19.5303ZM14.5 5.75H15V4.25H14.5V5.75ZM21.25 12C21.25 15.4518 18.4518 18.25 15 18.25V19.75C19.2802 19.75 22.75 16.2802 22.75 12H21.25ZM21.3604 7.57093C19.9613 5.56497 17.6342 4.25 15 4.25V5.75C17.1232 5.75 18.9995 6.80806 20.1302 8.42907L21.3604 7.57093Z" fill="#ffffff"></path> </g></svg>
         <span class="nav-label" data-i18n="nav.retranscribeAll">Transkrybuj ponownie</span>
       </button>
-      <button class="nav-tool" data-action="replay" type="button">
-        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v4h4"/><path d="M10.5 9.5v5l4.5-2.5z" fill="#ffffff"/></svg>
-        <span class="nav-label" data-i18n="nav.replay">Natychmiastowa powtórka</span>
-        <span class="nav-dot" id="replay-nav-dot" hidden></span>
-      </button>
     </nav>
-
-    <div class="lang-switcher-wrap">
-      <label class="lang-switcher-label" data-i18n="ui.language">Język</label>
-      <select id="lang-select" class="lang-select">
-        <option value="en">English</option>
-        <option value="pl">Polski</option>
-        <option value="uk">Українська</option>
-        <option value="ru">Русский</option>
-        
-      </select>
-    </div>
-
-    <div class="orb-toggle-wrap" id="orb-toggle" role="button" tabindex="0" aria-label="Включить/выключить анимацию фона">
-      <div class="orb-toggle-label">
-        <strong data-i18n="orb.label">Tło animowane</strong>
-        <span data-i18n="orb.sublabel">Źródła światła</span>
-      </div>
-      <div class="toggle-switch on" id="toggle-knob"></div>
-    </div>
 
   </aside>
 
@@ -534,6 +510,131 @@
 
 <div id="toast" hidden></div>
 
+<!-- ===== SETTINGS OVERLAY ===== -->
+<div id="settings-overlay" hidden>
+  <div id="settings-box">
+    <header class="settings-head">
+      <div class="settings-head-left">
+        <svg viewBox="0 0 24 24" fill="none" class="settings-head-icon" xmlns="http://www.w3.org/2000/svg"><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.6224 10.3954L18.5247 7.7448L20 6L18 4L16.2647 5.48295L13.5578 4.36974L13.0954 2H10.9046L10.4422 4.36974L7.73528 5.48295L6 4L4 6L5.47534 7.7448L4.37764 10.3954L2 10.9046V13.0954L4.37764 13.6046L5.47534 16.2552L4 18L6 20L7.73528 18.517L10.4422 19.6303L10.9046 22H13.0954L13.5578 19.6303L16.2647 18.517L18 20L20 18L18.5247 16.2552L19.6224 13.6046L22 13.0954V10.9046L19.6224 10.3954Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3 data-i18n="settings.title">Ustawienia</h3>
+      </div>
+      <button id="settings-close" class="settings-close-btn" data-i18n-title="titlebar.close" title="Zamknij">✕</button>
+    </header>
+
+    <!-- Appearance -->
+    <section class="settings-section">
+      <div class="settings-section-title">
+        <span class="settings-section-icon">🎨</span>
+        <span data-i18n="settings.sectionDisplay">Język i wygląd</span>
+      </div>
+
+      <div class="settings-row">
+        <div class="settings-row-info">
+          <span class="settings-row-label" data-i18n="ui.language">Język</span>
+          <span class="settings-row-sub" data-i18n="settings.langSub">Zmień język interfejsu</span>
+        </div>
+        <select id="lang-select" class="settings-select">
+          <option value="en">🇬🇧 English</option>
+          <option value="pl">🇵🇱 Polski</option>
+          <option value="uk">🇺🇦 Українська</option>
+          <option value="ru">🇷🇺 Русский</option>
+        </select>
+      </div>
+
+      <div class="settings-row">
+        <div class="settings-row-info">
+          <span class="settings-row-label" data-i18n="orb.label">Tło animowane</span>
+          <span class="settings-row-sub" data-i18n="orb.sublabel">Źródła światła</span>
+        </div>
+        <div class="orb-toggle-wrap" id="orb-toggle" role="button" tabindex="0" data-i18n-aria="orb.toggleAria" aria-label="Włącz/wyłącz animację tła">
+          <div class="toggle-switch on" id="toggle-knob"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Clips folder -->
+    <section class="settings-section">
+      <div class="settings-section-title">
+        <span class="settings-section-icon">📁</span>
+        <span data-i18n="settings.sectionFolder">Folder z klipami</span>
+      </div>
+
+      <div class="settings-row settings-row--folder">
+        <div class="settings-row-info">
+          <span class="settings-row-label" data-i18n="settings.folderLabel">Lokalizacja klipów</span>
+          <span class="settings-row-sub" data-i18n="settings.folderSub">Folder główny skanowany przez aplikację</span>
+        </div>
+        <button class="btn settings-folder-btn" data-action="change-folder" type="button">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="14" height="14"><path d="M22 14C22 17.7712 22 19.6569 20.8284 20.8284C19.6569 22 17.7712 22 14 22H10C6.22876 22 4.34315 22 3.17157 20.8284C2.51839 20.1752 2.22937 19.3001 2.10149 18M2 12V6.94975C2 6.06722 2 5.62595 2.06935 5.25839C2.37464 3.64031 3.64031 2.37464 5.25839 2.06935C5.62595 2 6.06722 2 6.94975 2C7.33642 2 7.52976 2 7.71557 2.01738C8.51665 2.09229 9.27652 2.40704 9.89594 2.92051C10.0396 3.03961 10.1763 3.17633 10.4497 3.44975L11 4C11.8158 4.81578 12.2237 5.22367 12.7121 5.49543C12.9804 5.64471 13.2651 5.7626 13.5604 5.84678C14.0979 6 14.6747 6 15.8284 6H16.2021C18.8345 6 20.1506 6 21.0062 6.76946C21.0849 6.84024 21.1598 6.91514 21.2305 6.99383C21.8004 7.62741 21.9482 8.51364 21.9866 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"></path><path d="M2 15C8.44365 15 6.55635 15 13 15M13 15L8.875 12M13 15L8.875 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <span data-i18n="settings.changeFolderBtn">Zmień folder</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Instant replay -->
+    <section class="settings-section">
+      <div class="settings-section-title">
+        <span class="settings-section-icon">⏺</span>
+        <span data-i18n="settings.sectionReplay">Natychmiastowa powtórka</span>
+      </div>
+      <div class="settings-replay-inner">
+        <div class="replay-status">
+          <span class="replay-dot" id="settings-replay-dot"></span>
+          <span id="settings-replay-status-text" class="subtle">…</span>
+        </div>
+        <div id="settings-replay-hotkey-warn" class="config-error" hidden></div>
+        <div id="settings-replay-error" class="config-error" hidden></div>
+
+        <label class="settings-toggle-row">
+          <input type="checkbox" id="settings-replay-enabled" />
+          <div class="settings-toggle-info">
+            <span class="settings-row-label" data-i18n="replay.enabled">Nagrywanie w tle włączone</span>
+          </div>
+        </label>
+        <label class="settings-toggle-row">
+          <input type="checkbox" id="settings-replay-mic" />
+          <div class="settings-toggle-info">
+            <span class="settings-row-label" data-i18n="replay.mic">Nagrywaj też mikrofon</span>
+          </div>
+        </label>
+
+        <div class="replay-grid">
+          <label class="replay-field">
+            <span data-i18n="replay.duration">Czas bufora</span>
+            <select id="settings-replay-duration">
+              <option value="1">1 min</option><option value="2">2 min</option><option value="3">3 min</option>
+              <option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option>
+            </select>
+          </label>
+          <label class="replay-field">
+            <span data-i18n="replay.fps">FPS</span>
+            <select id="settings-replay-fps">
+              <option value="30">30 FPS</option><option value="60">60 FPS</option>
+            </select>
+          </label>
+          <label class="replay-field">
+            <span data-i18n="replay.quality">Jakość</span>
+            <select id="settings-replay-quality">
+              <option value="low" data-i18n="replay.qLow">Niska (8 Mb/s)</option>
+              <option value="medium" data-i18n="replay.qMedium">Średnia (15 Mb/s)</option>
+              <option value="high" data-i18n="replay.qHigh">Wysoka (30 Mb/s)</option>
+            </select>
+          </label>
+          <label class="replay-field">
+            <span data-i18n="replay.hotkey">Skrót klawiszowy</span>
+            <input type="text" id="settings-replay-hotkey" data-i18n-placeholder="replay.hotkeyPlaceholder" placeholder="np. Alt+F10" style="font-family:monospace" />
+          </label>
+        </div>
+
+        <div class="settings-replay-actions">
+          <button id="settings-replay-save-now" class="btn ghost" data-i18n="replay.saveNow">Zapisz teraz</button>
+          <button id="settings-replay-apply" class="btn primary" data-i18n="replay.apply">Zastosuj</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
 <div id="player-overlay" hidden>
   <div id="player-box">
     <header class="player-head">
@@ -547,6 +648,48 @@
     <div id="custom-player-container">
       <div class="video-center-wrapper">
         <video id="player" preload="auto" playsinline></video>
+      </div>
+
+      <!-- Fullscreen controls overlay -->
+      <div id="fs-controls-overlay" class="fs-controls-overlay">
+        <div class="fs-controls-inner">
+          <div class="controls-buttons-row">
+            <button id="fs-ctrl-snap" class="ctrl-round-btn" title="Скриншот">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm5.56 5.44l-1.42 1.41-2.12-2.12-1.42 1.42 2.12 2.12-1.41 1.41H17v-4.24z"/></svg>
+            </button>
+            <div class="volume-control-wrap">
+              <button id="fs-ctrl-mute" class="ctrl-round-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
+              </button>
+              <div class="volume-mixer-popover" id="fs-volume-popover">
+                <input type="range" id="fs-ctrl-volume" class="compact-slider" value="1" min="0" max="1" step="0.05" />
+              </div>
+            </div>
+            <button id="fs-ctrl-start" class="ctrl-round-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+            </button>
+            <button id="fs-ctrl-rewind" class="ctrl-round-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+            </button>
+            <button id="fs-ctrl-play" class="ctrl-round-btn play-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+            <button id="fs-ctrl-forward" class="ctrl-round-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+            </button>
+            <button id="fs-ctrl-end" class="ctrl-round-btn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+            </button>
+            <button id="fs-ctrl-fullscreen-exit" class="ctrl-round-btn" title="Выйти из полноэкранного режима">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>
+            </button>
+          </div>
+          <div class="controls-progress-row">
+            <span id="fs-ctrl-time-current" class="time-text">0:00</span>
+            <input type="range" id="fs-ctrl-progress" class="full-slider" value="0" min="0" step="0.01" />
+            <span id="fs-ctrl-time-total" class="time-text">0:00</span>
+          </div>
+        </div>
       </div>
 
       <!-- Боковая панель с кнопками действий (справа от видео) -->
@@ -615,7 +758,6 @@
           <button id="ctrl-end" class="ctrl-round-btn" title="В конец">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
           </button>
-          <button id="ctrl-speed" class="ctrl-round-btn ctrl-speed-btn" title="Prędkość odtwarzania">1×</button>
           <button id="ctrl-fullscreen" class="ctrl-round-btn" title="На весь экран">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
           </button>
@@ -727,7 +869,6 @@
   setAttr('ctrl-play',       'title', 'player.titlebar.play');
   setAttr('ctrl-forward',    'title', 'player.titlebar.forward');
   setAttr('ctrl-end',        'title', 'player.titlebar.end');
-  setAttr('ctrl-speed',      'title', 'player.titlebar.speed');
   setAttr('ctrl-fullscreen', 'title', 'player.titlebar.fullscreen');
   setAttr('progress-close',  'title',      'progress.close');
   setAttr('progress-close',  'aria-label', 'progress.close');
@@ -744,7 +885,17 @@
     if (sortMap[o.value]) o.textContent = t(sortMap[o.value]);
   });
 
-  // 7. Переключатель языка
+  // Settings button label (i18n fallback)
+  (function() {
+    var settingsLabels = { en: 'Settings', pl: 'Ustawienia', uk: 'Налаштування', ru: 'Настройки' };
+
+    // nav button label
+    var navLabel = document.querySelector('#btn-settings .nav-label');
+    if (navLabel) navLabel.textContent = settingsLabels[lang] || 'Ustawienia';
+    // All settings overlay labels are now handled by data-i18n attributes
+  })();
+
+
   var langSel = document.getElementById('lang-select');
   if (langSel) {
     langSel.value = lang;
