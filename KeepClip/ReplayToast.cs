@@ -10,11 +10,18 @@ namespace KeepClip;
 /// borderless, topmost, non-activating window in the top-right corner of the
 /// primary screen that fades in, lingers ~3.5 s and fades out.
 ///
-/// Non-activating is the load-bearing part: stealing focus from a fullscreen game
-/// can minimize it. WS_EX_NOACTIVATE + ShowWithoutActivation keep the game focused.
-/// Borderless-fullscreen games (today's default) show this fine; true exclusive
-/// fullscreen may not composite it — the save beep still covers that case.
-/// Must be created on the WinForms UI thread (the shell form marshals).
+/// Two windowing rules are load-bearing here:
+///  1. NON-ACTIVATING (WS_EX_NOACTIVATE + ShowWithoutActivation): stealing focus
+///     from a fullscreen game minimizes it.
+///  2. After the one-time Show(), the window NEVER changes window state again —
+///     no Hide(), no Close(). It "disappears" purely by animating Opacity to 0
+///     and stays formally visible (and click-through, WS_EX_TRANSPARENT) forever.
+///     Field-measured on a sensitive setup: Close() AND even Hide() of this
+///     never-activated topmost window minimized a fullscreen game at the exact
+///     millisecond of the hide (the same machine loses the game on Teams
+///     notifications). An opacity-only, input-transparent layered window gives
+///     the shell literally no window-state event to react to.
+/// Must be used from the WinForms UI thread (the shell form marshals).
 /// </summary>
 internal sealed class ReplayToast : Form
 {
@@ -23,23 +30,29 @@ internal sealed class ReplayToast : Form
     private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;  // Win11: 2 = round
     private const int WS_EX_NOACTIVATE = 0x08000000;
     private const int WS_EX_TOOLWINDOW = 0x00000080;       // no Alt-Tab entry
+    private const int WS_EX_TRANSPARENT = 0x00000020;      // click-through: can never take the mouse
 
-    private static ReplayToast? _current;
+    private static ReplayToast? _instance;
 
     private readonly System.Windows.Forms.Timer _anim = new() { Interval = 30 };
+    private readonly Label _icon;
+    private readonly Label _titleLb;
+    private readonly Label _subLb;
+    private readonly Panel _bar;
     private int _ageMs;
     private const int FadeMs = 220, LingerMs = 3500;
 
-    /// <summary>Replace any visible toast with a new one. UI thread only.</summary>
+    private static readonly Color Good = Color.FromArgb(0x46, 0xD1, 0x69);
+    private static readonly Color Bad = Color.FromArgb(0xFF, 0x6B, 0x81);
+
+    /// <summary>Show (or re-show with new content) the toast. UI thread only.</summary>
     public static void Display(bool ok, string title, string subtitle)
     {
-        try { _current?.Close(); } catch { /* already disposed */ }
-        var t = new ReplayToast(ok, title, subtitle);
-        _current = t;
-        t.Show();
+        if (_instance is null || _instance.IsDisposed) _instance = new ReplayToast();
+        _instance.Present(ok, title, subtitle);
     }
 
-    private ReplayToast(bool ok, string title, string subtitle)
+    private ReplayToast()
     {
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.Manual;
@@ -48,29 +61,23 @@ internal sealed class ReplayToast : Form
         Opacity = 0;
         BackColor = Color.FromArgb(0x14, 0x18, 0x22);   // matches the app's card tone
 
-        var accent = ok ? Color.FromArgb(0x46, 0xD1, 0x69) : Color.FromArgb(0xFF, 0x6B, 0x81);
-
-        var icon = new Label
+        _icon = new Label
         {
-            Text = ok ? "✓" : "✕",
-            ForeColor = accent,
             Font = new Font("Segoe UI", 19f, FontStyle.Bold),
             AutoSize = false,
             TextAlign = ContentAlignment.MiddleCenter,
             Bounds = new Rectangle(10, 10, 44, 56),
         };
-        var titleLb = new Label
+        _titleLb = new Label
         {
-            Text = title,
             ForeColor = Color.FromArgb(0xEC, 0xEF, 0xF5),
             Font = new Font("Segoe UI", 11.5f, FontStyle.Bold),
             AutoSize = false,
             AutoEllipsis = true,
             Bounds = new Rectangle(58, 14, 308, 24),
         };
-        var subLb = new Label
+        _subLb = new Label
         {
-            Text = subtitle,
             ForeColor = Color.FromArgb(0x9A, 0xA3, 0xB5),
             Font = new Font("Segoe UI", 9.5f),
             AutoSize = false,
@@ -78,12 +85,9 @@ internal sealed class ReplayToast : Form
             Bounds = new Rectangle(58, 40, 308, 22),
         };
         // Slim accent bar on the left edge, like the app's status accents.
-        var bar = new Panel { BackColor = accent, Bounds = new Rectangle(0, 0, 4, 76) };
-        Controls.AddRange(new Control[] { bar, icon, titleLb, subLb });
-
+        _bar = new Panel { Bounds = new Rectangle(0, 0, 4, 76) };
+        Controls.AddRange(new Control[] { _bar, _icon, _titleLb, _subLb });
         ClientSize = new Size(380, 76);
-        var wa = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1920, 1080);
-        Location = new Point(wa.Right - Width - 18, wa.Top + 18);
 
         _anim.Tick += (_, _) =>
         {
@@ -94,15 +98,29 @@ internal sealed class ReplayToast : Form
             {
                 var fadeOut = _ageMs - FadeMs - LingerMs;
                 Opacity = Math.Max(0.0, 1.0 - (double)fadeOut / FadeMs);
-                if (Opacity <= 0) Close();
+                if (Opacity <= 0)
+                    _anim.Stop();   // opacity-0 only — never Hide()/Close(), see class comment
             }
         };
+    }
+
+    private void Present(bool ok, string title, string subtitle)
+    {
+        var accent = ok ? Good : Bad;
+        _icon.Text = ok ? "✓" : "✕";
+        _icon.ForeColor = accent;
+        _bar.BackColor = accent;
+        _titleLb.Text = title;
+        _subLb.Text = subtitle;
+
+        var wa = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1920, 1080);
+        Location = new Point(wa.Right - Width - 18, wa.Top + 18);
+
+        _ageMs = 0;
+        Opacity = 0;
+        if (!Visible) Show();   // one-time only (ShowWithoutActivation ⇒ SW_SHOWNOACTIVATE)
+        _anim.Stop();
         _anim.Start();
-        FormClosed += (_, _) =>
-        {
-            _anim.Dispose();
-            if (ReferenceEquals(_current, this)) _current = null;
-        };
     }
 
     protected override bool ShowWithoutActivation => true;
@@ -112,7 +130,7 @@ internal sealed class ReplayToast : Form
         get
         {
             var cp = base.CreateParams;
-            cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW;
+            cp.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT;
             return cp;
         }
     }

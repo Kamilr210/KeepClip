@@ -133,12 +133,36 @@ public static class ReplayService
     }
 
     /// <summary>
+    /// Distinct audio confirmation: rising two-tone chime = saved, falling = failed.
+    /// Sound is the RELIABLE feedback channel — the popup may not composite over
+    /// some fullscreen games. Custom cues live in frontend/sounds (user-swappable);
+    /// system sounds are the fallback when the files are missing.
+    /// </summary>
+    public static void PlayCue(bool ok)
+    {
+        try
+        {
+            var wav = Path.Combine(Config.FrontendDir, "sounds",
+                ok ? "replay-saved.wav" : "replay-failed.wav");
+            if (File.Exists(wav)) new System.Media.SoundPlayer(wav).Play();
+            else if (ok) System.Media.SystemSounds.Asterisk.Play();
+            else System.Media.SystemSounds.Hand.Play();
+        }
+        catch { /* sound is best-effort */ }
+    }
+
+    /// <summary>
     /// Dump the last <see cref="DurationS"/> seconds of the ring to an mp4 in
     /// clipsRoot\Powtórki and register it. Throws InvalidOperationException for
     /// user-facing "can't right now" states (buffer off / empty / save in flight).
     /// </summary>
     public static async Task<Dictionary<string, object?>> SaveAsync(string source)
     {
+        // Grace window: a game launch/display flip restarts the buffer exactly when
+        // the user most wants to save — give the watchdog a moment to bring it back
+        // instead of failing the hotkey outright.
+        for (int i = 0; Enabled && _ff is not { HasExited: false } && i < 8; i++)
+            await Task.Delay(500);
         if (_ff is not { HasExited: false })
             throw new InvalidOperationException("Bufor powtórki nie jest uruchomiony.");
         if (Interlocked.CompareExchange(ref _saving, 1, 0) != 0)
@@ -203,7 +227,7 @@ public static class ReplayService
 
             Scanner.Scan();
             ThumbnailWorker.Ensure();
-            try { System.Media.SystemSounds.Asterisk.Play(); } catch { /* headless */ }
+            PlayCue(ok: true);
             try { Notifier?.Invoke(true, "Powtórka zapisana", outName); } catch { }
             Console.Error.WriteLine($"Powtórka zapisana ({source}): {outPath}");
 

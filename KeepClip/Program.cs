@@ -14,6 +14,19 @@ var builder = WebApplication.CreateBuilder(args);
 bool serverOnly = args.Contains("server-only")
     || Environment.GetEnvironmentVariable("KEEPCLIP_SERVER_ONLY") == "1";
 
+// Single instance (desktop mode). Two copies are not a cosmetic problem: both run a
+// replay buffer, and two Desktop Duplication consumers on one output evict each other
+// in an endless restart loop — the ring never fills, hotkey saves fail, and each
+// re-acquisition can kick a fullscreen game out of flip (looks like a forced alt-tab).
+// The `using` keeps the mutex alive (and owned) for the whole app lifetime.
+bool isFirstInstance = true;
+using var singleInstance = serverOnly ? null : new Mutex(true, @"Local\KeepClip-SingleInstance", out isFirstInstance);
+if (!isFirstInstance)
+{
+    DesktopShell.FocusExistingInstance();
+    return;
+}
+
 // Loopback only, like uvicorn. Server-only uses a fixed dev port (8770, clear of the old
 // Python app on 8765); the desktop shell grabs a free port, like pywebview's get_free_port.
 string baseUrl = serverOnly

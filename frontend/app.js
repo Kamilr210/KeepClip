@@ -168,6 +168,8 @@ const els = {
   ctrlTimeTot: $("#ctrl-time-total"),
   ctrlVolume: $("#ctrl-volume"),
   playerContainer: $("#custom-player-container"),
+  playerBox: $("#player-box"),
+  ctrlSpeed: $("#ctrl-speed"),
   // -----------------------------
 };
 els.cutRangeFill = els.cutRange.querySelector(".range-fill");
@@ -892,7 +894,7 @@ function applyLayout(mode) {
   if (_repaint) _repaint(); // przełączenie układu przestawia ulubione do góry (mozaika)
 }
 els.layoutBtns.forEach((b) => b.addEventListener("click", () => applyLayout(b.dataset.layout)));
-applyLayout((() => { try { return localStorage.getItem("keepclip_layout"); } catch { return null; } })() || "grid");
+applyLayout((() => { try { return localStorage.getItem("keepclip_layout"); } catch { return null; } })() || "mosaic");
 
 // ---------- hover preview (YouTube-style) ----------
 const HOVER_DELAY_MS = 250;
@@ -1156,6 +1158,9 @@ function enterSegEdit(segEl) {
 }
 
 function closePlayer() {
+  // Zamknięcie ✕ w trybie pełnoekranowym musi też opuścić fullscreen,
+  // inaczej zostaje czarny pełny ekran bez niczego.
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   els.overlay.hidden = true;
   els.video.pause();
   els.video.removeAttribute("src");
@@ -1171,6 +1176,9 @@ els.overlay.addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
+    // W fullscreen Esc obsługuje natywnie przeglądarka (wychodzi z pełnego
+    // ekranu) — nie zamykaj wtedy całego odtwarzacza w tym samym naciśnięciu.
+    if (document.fullscreenElement) return;
     if (!els.confirmOverlay.hidden) hideConfirm();
     else if (!els.overlay.hidden && editingSegId === null) closePlayer();
   }
@@ -2592,13 +2600,59 @@ if (els.video) {
     console.error("Элементы микшера не найдены в HTML!");
   }
 
-  // 4. Полноэкранный режим
-  els.ctrlFullscreen.addEventListener("click", () => {
+  // 4. Pełny ekran — celem jest CAŁY #player-box (nagłówek z ✕ + wideo + panel
+  // sterowania z paskiem przewijania), nie sam kontener wideo: fullscreen na
+  // kontenerze zostawiał użytkownika bez seeka, prędkości i widocznego wyjścia.
+  const fsIcons = {
+    expand: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`,
+    compress: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>`,
+  };
+  const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      els.playerContainer.requestFullscreen().catch(err => console.log(err));
+      els.playerBox.requestFullscreen().catch(err => console.log(err));
     } else {
       document.exitFullscreen();
     }
+  };
+  els.ctrlFullscreen.addEventListener("click", toggleFullscreen);
+
+  // 4a. Auto-chowanie pasków w fullscreen: po ~2,5 s bezruchu myszy nagłówek
+  // i panel sterowania znikają (są nakładkami — obraz cały czas zajmuje pełny
+  // ekran), wracają przy ruchu myszy/klawiszu. Przy pauzie zostają widoczne.
+  let _fsChromeTimer = null;
+  function fsShowChrome() {
+    els.playerBox.classList.remove("chrome-hidden");
+    clearTimeout(_fsChromeTimer);
+    if (document.fullscreenElement && !els.video.paused) {
+      _fsChromeTimer = setTimeout(() => els.playerBox.classList.add("chrome-hidden"), 2500);
+    }
+  }
+  els.playerBox.addEventListener("mousemove", () => {
+    if (document.fullscreenElement) fsShowChrome();
+  });
+  els.video.addEventListener("pause", fsShowChrome);
+  els.video.addEventListener("play", () => {
+    if (document.fullscreenElement) fsShowChrome();
+  });
+  document.addEventListener("fullscreenchange", () => {
+    els.ctrlFullscreen.innerHTML = document.fullscreenElement ? fsIcons.compress : fsIcons.expand;
+    if (document.fullscreenElement) fsShowChrome();
+    else {
+      clearTimeout(_fsChromeTimer);
+      els.playerBox.classList.remove("chrome-hidden");
+    }
+  });
+
+  // 4b. Prędkość odtwarzania — przycisk cyklicznie przełącza typowe wartości;
+  // nowy klip zawsze startuje od 1× (loadedmetadata niżej).
+  const SPEEDS = [1, 1.25, 1.5, 2, 0.5, 0.75];
+  const setSpeed = (v) => {
+    els.video.playbackRate = v;
+    els.ctrlSpeed.textContent = `${v}×`;
+  };
+  els.ctrlSpeed.addEventListener("click", () => {
+    const i = SPEEDS.indexOf(els.video.playbackRate);
+    setSpeed(SPEEDS[(i + 1) % SPEEDS.length] ?? 1);
   });
 
   // 5. Длинный ползунок времени
@@ -2607,6 +2661,7 @@ if (els.video) {
   els.video.addEventListener("loadedmetadata", () => {
     els.ctrlProgress.max = els.video.duration;
     els.ctrlTimeTot.textContent = fmtTime(els.video.duration);
+    setSpeed(1); // każdy klip startuje w normalnym tempie
   });
 
   els.video.addEventListener("timeupdate", () => {

@@ -27,6 +27,31 @@ internal static class DesktopShell
         using var form = new ShellForm(baseUrl);
         Application.Run(form);
     }
+
+    [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")] private static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+    private const int SW_RESTORE = 9;
+
+    /// <summary>Second-launch path (single-instance mutex already taken): bring the
+    /// running copy's window to the front so the double-click still "did something".</summary>
+    public static void FocusExistingInstance()
+    {
+        try
+        {
+            using var self = System.Diagnostics.Process.GetCurrentProcess();
+            foreach (var p in System.Diagnostics.Process.GetProcessesByName(self.ProcessName))
+            {
+                using (p)
+                {
+                    if (p.Id == self.Id || p.MainWindowHandle == IntPtr.Zero) continue;
+                    ShowWindowAsync(p.MainWindowHandle, SW_RESTORE);
+                    SetForegroundWindow(p.MainWindowHandle);
+                    return;
+                }
+            }
+        }
+        catch { /* best effort — the second copy exits either way */ }
+    }
 }
 
 /// <summary>The frameless host window. Geometry mirrors pywebview: 1280×800, min 900×600.</summary>
@@ -62,6 +87,8 @@ internal sealed class ShellForm : Form
         BackColor = AppBg;
         ShowInTaskbar = true;
         TryLoadIcon();
+        RestoreWindowState();               // last session's geometry; first run = maximized
+        FormClosing += (_, _) => SaveWindowState();
 
         _web.Dock = DockStyle.Fill;
         _web.DefaultBackgroundColor = AppBg;   // applied before the page paints
@@ -97,6 +124,7 @@ internal sealed class ShellForm : Form
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine($"Powtórka (hotkey): {ex.Message}");
+                    ReplayService.PlayCue(ok: false);  // audible in-game even if the toast isn't visible
                     SafeToast(false, "Nie udało się zapisać powtórki", ex.Message);
                 }
             });
@@ -234,6 +262,72 @@ internal sealed class ShellForm : Form
     {
         using var dlg = new FolderBrowserDialog { ShowNewFolderButton = true };
         return dlg.ShowDialog(this) == DialogResult.OK ? dlg.SelectedPath : null;
+    }
+
+    // ---- window-state persistence (geometry + maximized flag across sessions) ----
+
+    /// <summary>
+    /// Apply the previous session's geometry. No saved state (first run) starts
+    /// maximized — the frameless flavor: bounds = the screen's WORK area, so the
+    /// taskbar stays visible (real WindowState.Maximized would cover it). Saved
+    /// bounds are validated against the current monitors (one may be unplugged)
+    /// and the form's minimum size before being trusted.
+    /// </summary>
+    private void RestoreWindowState()
+    {
+        _restoreBounds = DefaultBounds();
+        bool maximized = true;
+
+        var saved = Settings.GetString("window_state");
+        var p = saved?.Split(';');
+        if (p is { Length: 5 }
+            && int.TryParse(p[0], out var m)
+            && int.TryParse(p[1], out var x) && int.TryParse(p[2], out var y)
+            && int.TryParse(p[3], out var w) && int.TryParse(p[4], out var h))
+        {
+            var r = new Rectangle(x, y, w, h);
+            if (r.Width >= MinimumSize.Width && r.Height >= MinimumSize.Height
+                && Screen.AllScreens.Any(s => s.WorkingArea.IntersectsWith(r)))
+                _restoreBounds = r;
+            maximized = m == 1;
+        }
+
+        StartPosition = FormStartPosition.Manual;
+        _isMaximized = maximized;
+        // Maximize onto the screen the window last lived on, not always the primary.
+        Bounds = maximized ? Screen.FromRectangle(_restoreBounds).WorkingArea : _restoreBounds;
+    }
+
+    private static Rectangle DefaultBounds()
+    {
+        var wa = Screen.PrimaryScreen?.WorkingArea ?? new Rectangle(0, 0, 1920, 1080);
+        return new Rectangle(
+            wa.X + (wa.Width - 1280) / 2, wa.Y + (wa.Height - 800) / 2, 1280, 800);
+    }
+
+    private void SaveWindowState()
+    {
+        try
+        {
+            // Minimized bounds are the off-screen -32000 placeholder; the form's own
+            // RestoreBounds holds the real ones. (This form never uses Maximized.)
+            var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+
+            // Dragging/resizing a "maximized" frameless window never clears the flag —
+            // if the bounds no longer hug a work area, what's on screen is the truth.
+            bool maximized = _isMaximized;
+            if (maximized)
+            {
+                var wa = Screen.FromRectangle(bounds).WorkingArea;
+                bool hugs = Math.Abs(bounds.X - wa.X) <= 8 && Math.Abs(bounds.Y - wa.Y) <= 8
+                    && Math.Abs(bounds.Width - wa.Width) <= 16 && Math.Abs(bounds.Height - wa.Height) <= 16;
+                if (!hugs) maximized = false;
+            }
+
+            var r = maximized ? _restoreBounds : bounds;
+            Settings.SetString("window_state", $"{(maximized ? 1 : 0)};{r.X};{r.Y};{r.Width};{r.Height}");
+        }
+        catch { /* persisting geometry must never block app close */ }
     }
 
     /// <summary>Port of <c>toggle_maximize_window</c>: the frontend passes the work area
