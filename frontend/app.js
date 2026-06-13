@@ -154,6 +154,11 @@ const els = {
   replayClose: $("#replay-close"),
   replayApply: $("#replay-apply"),
   replayNavDot: $("#replay-nav-dot"),
+  replayAudioOutput: $("#replay-audio-output"),
+  replayAudioInput: $("#replay-audio-input"),
+  settingsOverlay: $("#settings-overlay"),
+  settingsClose: $("#settings-close"),
+  settingsOpenReplay: $("#settings-open-replay"),
   // --- НОВЫЕ ЭЛЕМЕНТЫ ПЛЕЕРА ---
   ctrlSnap: $("#ctrl-snap"),
   ctrlMute: $("#ctrl-mute"),
@@ -1798,6 +1803,80 @@ document.querySelectorAll(".nav-tool[data-action]").forEach((btn) => {
   });
 });
 
+// ---------- settings button in nav ----------
+const btnSettings = document.getElementById("btn-settings");
+if (btnSettings) btnSettings.addEventListener("click", openSettingsOverlay);
+
+// ---------- settings overlay ----------
+function openSettingsOverlay() {
+  if (els.settingsOverlay) els.settingsOverlay.hidden = false;
+}
+function closeSettingsOverlay() {
+  if (els.settingsOverlay) els.settingsOverlay.hidden = true;
+}
+if (els.settingsClose) els.settingsClose.addEventListener("click", closeSettingsOverlay);
+if (els.settingsOverlay) {
+  els.settingsOverlay.addEventListener("click", (e) => {
+    if (e.target === els.settingsOverlay) closeSettingsOverlay();
+  });
+}
+
+// "Change folder" button inside settings overlay
+document.querySelectorAll(".settings-folder-btn[data-action='change-folder']").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    closeSettingsOverlay();
+    openConfigModal({ mode: "change" });
+  });
+});
+
+// "Open replay settings" button inside settings overlay
+if (els.settingsOpenReplay) {
+  els.settingsOpenReplay.addEventListener("click", () => {
+    closeSettingsOverlay();
+    openReplayModal();
+  });
+}
+
+// ---------- audio device enumeration ----------
+async function populateAudioDevices() {
+  if (!els.replayAudioOutput || !els.replayAudioInput) return;
+  try {
+    // Try backend API first (Python can enumerate WASAPI devices)
+    const r = await fetch("/api/replay/audio-devices");
+    if (r.ok) {
+      const data = await r.json();
+      fillDeviceSelect(els.replayAudioOutput, data.outputs || [], t("replay.audioDefault"));
+      fillDeviceSelect(els.replayAudioInput,  data.inputs  || [], t("replay.audioDefault"));
+      return;
+    }
+  } catch { /* fall through to Web Audio */ }
+  // Fallback: browser MediaDevices (may be limited in pywebview without permissions)
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const outputs = devices.filter(d => d.kind === "audiooutput");
+    const inputs  = devices.filter(d => d.kind === "audioinput");
+    fillDeviceSelect(els.replayAudioOutput, outputs.map(d => ({ id: d.deviceId, name: d.label || d.deviceId })), t("replay.audioDefault"));
+    fillDeviceSelect(els.replayAudioInput,  inputs.map(d => ({ id: d.deviceId, name: d.label  || d.deviceId })), t("replay.audioDefault"));
+  } catch { /* no audio permissions */ }
+}
+
+function fillDeviceSelect(sel, devices, defaultLabel) {
+  if (!sel) return;
+  const current = sel.value;
+  // Clear all except first (default) option
+  while (sel.options.length > 1) sel.remove(1);
+  sel.options[0].textContent = defaultLabel;
+  devices.forEach(d => {
+    if (!d.id && !d.name) return;
+    const opt = document.createElement("option");
+    opt.value = d.id || d.name;
+    opt.textContent = d.name || d.id;
+    sel.appendChild(opt);
+  });
+  if (current) sel.value = current; // restore selection if possible
+}
+
 // ---------- config modal (first-launch + change folder) ----------
 async function openConfigModal({ mode = "change" } = {}) {
   const cfg = await fetch("/api/config").then((r) => r.json());
@@ -1944,6 +2023,10 @@ async function openReplayModal() {
     els.replayQuality.value = st.quality;
     els.replayHotkey.value = st.hotkey;
     renderReplayStatus(st);
+    // Restore saved audio device selections after populating
+    await populateAudioDevices();
+    if (st.audio_output && els.replayAudioOutput) els.replayAudioOutput.value = st.audio_output;
+    if (st.audio_input  && els.replayAudioInput)  els.replayAudioInput.value  = st.audio_input;
   }
   els.replayOverlay.hidden = false;
   clearInterval(_replayPoll);
@@ -2032,6 +2115,8 @@ els.replayApply.addEventListener("click", async () => {
         fps: parseInt(els.replayFps.value, 10),
         quality: els.replayQuality.value,
         hotkey: els.replayHotkey.value,
+        audio_output: els.replayAudioOutput ? (els.replayAudioOutput.value || null) : null,
+        audio_input:  els.replayAudioInput  ? (els.replayAudioInput.value  || null) : null,
       }),
     });
     // Empty/non-JSON body (e.g. 404 from an app running an older backend) must not

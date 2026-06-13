@@ -13,6 +13,7 @@ const i18n = {
       changeFolder:   "Zmień folder z klipami",
       retranscribeAll: "Transkrybuj ponownie",
       replay:         "Natychmiastowa powtórka",
+      settings:       "Ustawienia",
     },
     replay: {
       title:        "Natychmiastowa powtórka",
@@ -42,10 +43,15 @@ const i18n = {
       saveFailToast:"Nie udało się zapisać powtórki: {error}",
       cfgSaved:     "Ustawienia powtórki zapisane.",
       cfgFail:      "Błąd zapisu ustawień: {error}",
+      audioSection:  "Urządzenia audio",
+      audioOutput:   "Wyjście (dźwięk gry / systemu)",
+      audioInput:    "Wejście (mikrofon)",
+      audioDefault:  "Domyślne",
     },
     orb: {
       label:     "Tło animowane",
       sublabel:  "Źródła światła",
+      toggleAria: "Włącz/wyłącz animację tła",
     },
     progress: {
       close:     "Zamknij",
@@ -347,6 +353,18 @@ const i18n = {
       language:          "Język",
       title:             "KeepClip — Twoje najlepsze akcje",
     },
+    settings: {
+      title:             "Ustawienia",
+      sectionDisplay:    "Język i wygląd",
+      sectionFolder:     "Folder z klipami",
+      sectionReplay:     "Natychmiastowa powtórka",
+      langSub:           "Zmień język interfejsu",
+      folderLabel:       "Lokalizacja klipów",
+      folderSub:         "Folder główny skanowany przez aplikację",
+      changeFolderBtn:   "Zmień folder",
+      replayHint:        "Konfiguracja nagrywania w tle i skrótów.",
+      replayOpenBtn:     "Otwórz ustawienia powtórki",
+    },
   },
 
   // ===========================================================================
@@ -366,6 +384,7 @@ const i18n = {
       changeFolder:   "Изменить папку с клипами",
       retranscribeAll: "Перетранскрибировать",
       replay:         "Мгновенный повтор",
+      settings:       "Настройки",
     },
     replay: {
       title:        "Мгновенный повтор",
@@ -395,10 +414,15 @@ const i18n = {
       saveFailToast:"Не удалось сохранить повтор: {error}",
       cfgSaved:     "Настройки повтора сохранены.",
       cfgFail:      "Ошибка сохранения настроек: {error}",
+      audioSection:  "Аудиоустройства",
+      audioOutput:   "Выход (звук игры / системы)",
+      audioInput:    "Вход (микрофон)",
+      audioDefault:  "По умолчанию",
     },
     orb: {
       label:    "Анимированный фон",
       sublabel: "Источники света",
+      toggleAria: "Включить/выключить анимацию фона",
     },
     progress: {
       close: "Закрыть",
@@ -700,6 +724,18 @@ const i18n = {
       language:          "Язык",
       title:             "KeepClip — Ваши лучшие моменты",
     },
+    settings: {
+      title:             "Настройки",
+      sectionDisplay:    "Язык и оформление",
+      sectionFolder:     "Папка с клипами",
+      sectionReplay:     "Мгновенный повтор",
+      langSub:           "Изменить язык интерфейса",
+      folderLabel:       "Расположение клипов",
+      folderSub:         "Главная папка, сканируемая приложением",
+      changeFolderBtn:   "Изменить папку",
+      replayHint:        "Настройка фоновой записи и горячих клавиш.",
+      replayOpenBtn:     "Открыть настройки повтора",
+    },
   },
 
   // ===========================================================================
@@ -719,6 +755,7 @@ const i18n = {
       changeFolder:   "Change clips folder",
       retranscribeAll: "Re-transcribe all",
       replay:         "Instant replay",
+      settings:       "Settings",
     },
     replay: {
       title:        "Instant replay",
@@ -748,10 +785,15 @@ const i18n = {
       saveFailToast:"Failed to save replay: {error}",
       cfgSaved:     "Replay settings saved.",
       cfgFail:      "Failed to save settings: {error}",
+      audioSection:  "Audio devices",
+      audioOutput:   "Output (game / system audio)",
+      audioInput:    "Input (microphone)",
+      audioDefault:  "Default",
     },
     orb: {
       label:    "Animated background",
       sublabel: "Light sources",
+      toggleAria: "Toggle animated background",
     },
     progress: {
       close: "Close",
@@ -1053,6 +1095,18 @@ const i18n = {
       language:          "Language",
       title:             "KeepClip — Your best actions",
     },
+    settings: {
+      title:             "Settings",
+      sectionDisplay:    "Language & appearance",
+      sectionFolder:     "Clips folder",
+      sectionReplay:     "Instant Replay",
+      langSub:           "Change the interface language",
+      folderLabel:       "Clips location",
+      folderSub:         "Main folder scanned by the app",
+      changeFolderBtn:   "Change folder",
+      replayHint:        "Configure background recording and hotkeys.",
+      replayOpenBtn:     "Open replay settings",
+    },
   },
 
   // ===========================================================================
@@ -1072,6 +1126,7 @@ const i18n = {
       changeFolder:   "Змінити папку з кліпами",
       retranscribeAll: "Перетранскрибувати",
       replay:         "Миттєвий повтор",
+      settings:       "Налаштування",
     },
     replay: {
       title:        "Миттєвий повтор",
@@ -1101,10 +1156,15 @@ const i18n = {
       saveFailToast:"Не вдалося зберегти повтор: {error}",
       cfgSaved:     "Налаштування повтору збережено.",
       cfgFail:      "Помилка збереження налаштувань: {error}",
+      audioSection:  "Аудіопристрої",
+      audioOutput:   "Вихід (звук гри / системи)",
+      audioInput:    "Вхід (мікрофон)",
+      audioDefault:  "За замовчуванням",
     },
     orb: {
       label:    "Анімований фон",
       sublabel: "Джерела світла",
+      toggleAria: "Увімкнути/вимкнути анімований фон",
     },
     progress: {
       close: "Закрити",
@@ -1405,6 +1465,18 @@ const i18n = {
       fixClip:           "Виправити кліп (пошкоджена заставка NVIDIA ShadowPlay)",
       language:          "Мова",
       title:             "KeepClip — Ваші найкращі моменти",
+    },
+    settings: {
+      title:             "Налаштування",
+      sectionDisplay:    "Мова та вигляд",
+      sectionFolder:     "Папка з кліпами",
+      sectionReplay:     "Миттєвий повтор",
+      langSub:           "Змінити мову інтерфейсу",
+      folderLabel:       "Розташування кліпів",
+      folderSub:         "Головна папка, яку сканує застосунок",
+      changeFolderBtn:   "Змінити папку",
+      replayHint:        "Налаштування фонового запису та гарячих клавіш.",
+      replayOpenBtn:     "Відкрити налаштування повтору",
     },
   },
 };
