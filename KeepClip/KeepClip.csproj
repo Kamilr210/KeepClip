@@ -36,6 +36,15 @@
     <!-- Only ship English framework satellite assemblies (our own UI is Polish HTML, not
          framework-localized), shrinking the publish tree by dozens of locale folders. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+    <!-- Developer-only features (the in-app "Logi aplikacji" panel and its capture)
+         compile in by default. A PUBLIC release strips them: CI runs
+         `build.ps1 -PublicRelease` (and GitHub Actions is auto-detected), which passes
+         -p:PublicRelease=true here. Any ordinary local build — `dotnet run`, or the
+         dev's own `dotnet build -c Release` — leaves PublicRelease unset and keeps
+         KEEPCLIP_DEV, so the GitHub installer never ships the log viewer. -->
+    <PublicRelease Condition="'$(PublicRelease)' == ''">false</PublicRelease>
+    <DefineConstants Condition="'$(PublicRelease)' != 'true'">$(DefineConstants);KEEPCLIP_DEV</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

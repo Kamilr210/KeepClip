@@ -2860,3 +2860,67 @@ document.addEventListener("keydown", (e) => {
     }
   });
 })();
+
+/* DEV:START — application log viewer; stripped from public CI releases (build.ps1 -PublicRelease) */
+(function initDevLogs() {
+  const overlay = document.getElementById("logs-overlay");
+  const btn = document.getElementById("btn-logs");
+  if (!overlay || !btn) return;   // HTML stripped (public release) → nothing to wire
+
+  const output = document.getElementById("logs-output");
+  const autoscroll = document.getElementById("logs-autoscroll");
+  let lastSeq = 0;
+  let pollTimer = null;
+
+  // Reveal the tool only on developer builds. The backend reports `dev` from a
+  // compile-time flag, so a public release (where this block was stripped anyway)
+  // would also report dev:false — belt and suspenders.
+  fetch("/api/config").then((r) => r.json()).then((cfg) => {
+    if (cfg && cfg.dev) btn.hidden = false;
+  }).catch(() => {});
+
+  async function poll() {
+    try {
+      const r = await fetch(`/api/logs?since=${lastSeq}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      lastSeq = data.seq;
+      if (data.lines && data.lines.length) {
+        const atBottom = output.scrollTop + output.clientHeight >= output.scrollHeight - 30;
+        output.textContent += (output.textContent ? "\n" : "") + data.lines.join("\n");
+        if (autoscroll.checked && atBottom) output.scrollTop = output.scrollHeight;
+      }
+    } catch {}
+  }
+
+  function open() {
+    output.textContent = "";
+    lastSeq = 0;
+    overlay.hidden = false;
+    poll().then(() => { output.scrollTop = output.scrollHeight; });
+    clearInterval(pollTimer);
+    pollTimer = setInterval(poll, 1500);
+  }
+  function close() {
+    overlay.hidden = true;
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  btn.addEventListener("click", open);
+  document.getElementById("logs-close").addEventListener("click", close);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !overlay.hidden) { e.stopPropagation(); close(); }
+  });
+  document.getElementById("logs-copy").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(output.textContent); toast("Logi skopiowane do schowka."); }
+    catch { toast("Nie udało się skopiować.", "error"); }
+  });
+  document.getElementById("logs-clear").addEventListener("click", async () => {
+    try { await fetch("/api/logs/clear", { method: "POST" }); } catch {}
+    output.textContent = "";
+    lastSeq = 0;
+  });
+})();
+/* DEV:END */

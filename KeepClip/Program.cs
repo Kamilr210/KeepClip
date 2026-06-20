@@ -27,6 +27,19 @@ if (!isFirstInstance)
     return;
 }
 
+#if KEEPCLIP_DEV
+const bool devBuild = true;
+#else
+const bool devBuild = false;
+#endif
+DevLog.Install();   // real Console.Error tee in dev builds; a no-op in public releases
+
+// Quiet the per-request "Request starting/finished" info logs (heartbeat + UI status
+// polls fire every few seconds): useless in production (no console) and they would
+// drown the dev log panel. Warnings/errors from these categories still come through.
+builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
+builder.Logging.AddFilter("Microsoft.AspNetCore.Routing.EndpointMiddleware", LogLevel.Warning);
+
 // Loopback only, like uvicorn. Server-only uses a fixed dev port (8770, clear of the old
 // Python app on 8765); the desktop shell grabs a free port, like pywebview's get_free_port.
 string baseUrl = serverOnly
@@ -132,6 +145,7 @@ app.MapGet("/api/config", () =>
         clips_root = root,
         clips_root_exists = Directory.Exists(root),
         configured,
+        dev = devBuild,   // gates the developer-only "Logi aplikacji" tool in the UI
     });
 });
 
@@ -150,6 +164,7 @@ app.MapPost("/api/config", (ConfigPayload body) =>
     Settings.SetClipsRoot(newRoot);
     var scan = Scanner.Scan();              // scan immediately so contents show up
     ThumbnailWorker.Ensure();
+    DevLog.Add($"Zmieniono folder klipów na: {newRoot} (skan: +{scan.GetValueOrDefault("added")} / −{scan.GetValueOrDefault("removed")})");
     return Results.Json(new Dictionary<string, object?>
     {
         ["ok"] = true, ["clips_root"] = newRoot, ["scan"] = scan,
@@ -163,8 +178,19 @@ app.MapPost("/api/scan", () =>
     Heartbeat.Touch();
     var result = Scanner.Scan();
     ThumbnailWorker.Ensure();
+    DevLog.Add($"Skan folderu: znaleziono {result.GetValueOrDefault("found")}, dodano {result.GetValueOrDefault("added")}, usunięto {result.GetValueOrDefault("removed")}");
     return Results.Json(result);
 });
+
+#if KEEPCLIP_DEV
+// ---------- developer log viewer (compiled out of public releases) ----------
+app.MapGet("/api/logs", (long? since) =>
+{
+    var (seq, lines) = DevLog.GetSince(since ?? 0);
+    return Results.Json(new { seq, lines });
+});
+app.MapPost("/api/logs/clear", () => { DevLog.Clear(); return Results.Json(new { ok = true }); });
+#endif
 
 // ---------- instant replay (rolling capture buffer + hotkey save) ----------
 app.MapGet("/api/replay/status", () =>
@@ -214,6 +240,7 @@ app.MapPost("/api/transcribe/start", (bool? force) =>
     bool f = force ?? false;
     if (!TranscribeWorker.Start(f, out int total))
         return Results.Json(new { started = false, reason = "already_running" });
+    DevLog.Add($"Transkrypcja: start{(f ? " (ponownie, wszystkie klipy)" : "")} — {total} klipów do przetworzenia");
     return Results.Json(new Dictionary<string, object?> { ["started"] = true, ["force"] = f, ["total"] = total });
 });
 
@@ -226,6 +253,7 @@ app.MapPost("/api/transcribe/cancel", () =>
             return Results.Json(new { cancelled = false, reason = "not_running" });
         TranscribeState.Cancel = true;   // the worker checks this between clips
     }
+    DevLog.Add("Transkrypcja: anulowano (zatrzyma się po bieżącym klipie)");
     return Results.Json(new { cancelled = true });
 });
 
@@ -348,6 +376,7 @@ app.MapPost("/api/clips/{clipId:long}/favorite", (long clipId) =>
     if (row is null) return Detail(404, "Klip nie istnieje.");
     var newState = Convert.ToInt64(row["favorite"]) != 0 ? 0 : 1;
     con.Exec("UPDATE clips SET favorite = $f WHERE id = $id", ("$f", newState), ("$id", clipId));
+    DevLog.Add($"Ulubione: klip #{clipId} {(newState != 0 ? "dodany do ulubionych" : "usunięty z ulubionych")}");
     return Results.Json(new { ok = true, id = clipId, favorite = newState != 0 });
 });
 
@@ -424,6 +453,7 @@ app.MapPost("/api/folders", (FolderPayload body) =>
     }
     var newId = con.ScalarLong("SELECT last_insert_rowid()");
     var row = con.QueryOne("SELECT id, name, created_at FROM folders WHERE id=$id", ("$id", newId));
+    DevLog.Add($"Folder: utworzono „{name}” (#{newId})");
     return Results.Json(row);
 });
 
@@ -443,6 +473,7 @@ app.MapPatch("/api/folders/{folderId:long}", (long folderId, FolderPayload body)
     {
         return Detail(409, $"Folder o nazwie „{name}\" już istnieje.");
     }
+    DevLog.Add($"Folder #{folderId}: zmieniono nazwę na „{name}”");
     return Results.Json(new { ok = true, id = folderId, name });
 });
 
@@ -453,6 +484,7 @@ app.MapDelete("/api/folders/{folderId:long}", (long folderId) =>
     var row = con.QueryOne("SELECT name FROM folders WHERE id=$id", ("$id", folderId));
     if (row is null) return Detail(404, "Folder nie istnieje.");
     con.Exec("DELETE FROM folders WHERE id=$id", ("$id", folderId));
+    DevLog.Add($"Folder: usunięto „{row["name"]}” (#{folderId})");
     return Results.Json(new Dictionary<string, object?> { ["ok"] = true, ["deleted_name"] = row["name"] });
 });
 
@@ -491,6 +523,7 @@ app.MapPost("/api/folders/{folderId:long}/clips/{clipId:long}", (long folderId, 
         return Detail(404, "Klip nie istnieje.");
     con.Exec("INSERT OR IGNORE INTO folder_clips(folder_id, clip_id) VALUES($f,$c)",
         ("$f", folderId), ("$c", clipId));
+    DevLog.Add($"Folder #{folderId}: dodano klip #{clipId}");
     return Results.Json(new { ok = true });
 });
 
@@ -500,6 +533,7 @@ app.MapDelete("/api/folders/{folderId:long}/clips/{clipId:long}", (long folderId
     using var con = Db.Open();
     con.Exec("DELETE FROM folder_clips WHERE folder_id=$f AND clip_id=$c",
         ("$f", folderId), ("$c", clipId));
+    DevLog.Add($"Folder #{folderId}: usunięto klip #{clipId}");
     return Results.Json(new { ok = true });
 });
 
@@ -535,6 +569,7 @@ app.MapPatch("/api/segments/{segmentId:long}", (long segmentId, SegmentPayload b
     if (con.QueryOne("SELECT id FROM segments WHERE id=$id", ("$id", segmentId)) is null)
         return Detail(404, "Segment nie istnieje.");
     con.Exec("UPDATE segments SET text=$t WHERE id=$id", ("$t", text), ("$id", segmentId));
+    DevLog.Add($"Edycja transkrypcji: zapisano segment #{segmentId}");
     return Results.Json(new { ok = true, id = segmentId, text });
 });
 
@@ -565,6 +600,7 @@ app.MapPost("/api/clips/{clipId:long}/retranscribe", (long clipId) =>
     con.Exec("UPDATE clips SET transcribed_at=$ts, language=$lang WHERE id=$id",
         ("$ts", TranscribeWorker.NowIso()), ("$lang", Config.WhisperLang), ("$id", clipId));
 
+    DevLog.Add($"Transkrypcja klipu #{clipId}: gotowe — {segs.Count} segmentów w {Math.Round(sw.Elapsed.TotalSeconds, 1)} s");
     return Results.Json(new Dictionary<string, object?>
     {
         ["ok"] = true,
@@ -639,6 +675,7 @@ app.MapPost("/api/clips/{clipId:long}/fix", (long clipId) =>
         ("$sz", stat.Length), ("$mt", originalMtime), ("$du", newDuration),
         ("$ht", hasThumb ? 1 : 0), ("$id", clipId));
 
+    DevLog.Add($"Naprawa klipu #{clipId}: {message} (przycięto {trimmed:0.#}s; segmenty: przesunięto {shifted}, usunięto {dropped})");
     return Results.Json(new Dictionary<string, object?>
     {
         ["ok"] = true,
@@ -707,6 +744,7 @@ app.MapPost("/api/clips/{clipId:long}/cut", (long clipId, CutPayload body) =>
         newClipId = con.ScalarLong("SELECT last_insert_rowid()");
     }
 
+    DevLog.Add($"Wycinek: utworzono {Path.GetFileName(output)}{(newClipId is not null ? " (dodano do biblioteki)" : "")}");
     var resp = new Dictionary<string, object?>
     {
         ["ok"] = true,
@@ -759,6 +797,7 @@ app.MapDelete("/api/clips/{clipId:long}", async (long clipId, bool? delete_file)
     if ((row["storage"] as string) == "cloud" && row["remote_id"] is string rid && rid.Length > 0)
         await CloudService.TryTrashRemoteAsync(rid);
 
+    DevLog.Add($"Usunięto klip #{clipId} ({filename}){(deleteFile && trashError is null ? " — plik do Kosza" : "")}");
     return Results.Json(new Dictionary<string, object?>
     {
         ["deleted_clip_id"] = clipId,
@@ -806,7 +845,12 @@ app.MapPost("/api/cloud/connect", () =>
     Heartbeat.Touch();
     if (!CloudService.IsConfigured())
         return Detail(400, "Brak pliku google_client.json w folderze data.");
-    try { return Results.Json(new { auth_url = CloudService.BeginConnect() }); }
+    try
+    {
+        var url = CloudService.BeginConnect();
+        DevLog.Add("Chmura: rozpoczęto łączenie z Google Drive (otwarto zgodę OAuth)");
+        return Results.Json(new { auth_url = url });
+    }
     catch (Exception ex) { return Detail(500, ex.Message); }
 });
 
@@ -814,6 +858,7 @@ app.MapPost("/api/cloud/disconnect", async () =>
 {
     Heartbeat.Touch();
     await CloudService.DisconnectAsync();
+    DevLog.Add("Chmura: rozłączono z Google Drive");
     return Results.Json(new { ok = true });
 });
 
@@ -824,6 +869,7 @@ app.MapPost("/api/clips/{clipId:long}/upload", async (long clipId) =>
     try
     {
         bool already = await CloudService.UploadClipAsync(clipId);
+        DevLog.Add($"Chmura: wysłano klip #{clipId}{(already ? " (był już w chmurze)" : " — lokalny plik do Kosza")}");
         return Results.Json(new { ok = true, already });
     }
     catch (FileNotFoundException ex) { return Detail(404, ex.Message); }
@@ -841,6 +887,7 @@ app.MapPost("/api/clips/{clipId:long}/download", async (long clipId) =>
     try
     {
         bool already = await CloudService.DownloadClipAsync(clipId);
+        DevLog.Add($"Chmura: zdjęto klip #{clipId} z chmury na dysk{(already ? " (był już lokalnie)" : "")}");
         return Results.Json(new { ok = true, already });
     }
     catch (FileNotFoundException ex) { return Detail(404, ex.Message); }
@@ -858,6 +905,7 @@ app.MapPost("/api/folders/{folderId:long}/upload", async (long folderId) =>
     try
     {
         var (uploaded, total, skipped, failed) = await CloudService.UploadFolderAsync(folderId);
+        DevLog.Add($"Chmura: wysłano folder #{folderId} — {uploaded}/{total} wysłanych (pominięto {skipped}, błędów {failed})");
         return Results.Json(new { uploaded, total, skipped, failed });
     }
     catch (Exception ex) { return Detail(500, ex.Message); }

@@ -92,6 +92,12 @@
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.6224 10.3954L18.5247 7.7448L20 6L18 4L16.2647 5.48295L13.5578 4.36974L13.0954 2H10.9046L10.4422 4.36974L7.73528 5.48295L6 4L4 6L5.47534 7.7448L4.37764 10.3954L2 10.9046V13.0954L4.37764 13.6046L5.47534 16.2552L4 18L6 20L7.73528 18.517L10.4422 19.6303L10.9046 22H13.0954L13.5578 19.6303L16.2647 18.517L18 20L20 18L18.5247 16.2552L19.6224 13.6046L22 13.0954V10.9046L19.6224 10.3954Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="nav-label" data-i18n="nav.settings">Ustawienia</span>
       </button>
+      <!-- DEV:START — log viewer; stripped from public CI releases (build.ps1 -PublicRelease) -->
+      <button class="nav-tool" id="btn-logs" type="button" hidden>
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>
+        <span class="nav-label">Logi aplikacji</span>
+      </button>
+      <!-- DEV:END -->
     </nav>
 
   </aside>
@@ -513,6 +519,23 @@
     </div>
   </div>
 </div>
+
+<!-- DEV:START — application log viewer; stripped from public CI releases -->
+<div id="logs-overlay" hidden>
+  <div id="logs-box">
+    <header class="logs-head">
+      <h3>Logi aplikacji <span class="logs-dev-tag">DEV</span></h3>
+      <div class="logs-head-actions">
+        <label class="logs-autoscroll"><input type="checkbox" id="logs-autoscroll" checked /> Auto-przewijanie</label>
+        <button id="logs-copy" class="btn ghost" type="button">Kopiuj</button>
+        <button id="logs-clear" class="btn ghost" type="button">Wyczyść</button>
+        <button id="logs-close" class="btn ghost" type="button">Zamknij</button>
+      </div>
+    </header>
+    <pre id="logs-output" class="logs-output"></pre>
+  </div>
+</div>
+<!-- DEV:END -->
 
 <div id="cut-overlay" hidden>
   <div id="cut-box">

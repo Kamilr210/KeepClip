@@ -1772,3 +1772,32 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 .replay-audio-section .replay-grid select:focus {
   border-color: var(--accent, #7c5cff);
 }
+
+/* DEV:START — developer log viewer (dev builds only; stripped from public releases) */
+#logs-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2600;
+  display: flex; align-items: center; justify-content: center;
+}
+#logs-box {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  width: min(960px, 94vw); height: min(680px, 88vh);
+  display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  overflow: hidden;
+}
+.logs-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 13px 18px; border-bottom: 1px solid var(--border);
+}
+.logs-head h3 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.logs-dev-tag {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--warn);
+  border: 1px solid var(--warn); border-radius: 4px; padding: 1px 5px;
+}
+.logs-head-actions { display: flex; align-items: center; gap: 8px; }
+.logs-autoscroll { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.logs-output {
+  flex: 1; margin: 0; overflow: auto; padding: 12px 16px;
+  font-family: 'Consolas', monospace; font-size: 12px; line-height: 1.5;
+  color: var(--text); background: #0a0c10; white-space: pre-wrap; word-break: break-word;
+}
+/* DEV:END */

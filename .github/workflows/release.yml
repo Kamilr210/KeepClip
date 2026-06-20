@@ -49,7 +49,7 @@ jobs:
 
       - name: Zbuduj publish + instalator
         shell: powershell
-        run: powershell -ExecutionPolicy Bypass -File installer\build.ps1
+        run: powershell -ExecutionPolicy Bypass -File installer\build.ps1 -PublicRelease
 
       - name: Utwórz release i wgraj instalator
         shell: powershell

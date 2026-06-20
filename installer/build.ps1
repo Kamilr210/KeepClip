@@ -18,12 +18,30 @@
 [CmdletBinding()]
 param(
   [switch]$SkipPublish,
-  [switch]$NoInstaller
+  [switch]$NoInstaller,
+  # Public release: strips developer-only features (the "Logi aplikacji" panel) from
+  # the build. Auto-on under GitHub Actions, so the automated release workflow never
+  # ships dev tools even if the switch is forgotten.
+  [switch]$PublicRelease
 )
 
 $ErrorActionPreference = 'Stop'
 
+$Public = $PublicRelease.IsPresent -or ($env:GITHUB_ACTIONS -eq 'true')
+
 function Step($m) { Write-Host ""; Write-Host "==> $m" -ForegroundColor Cyan }
+
+# Remove <!-- DEV:START -->...<!-- DEV:END --> (HTML) and /* DEV:START */.../* DEV:END */
+# (JS) blocks from a published frontend file. Written UTF-8 without BOM (the app reads
+# index.html as UTF-8; a BOM there is asking for trouble).
+function Remove-DevBlocks([string]$file) {
+  if (-not (Test-Path $file)) { return }
+  $txt = [IO.File]::ReadAllText($file)
+  $txt = [regex]::Replace($txt, '(?s)<!-- DEV:START.*?DEV:END -->\s*', '')
+  $txt = [regex]::Replace($txt, '(?s)/\* DEV:START.*?DEV:END \*/\s*', '')
+  [IO.File]::WriteAllText($file, $txt, (New-Object System.Text.UTF8Encoding($false)))
+  Write-Host "  oczyszczono $file"
+}
 
 $InstallerDir = $PSScriptRoot
 $RepoRoot     = Split-Path -Parent $InstallerDir
@@ -69,8 +87,18 @@ try {
       '-p:PublishTrimmed=false',
       '-o', $PublishDir
     )
+    if ($Public) { $pubArgs += '-p:PublicRelease=true' }  # drops KEEPCLIP_DEV (no log endpoint/capture)
+    Write-Host ("Tryb: {0}" -f $(if ($Public) { 'PUBLICZNY (bez funkcji deweloperskich)' } else { 'deweloperski' }))
     & dotnet @pubArgs
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish zwrocil kod $LASTEXITCODE." }
+  }
+
+  # Public release: also physically strip the dev-only UI from the staged frontend, so
+  # the installer doesn't even contain the "Logi aplikacji" markup/script.
+  if ($Public) {
+    Step "Public release: usuwam funkcje deweloperskie z frontendu"
+    Remove-DevBlocks (Join-Path $PublishDir 'frontend\index.html')
+    Remove-DevBlocks (Join-Path $PublishDir 'frontend\app.js')
   }
 
   # --- 3. Przytnij nieuzywane natywne runtimy (proces win-x64 ich nie laduje) ---
