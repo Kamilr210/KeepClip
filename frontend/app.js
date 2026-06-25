@@ -1968,6 +1968,10 @@ els.configSave.addEventListener("click", async () => {
 // ---------- instant replay (rolling buffer + hotkey) ----------
 // Friendly labels for the encoder ffmpeg actually initialized with.
 const REPLAY_ENC_LABELS = {
+  hevc_nvenc: "NVENC HEVC (GPU NVIDIA)",
+  hevc_amf: "AMF HEVC (GPU AMD)",
+  hevc_qsv: "QuickSync HEVC (GPU Intel)",
+  // H.264 names kept for older buffers / the CPU fallback.
   h264_nvenc: "NVENC (GPU NVIDIA)",
   h264_amf: "AMF (GPU AMD)",
   h264_qsv: "QuickSync (GPU Intel)",
@@ -1981,7 +1985,9 @@ function renderReplayStatus(st) {
   if (els.replayNavDot) els.replayNavDot.hidden = !(st.enabled && st.running);
   if (!els.replayBox || els.replayOverlay.hidden) return;
 
-  els.replayBox.classList.toggle("off", !st.enabled);
+  // The tuning grid stays editable the whole time the modal is open — the 3 s status
+  // poll must NOT grey it based on server `enabled`, or it clobbers the user's just-
+  // toggled-but-not-yet-saved checkbox (settings flashed available, then greyed out).
   els.replaySaveNow.disabled = !st.running || st.saving;
 
   els.replayDot.className = "replay-dot" + (st.error ? " err" : st.running ? " on" : "");
@@ -2013,7 +2019,7 @@ async function refreshReplayStatus() {
 }
 
 async function openReplayModal() {
-  const st = await refreshReplayStatus();
+  const st = await refreshReplayStatus();   // modal still hidden → only updates the sidebar dot
   if (st) {
     els.replayEnabled.checked = !!st.enabled;
     els.replayMic.checked = !!st.mic_enabled;
@@ -2022,13 +2028,13 @@ async function openReplayModal() {
     els.replayFps.value = String(st.fps);
     els.replayQuality.value = st.quality;
     els.replayHotkey.value = st.hotkey;
-    renderReplayStatus(st);
     // Restore saved audio device selections after populating
     await populateAudioDevices();
     if (st.audio_output && els.replayAudioOutput) els.replayAudioOutput.value = st.audio_output;
     if (st.audio_input  && els.replayAudioInput)  els.replayAudioInput.value  = st.audio_input;
   }
-  els.replayOverlay.hidden = false;
+  els.replayOverlay.hidden = false;          // show BEFORE rendering, so the render isn't skipped
+  if (st) renderReplayStatus(st);
   clearInterval(_replayPoll);
   _replayPoll = setInterval(refreshReplayStatus, 3000);
 }
@@ -2045,10 +2051,7 @@ els.replayOverlay.addEventListener("click", (e) => {
   if (e.target === els.replayOverlay) closeReplayModal();
 });
 
-// Live grey-out of the tuning grid before the user even hits "Zapisz ustawienia".
-els.replayEnabled.addEventListener("change", () => {
-  els.replayBox.classList.toggle("off", !els.replayEnabled.checked);
-});
+// (No live grey-out: the tuning grid is always editable while the modal is open.)
 
 // --- hotkey capture: click the field, press a combo, Esc cancels ---
 let _hotkeyPrev = null;

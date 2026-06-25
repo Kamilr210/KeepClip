@@ -9,12 +9,13 @@ namespace KeepClip;
 /// <summary>
 /// Instant-replay buffer — KeepClip's take on ShadowPlay's "Natychmiastowa powtórka".
 /// While enabled, one long-lived ffmpeg process captures the desktop (Desktop
-/// Duplication via the <c>ddagrab</c> filter, <c>gdigrab</c> as a universal fallback)
-/// plus system audio (WASAPI loopback pumped in-process through NAudio into ffmpeg's
-/// stdin) into a rolling ring of short mpegts segments under <c>data/tmp/replay</c>.
+/// Duplication via the <c>ddagrab</c> filter, with a <c>gdigrab</c> fallback) plus
+/// system audio (WASAPI loopback pumped in-process through NAudio into ffmpeg's stdin)
+/// into a rolling ring of short H.264 mpegts segments under <c>data/tmp/replay</c>.
 /// Saving (hotkey or UI) never touches the capture process: completed segments plus a
-/// snapshot of the in-progress one are concat-remuxed (<c>-c copy</c>, no re-encode)
-/// into an mp4 in the clips root's "Powtórki" subfolder, then a scan registers it.
+/// snapshot of the in-progress one are concat-remuxed (video copied verbatim, audio
+/// re-encoded to heal segment-seam gaps) into an mp4 in the clips root's "Powtórki"
+/// subfolder, then a scan registers it.
 ///
 /// mpegts is load-bearing twice over: a partially written .ts decodes up to the last
 /// packet (so the freshest seconds make it into the save AND a crash/kill never
@@ -22,22 +23,35 @@ namespace KeepClip;
 /// </summary>
 public static class ReplayService
 {
-    private const int SegmentSeconds = 4;          // ring granularity; save overshoot ≤ this
+    private const int SegmentSeconds = 2;          // ring granularity; save overshoot ≤ this
     private static readonly object Gate = new();
 
     private static Process? _ff;
     private static AudioPump? _audio;
     private static Thread? _janitor;
     private static bool _stopRequested;
-    private static bool _usingGdigrab;             // true after the ddagrab → gdigrab fallback
     private static bool _audioOn;
     private static string? _encoder;               // probed once per process lifetime
+
+    // Capture tiers, tried in order and escalated by the watchdog on repeated immediate
+    // deaths. Tier 0 keeps frames on the GPU end-to-end (ddagrab D3D11 frames → NVENC,
+    // no hwdownload/scale/pad) and is only valid for h264-class NVENC (here hevc_nvenc);
+    // tier 1 is the universal CPU round-trip (ddagrab → hwdownload → scale/pad → encoder);
+    // tier 2 is gdigrab for hosts where ddagrab can't run at all.
+    private const int TierGpu = 0, TierCpu = 1, TierGdi = 2;
+    private static int _captureTier = -1;          // -1 = decide from the encoder at next start
     private static string? _error;                 // last start/runtime failure (PL, shown in UI)
     private static string? _runningSig;            // settings signature the buffer was started with
     private static int _saving;                    // interlocked: a save is in flight
+    private static int _segStart;                  // next segment number (continues across crash-restarts)
     private static readonly Queue<string> _stderrTail = new();
 
     private static string SegDir => Path.Combine(Config.TmpDir, "replay");
+
+    /// <summary>True while a save is being assembled. Lets the hotkey handler treat a
+    /// re-press as a no-op (not a failure cue) and stops a crash-restart from wiping the
+    /// ring out from under the in-flight save.</summary>
+    public static bool SaveInProgress => _saving != 0;
 
     /// <summary>
     /// On-screen notification hook (ok, title, subtitle). The desktop shell points
@@ -50,7 +64,13 @@ public static class ReplayService
 
     public static bool Enabled => Settings.GetString("replay_enabled") == "1";
     public static int DurationS => ClampInt(Settings.GetString("replay_duration_s"), 15, 600, 120);
-    public static int Fps => Settings.GetString("replay_fps") == "30" ? 30 : 60;
+    /// <summary>Capture frame rate (60 default). Higher values up to the monitor's refresh
+    /// give smoother motion on high-refresh displays — there's no point exceeding it, as
+    /// Desktop Duplication can't deliver more than the compositor presents. Anything off
+    /// the allowed list falls back to 60.</summary>
+    public static int Fps =>
+        int.TryParse(Settings.GetString("replay_fps"), out var f)
+        && f is 30 or 60 or 90 or 120 or 144 or 165 ? f : 60;
     /// <summary>"low" | "medium" | "high" (Niska/Średnia/Wysoka in the UI).</summary>
     public static string Quality
     {
@@ -61,13 +81,23 @@ public static class ReplayService
         }
     }
     public static string Hotkey => Settings.GetString("replay_hotkey") ?? "Alt+F10";
-    /// <summary>Mix the default microphone into the recording (default on).</summary>
-    public static bool MicEnabled => Settings.GetString("replay_mic") != "0";
+    /// <summary>Mix a microphone into the recording. Default OFF (opt-in): a background
+    /// replay buffer must not silently grab the mic on every launch.</summary>
+    public static bool MicEnabled => Settings.GetString("replay_mic") == "1";
+    /// <summary>Render device to capture (WASAPI loopback), by NAudio MMDevice ID.
+    /// Null/empty = capture ALL active outputs (robust when the default device is a
+    /// silent phantom — exactly the dev's own machine).</summary>
+    public static string? AudioOutputId => Empty(Settings.GetString("replay_audio_output"));
+    /// <summary>Microphone device by MMDevice ID. Null/empty = the default capture device.</summary>
+    public static string? AudioInputId => Empty(Settings.GetString("replay_audio_input"));
+
+    private static string? Empty(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;
 
     private static int ClampInt(string? raw, int min, int max, int fallback)
         => int.TryParse(raw, out var v) ? Math.Clamp(v, min, max) : fallback;
 
-    private static string SettingsSig() => $"{DurationS}|{Fps}|{Quality}|{MicEnabled}";
+    private static string SettingsSig()
+        => $"{DurationS}|{Fps}|{Quality}|{MicEnabled}|{AudioOutputId}|{AudioInputId}";
 
     // ---------- public surface ----------
 
@@ -91,12 +121,35 @@ public static class ReplayService
             ["hotkey"] = Hotkey,
             ["hotkey_active"] = HotkeyManager.IsActive,
             ["encoder"] = running ? _encoder : null,
-            ["capture"] = running ? (_usingGdigrab ? "gdigrab" : "ddagrab") : null,
+            ["capture"] = running ? CaptureName(_captureTier) : null,
             ["audio"] = running && _audioOn,
             ["mic_enabled"] = MicEnabled,
             ["mic_active"] = running && _audio?.MicActive == true,
+            ["audio_output"] = AudioOutputId,
+            ["audio_input"] = AudioInputId,
             ["error"] = _error,
         };
+    }
+
+    /// <summary>
+    /// Active render (outputs) + capture (inputs) endpoints for the settings dropdowns.
+    /// IDs are NAudio MMDevice IDs — exactly what <see cref="AudioOutputId"/> /
+    /// <see cref="AudioInputId"/> match on. Backs GET /api/replay/audio-devices.
+    /// </summary>
+    public static object AudioDevices()
+    {
+        var outputs = new List<object>();
+        var inputs = new List<object>();
+        try
+        {
+            var en = new MMDeviceEnumerator();
+            foreach (var d in en.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
+                outputs.Add(new { id = d.ID, name = d.FriendlyName });
+            foreach (var d in en.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
+                inputs.Add(new { id = d.ID, name = d.FriendlyName });
+        }
+        catch { /* no audio stack → empty lists; UI falls back to "default" only */ }
+        return new { outputs, inputs };
     }
 
     /// <summary>
@@ -112,17 +165,18 @@ public static class ReplayService
             if (!Enabled)
             {
                 if (running) StopLocked();
+                if (_saving == 0) WipeRing();   // clean stop → clear the ring
                 _error = null;
                 return;
             }
             if (running && _runningSig == SettingsSig()) return;
             if (running) StopLocked();
             // Fresh user intent (enable / settings change / app start) clears the
-            // crash streak AND the gdigrab fallback — a transient bad spell (game
+            // crash streak AND the capture-tier escalation — a transient bad spell (game
             // launch storm) must not curse the rest of the process lifetime.
             _consecFails = 0;
-            _usingGdigrab = false;
-            StartLocked();
+            _captureTier = -1;
+            StartLocked(freshRing: true);
         }
     }
 
@@ -168,6 +222,10 @@ public static class ReplayService
         if (Interlocked.CompareExchange(ref _saving, 1, 0) != 0)
             throw new InvalidOperationException("Poprzedni zapis powtórki jeszcze trwa.");
 
+        // Immediate on-screen feedback: the re-encode takes a few seconds, so confirm the
+        // save STARTED (otherwise the user re-presses, thinking nothing happened).
+        try { Notifier?.Invoke(true, "Zapisywanie powtórki…", "przetwarzanie, chwila…"); } catch { }
+
         string? listPath = null, snapPath = null, tmpOut = null;
         try
         {
@@ -212,13 +270,29 @@ public static class ReplayService
             var outName = $"{game} {DateTime.Now:yyyy-MM-dd HH-mm-ss}.mp4";
             var outPath = Path.Combine(outDir, outName);
 
-            // Remux to a temp file first so the scanner can never see a half-written mp4.
+            // LOSSLESS-VIDEO REMUX (ShadowPlay-style). The freshest `needed` segments are
+            // already selected above, so we COPY the captured video stream verbatim — no
+            // decode, no re-encode — and the saved replay keeps exactly the quality we
+            // captured (the old double-encode visibly softened it). Audio is re-encoded with
+            // aresample=async=1 to heal the sub-frame gaps at the TS segment seams (the seam
+            // drift was always audio, not video); apad + -shortest tie the audio length to
+            // the copied video so they stay in sync at any buffer fill. Stream copy starts on
+            // the oldest segment's keyframe, so the clip can run up to ~SegmentSeconds longer
+            // than DurationS — a harmless bit of extra lead-in for a replay. HEVC in mp4 needs
+            // the hvc1 tag to play in the in-app player and most other players.
             tmpOut = Path.Combine(Config.TmpDir, $"replay_out_{Guid.NewGuid():N}.mp4");
-            var (code, err) = await RunFfmpegAsync(new[]
+            bool hevc = _encoder?.StartsWith("hevc", StringComparison.Ordinal) == true;
+            var args = new List<string>
             {
                 "-y", "-f", "concat", "-safe", "0", "-i", listPath,
-                "-c", "copy", "-movflags", "+faststart", tmpOut,
-            }, timeoutMs: 120_000);
+                "-map", "0:v:0", "-c:v", "copy",
+            };
+            if (hevc) { args.Add("-tag:v"); args.Add("hvc1"); }
+            if (_audioOn)
+                args.AddRange(new[] { "-map", "0:a:0?", "-c:a", "aac", "-b:a", "192k",
+                                      "-af", "aresample=async=1:first_pts=0,apad", "-shortest" });
+            args.AddRange(new[] { "-movflags", "+faststart", tmpOut });
+            var (code, err) = await RunFfmpegAsync(args.ToArray(), timeoutMs: 120_000);
             if (code != 0 || !File.Exists(tmpOut) || new FileInfo(tmpOut).Length < 10_000)
                 throw new Exception($"Nie udało się złożyć powtórki (ffmpeg: {Tail(err)})");
 
@@ -246,7 +320,7 @@ public static class ReplayService
 
     // ---------- capture process ----------
 
-    private static void StartLocked()
+    private static void StartLocked(bool freshRing)
     {
         _error = null;
         _stopRequested = false;
@@ -256,24 +330,44 @@ public static class ReplayService
                 throw new Exception("Brak ffmpeg.exe w tools\\bin — uruchom setup.ps1.");
 
             Directory.CreateDirectory(SegDir);
-            foreach (var f in Directory.GetFiles(SegDir)) // stale ring from a previous run
-                try { File.Delete(f); } catch { }
+            // Fresh start (enable / settings change) clears the ring and numbers from 0.
+            // A crash-restart (freshRing=false) — or a fresh start while a save is reading
+            // the ring — PRESERVES it and continues numbering, so the buffer survives the
+            // frequent ddagrab DXGI access-loss crashes: the recording stays continuous,
+            // losing only the ~1 s restart gap instead of the whole buffered replay.
+            if (freshRing && _saving == 0)
+            {
+                WipeRing();
+                _segStart = 0;
+            }
+            else
+            {
+                _segStart = NextSegNumber();
+            }
 
             MeasurePrimaryDisplay();
             _encoder ??= ProbeEncoder();
+            // Start on the CPU round-trip (tier 1). GPU-native (tier 0) is DISABLED for now:
+            // on real ddagrab D3D11 frames its ring stays near-empty — the segments never
+            // complete (most likely -fps_mode cfr can't duplicate hardware frames to fill the
+            // rate when the desktop is static, so PTS barely advances), even though the encode
+            // + segment muxer + setpts are correct on CPU/synthetic sources. Tier 0 stays in
+            // SpawnCapture, ready to re-enable once that's fixed; the watchdog still escalates
+            // tier 1 → gdigrab. On a strong GPU at 1440p the CPU round-trip isn't a bottleneck.
+            if (_captureTier < 0) _captureTier = TierCpu;
 
             // Audio is best-effort: a machine with no render device still gets video.
-            _audio = AudioPump.TryCreate(MicEnabled);
+            _audio = AudioPump.TryCreate(MicEnabled, AudioOutputId, AudioInputId);
             _audioOn = _audio is not null;
 
-            _ff = SpawnCapture(_usingGdigrab);
+            _ff = SpawnCapture(_captureTier);
             _audio?.Start(_ff.StandardInput.BaseStream);
 
             _runningSig = SettingsSig();
             StartWatchdog(_ff);
             StartJanitor();
             Console.Error.WriteLine(
-                $"Bufor powtórki: start ({(_usingGdigrab ? "gdigrab" : "ddagrab")}, {_encoder}, " +
+                $"Bufor powtórki: start ({CaptureName(_captureTier)}, {_encoder}, " +
                 $"{Fps} fps, {Quality}, {DurationS}s, audio: {(_audioOn ? "tak" : "brak")}, " +
                 $"mikrofon: {(_audio?.MicActive == true ? "tak" : "brak")})");
         }
@@ -315,15 +409,12 @@ public static class ReplayService
         }
 
         _runningSig = null;
-        try
-        {
-            if (Directory.Exists(SegDir))
-                foreach (var f in Directory.GetFiles(SegDir)) File.Delete(f);
-        }
-        catch { }
+        // No ring wipe here: the ring must survive both a crash-restart (so footage isn't
+        // lost) and an in-flight save (which is reading these files). Wiping happens only
+        // on a clean enable/disable, via WipeRing() in ApplyConfig / StartLocked.
     }
 
-    private static Process SpawnCapture(bool gdigrab)
+    private static Process SpawnCapture(int tier)
     {
         var psi = new ProcessStartInfo
         {
@@ -361,50 +452,88 @@ public static class ReplayService
         // a 2560+1680 setup → "No capable devices found" from NVENC). gdigrab is
         // therefore also restricted to the primary monitor's region. nv12 because
         // every encoder in the probe chain accepts it, while bgra support varies.
-        string norm = $"scale={_capW}:{_capH}:force_original_aspect_ratio=decrease," +
-                      $"pad={_capW}:{_capH}:(ow-iw)/2:(oh-ih)/2,format=nv12[v]";
-        if (gdigrab)
+        // This pinning applies to the CPU round-trip (tier 1) and gdigrab (tier 2). The
+        // GPU-native path (tier 0) keeps ddagrab's D3D11 frames untouched — no scale/pad,
+        // no hwdownload — and lets NVENC do the BGRA→NV12 conversion on the GPU, so there
+        // is no per-frame GPU→CPU→GPU copy; the trade is no geometry pinning (a mid-stream
+        // mode change can crash the encoder → the watchdog restarts and re-measures).
+        //
+        // setpts=N/{Fps} TIMESTAMP NORMALIZER (replaces the old fps={Fps} filter).
+        // ddagrab on exclusive-fullscreen CS2 delivers frames with irregular PTS — some
+        // close together, some with gaps where the GPU was busy. The fps filter DROPS or
+        // DUPLICATES frames to hit exactly 60, which causes visible micro-stutter (a
+        // duplicated frame = a 16 ms freeze, a dropped frame = a visible hitch). ShadowPlay
+        // avoids this by capturing at GPU level with perfect cadence.
+        //
+        // setpts=N/{Fps} assigns PTS = frame_number/60 to every frame in sequence, producing
+        // perfectly regular timestamps WITHOUT duplicating or dropping anything. Combined
+        // with -fps_mode cfr (which tells the encoder "this is constant-framerate, trust it"),
+        // the output is smooth: each original frame lands exactly where it should, and the
+        // segment muxer sees a proper wallclock timeline (segments come out exactly
+        // SegmentSeconds long). The only case where this differs from ShadowPlay is when the
+        // game runs BELOW the capture FPS — then the stream genuinely has fewer frames per
+        // second, which is correct (you can't invent frames that don't exist).
+        string normCpu = $"setpts=N/{Fps},scale={_capW}:{_capH}:force_original_aspect_ratio=decrease," +
+                         $"pad={_capW}:{_capH}:(ow-iw)/2:(oh-ih)/2,format=nv12[v]";
+        string normGpu = $"setpts=N/{Fps}[v]";   // timestamp-only; works on D3D11 hwframes
+        // Run audio through aresample in the SAME graph to keep it on the video timeline.
+        // async=1000 lets it SMOOTHLY stretch/squeeze (up to 1000 samples/s ≈ 2%) to absorb
+        // timeline drift, instead of async=1's hard fill/trim (which inserts audible silence
+        // — part of the "audio przerywa" problem). first_pts=0 aligns the audio start with
+        // the video start (both at pts 0) so there's no constant offset either.
+        string audioChain = _audioOn ? "; [0:a]aresample=async=1000:first_pts=0[a]" : "";
+        if (tier == TierGdi)
         {
             Add("-f", "gdigrab", "-framerate", Fps.ToString(), "-thread_queue_size", "128",
                 "-offset_x", "0", "-offset_y", "0", "-video_size", $"{_grabW}x{_grabH}",
                 "-i", "desktop");
-            Add("-filter_complex", $"[{(_audioOn ? 1 : 0)}:v]{norm}");
+            Add("-filter_complex", $"[{(_audioOn ? 1 : 0)}:v]{normCpu}{audioChain}");
         }
-        else
+        else if (tier == TierCpu)
         {
             Add("-filter_complex",
-                $"ddagrab=framerate={Fps}:draw_mouse=1,hwdownload,format=bgra,{norm}");
+                $"ddagrab=framerate={Fps}:draw_mouse=1,hwdownload,format=bgra,{normCpu}{audioChain}");
+        }
+        else   // TierGpu: D3D11 frames straight into NVENC, no hwdownload/scale/pad
+        {
+            Add("-filter_complex",
+                $"ddagrab=framerate={Fps}:draw_mouse=1,{normGpu}{audioChain}");
         }
         Add("-map", "[v]");
         if (_audioOn)
         {
-            Add("-map", "0:a");
-            Add("-c:a", "aac", "-b:a", "160k");
+            Add("-map", "[a]");
+            Add("-c:a", "aac", "-b:a", "192k");
         }
 
-        // Bitrate ladder (constant disk budget regardless of encoder): the ring holds
-        // duration+2 segments, so even Wysoka at 5 min stays under ~1.3 GB of tmp.
-        int mbps = Quality switch { "low" => 8, "medium" => 15, _ => 30 };
-        string b = $"{mbps}M", maxr = $"{(int)(mbps * 1.5)}M", buf = $"{mbps * 2}M";
-        int gop = Fps * SegmentSeconds; // keyframe cadence == segment cadence
+        // Quality-based encoding (constant quantizer) instead of a VBR bitrate cap: VBR
+        // starved fast-motion CS2 frames (blocking/blur), constant-QP holds quality steady
+        // regardless of motion — ShadowPlay-style. Lower QP = higher quality. p7 + B-frames
+        // squeeze the most out of NVENC. Disk: CQP is variable-bitrate, but the ring only
+        // ever holds ~duration seconds, so worst-case high-motion still fits in tmp.
+        int qp = Quality switch { "low" => 28, "medium" => 24, _ => 20 };
+        int gop = Fps;   // 1 s keyframe cadence: better seeking + clean 2 s segment cuts
         switch (_encoder)
         {
             case "h264_nvenc":
-                Add("-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-b:v", b, "-maxrate", maxr, "-bufsize", buf);
+                Add("-c:v", "h264_nvenc", "-preset", "p7", "-rc", "constqp", "-qp", qp.ToString(), "-bf", "2");
                 break;
             case "h264_amf":
-                Add("-c:v", "h264_amf", "-usage", "transcoding", "-rc", "vbr_peak", "-b:v", b, "-maxrate", maxr);
+                Add("-c:v", "h264_amf", "-usage", "transcoding", "-quality", "quality",
+                    "-rc", "cqp", "-qp_i", qp.ToString(), "-qp_p", qp.ToString(), "-qp_b", qp.ToString());
                 break;
             case "h264_qsv":
-                Add("-c:v", "h264_qsv", "-preset", "medium", "-b:v", b, "-maxrate", maxr);
+                Add("-c:v", "h264_qsv", "-preset", "slow", "-global_quality", qp.ToString(), "-bf", "2");
                 break;
             default:
-                Add("-c:v", "libx264", "-preset", "veryfast", "-b:v", b, "-maxrate", maxr, "-bufsize", buf);
+                Add("-c:v", "libx264", "-preset", "veryfast", "-crf", qp.ToString());
                 break;
         }
         Add("-g", gop.ToString());
+        Add("-fps_mode", "cfr");   // setpts gives regular timestamps; cfr tells the muxer to trust them
 
         Add("-f", "segment", "-segment_time", SegmentSeconds.ToString(),
+            "-segment_start_number", _segStart.ToString(),   // continue numbering across restarts
             "-reset_timestamps", "1", "-segment_format", "mpegts",
             Path.Combine(SegDir, "seg_%06d.ts"));
 
@@ -456,10 +585,12 @@ public static class ReplayService
                 StopLocked();
 
                 _consecFails = uptime < TimeSpan.FromSeconds(10) ? _consecFails + 1 : 0;
-                if (_consecFails >= 2 && !_usingGdigrab)
+                // Escalate the capture tier on repeated immediate deaths: GPU-native →
+                // CPU round-trip → gdigrab. Each step is more compatible (and slower).
+                if (_consecFails >= 2 && _captureTier < TierGdi)
                 {
-                    Console.Error.WriteLine("Bufor: ddagrab pada od razu — przełączam na gdigrab.");
-                    _usingGdigrab = true;
+                    _captureTier++;
+                    Console.Error.WriteLine($"Bufor: przechwytywanie pada od razu — schodzę na „{CaptureName(_captureTier)}”.");
                 }
                 if (_consecFails >= 6)
                 {
@@ -467,10 +598,12 @@ public static class ReplayService
                     return;
                 }
 
-                int delayMs = _consecFails == 0 ? 2_000 : 3_000 * _consecFails;
+                // Quick first retry (DXGI access usually re-acquires instantly); back off
+                // only if it keeps dying fast. The buffer is preserved across the restart.
+                int delayMs = _consecFails == 0 ? 700 : 1_500 * _consecFails;
                 Console.Error.WriteLine(
                     $"Bufor: nieoczekiwany koniec po {uptime.TotalSeconds:F0}s ({Tail(tail)}) — " +
-                    $"restart za {delayMs / 1000}s.");
+                    $"restart za {delayMs} ms (bufor zachowany).");
                 _ = Task.Run(async () =>
                 {
                     await Task.Delay(delayMs);
@@ -479,13 +612,43 @@ public static class ReplayService
                         // Settings are the source of truth: the user may have disabled
                         // (or a config POST already restarted) the buffer meanwhile.
                         if (!Enabled || _ff is not null) return;
-                        StartLocked();
+                        StartLocked(freshRing: false);   // keep the buffered footage
                     }
                 });
             }
         })
         { IsBackground = true, Name = "KeepClip-ReplayWatchdog" };
         t.Start();
+    }
+
+    /// <summary>Delete the rolling segment files (clean enable/disable only — never on a
+    /// crash-restart or during a save, where the footage must survive).</summary>
+    private static void WipeRing()
+    {
+        try
+        {
+            if (Directory.Exists(SegDir))
+                foreach (var f in Directory.GetFiles(SegDir, "seg_*.ts"))
+                    try { File.Delete(f); } catch { }
+        }
+        catch { }
+    }
+
+    /// <summary>Highest existing segment number + 1, so a restarted ffmpeg continues the
+    /// numbering instead of overwriting the preserved ring from 0.</summary>
+    private static int NextSegNumber()
+    {
+        int max = -1;
+        try
+        {
+            foreach (var f in Directory.GetFiles(SegDir, "seg_*.ts"))
+            {
+                var name = Path.GetFileNameWithoutExtension(f);   // "seg_000123"
+                if (name.Length > 4 && int.TryParse(name.AsSpan(4), out var n) && n > max) max = n;
+            }
+        }
+        catch { }
+        return max + 1;
     }
 
     /// <summary>Prune ring segments beyond what the configured duration needs.</summary>
@@ -517,9 +680,18 @@ public static class ReplayService
 
     // ---------- helpers ----------
 
+    private static string CaptureName(int tier) => tier switch
+    {
+        TierGpu => "ddagrab-gpu", TierGdi => "gdigrab", _ => "ddagrab",
+    };
+
     /// <summary>
-    /// One-time pick of the best working H.264 encoder: a 3-frame null encode proves
-    /// the driver/GPU actually initializes, not just that ffmpeg compiled it in.
+    /// One-time pick of the best working H.264 encoder: a 3-frame null encode proves the
+    /// driver/GPU actually initializes, not just that ffmpeg compiled it in.
+    /// NOTE: HEVC (hevc_nvenc) was tried but crashed the live ddagrab capture after a few
+    /// frames on the dev's RTX 5080 (rings filled with 3-frame segments), while h264_nvenc
+    /// sustained 60 fps cleanly — so capture stays on H.264 until that's diagnosed with a
+    /// running ddagrab. See [[replay-capture-engine-direction]] memory.
     /// </summary>
     private static string ProbeEncoder()
     {
@@ -654,6 +826,12 @@ public static class ReplayService
 /// </summary>
 internal sealed class AudioPump : IDisposable
 {
+    /// <summary>Wallclock lag of the emit cursor — a jitter buffer that lets the buffered
+    /// audio absorb WASAPI capture bursts and small device-vs-Stopwatch clock drift over a
+    /// replay-length window, instead of silence-padding the gap. Free latency for a
+    /// non-live replay buffer, and sync-neutral (see PumpLoopCore).</summary>
+    private const int JitterMs = 200;
+
     private readonly List<WasapiCapture> _captures = new();  // loopbacks of ALL outputs + mic
     private readonly NAudio.Wave.SampleProviders.MixingSampleProvider _mixer;
     private Thread? _pumpThread;
@@ -673,25 +851,26 @@ internal sealed class AudioPump : IDisposable
     public bool MicActive { get; }
 
     /// <summary>Null when the machine has no render device at all (headless).
-    /// A missing/broken microphone or individual output degrades instead of failing.</summary>
-    public static AudioPump? TryCreate(bool withMic)
+    /// A missing/broken microphone or individual output degrades instead of failing.
+    /// <paramref name="outputId"/>/<paramref name="inputId"/> are NAudio MMDevice IDs;
+    /// null selects the robust defaults (all outputs / the default mic).</summary>
+    public static AudioPump? TryCreate(bool withMic, string? outputId, string? inputId)
     {
-        try { return new AudioPump(withMic); }
+        try { return new AudioPump(withMic, outputId, inputId); }
         catch { return null; }
     }
 
-    private AudioPump(bool withMic)
+    private AudioPump(bool withMic, string? outputId, string? inputId)
     {
         // Two hard-won lessons shape this design:
-        //  1. Capture EVERY active output, not just the default — real setups route
-        //     sound away from the default device (bug-report machine: default render
-        //     was a USB mic's phantom "speakers" while games played through the
-        //     monitor's NVIDIA HDMI audio → loopback of the default heard silence).
-        //  2. NEVER let a WASAPI capture be the mix clock. Loopback endpoints
-        //     deliver nothing while idle (silence keepalives to fix that proved
-        //     driver-dependent and silently failed), and a starved master froze the
-        //     whole audio stream. The pump below is driven by a wallclock thread:
-        //     every track is just a buffer that contributes what its device delivered
+        //  1. With NO explicit pick, capture EVERY active output, not just the default —
+        //     real setups route sound away from the default device (bug-report machine:
+        //     default render was a USB mic's phantom "speakers" while games played
+        //     through the monitor's NVIDIA HDMI audio → loopback of the default heard
+        //     silence). A user pick narrows it to that one device.
+        //  2. NEVER let a WASAPI capture be the mix clock. Loopback endpoints deliver
+        //     nothing while idle, which would starve/freeze the stream. The pump below
+        //     is a wallclock thread: every track contributes what its device delivered
         //     and silence-pads the rest. A dead device costs nothing but silence.
         var en = new MMDeviceEnumerator();
         var def = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
@@ -702,7 +881,11 @@ internal sealed class AudioPump : IDisposable
             WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, Channels));
 
         var names = new List<string>();
-        foreach (var dev in en.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
+        var allOutputs = en.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active).ToList();
+        // A specific selected output, else ALL of them. A vanished selection → all.
+        var outputs = outputId is null ? allOutputs : allOutputs.Where(d => d.ID == outputId).ToList();
+        if (outputs.Count == 0) outputs = allOutputs;
+        foreach (var dev in outputs)
         {
             try
             {
@@ -718,9 +901,13 @@ internal sealed class AudioPump : IDisposable
         {
             try
             {
-                var micName = en.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia).FriendlyName;
-                AddCapture(new WasapiCapture(), $"mikrofon {micName}");
-                names.Add($"mikrofon: {micName}");
+                var mic = inputId is not null
+                    ? en.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active)
+                          .FirstOrDefault(d => d.ID == inputId)
+                      ?? en.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia)
+                    : en.GetDefaultAudioEndpoint(DataFlow.Capture, Role.Multimedia);
+                AddCapture(new WasapiCapture(mic), $"mikrofon {mic.FriendlyName}");
+                names.Add($"mikrofon: {mic.FriendlyName}");
                 MicActive = true;
             }
             catch { MicActive = false; }
@@ -740,11 +927,12 @@ internal sealed class AudioPump : IDisposable
         };
         cap.DataAvailable += (_, e) =>
         {
+            // No drift-CLEAR here: wiping the buffer on a small backlog (which happened
+            // every time the ffmpeg pipe briefly blocked during a capture restart) dropped
+            // ~1 s of audio outright — the "audio cuts out for a second" report. The 5 s
+            // BufferDuration + DiscardOnBufferOverflow caps memory; the pump drains any
+            // backlog (real audio, not silence) and aresample re-syncs it to the video.
             buf.AddSamples(e.Buffer, 0, e.BytesRecorded);
-            // Drift guard: a device clock running ahead of the pump clock grows its
-            // buffer without bound, lagging that track ever further behind the video.
-            if (buf.BufferedDuration.TotalMilliseconds > 400)
-                buf.ClearBuffer();
         };
         cap.RecordingStopped += (_, e) => Console.Error.WriteLine(
             $"Bufor audio: przechwytywanie '{name}' zatrzymane{(e.Exception is null ? "" : $": {e.Exception.Message}")}");
@@ -792,12 +980,21 @@ internal sealed class AudioPump : IDisposable
             var stdin = _stdin;
             if (stdin is null) return;
 
-            long targetFrames = sw.ElapsedMilliseconds * SampleRate / 1000;
-            // Resync after a stall (system sleep, debugger pause): emitting a giant
-            // catch-up burst of silence-padded audio helps nobody.
-            if (targetFrames - emittedFrames > SampleRate)
-                emittedFrames = targetFrames - SampleRate / 10;
-            int frames = (int)(targetFrames - emittedFrames);
+            // Emit JitterMs BEHIND wallclock so the buffer keeps a ~JitterMs cushion of REAL
+            // audio: a brief WASAPI capture burst/lag (and small device-vs-Stopwatch clock
+            // drift accumulated over a replay-length window) is then covered by buffered
+            // samples instead of being silence-padded — that padding was the "audio przerywa"
+            // cutout. Sync-neutral: every sample maps wall-time→pts the same way (the first
+            // emitted sample is the oldest buffered one, ≈ capture start → pts 0), so audio
+            // still lines up with the video's pts-0 start; only the buffering latency grows.
+            long targetFrames = Math.Max(0, sw.ElapsedMilliseconds - JitterMs) * SampleRate / 1000;
+            // Only hard-resync after an EXTREME gap (system sleep): a normal ffmpeg pipe
+            // stall is caught up by emitting the REAL backlogged audio over the next few
+            // ticks — not by dropping it, which caused the ~1 s audio dropouts.
+            if (targetFrames - emittedFrames > SampleRate * 30L)
+                emittedFrames = targetFrames;
+            // Cap per tick so a backlog drains as a few quick ticks, not one huge alloc/Write.
+            int frames = (int)Math.Min(targetFrames - emittedFrames, (long)SampleRate);
             if (frames <= 0) continue;
 
             int samples = frames * Channels;
