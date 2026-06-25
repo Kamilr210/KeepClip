@@ -5,7 +5,7 @@ using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-namespace KeepClip;
+namespace KeepClip.Infrastructure;
 
 /// <summary>
 /// Native desktop shell — the C# port of <c>main_desktop.py</c>'s pywebview window.
@@ -124,6 +124,9 @@ internal sealed class ShellForm : Form
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine($"Powtórka (hotkey): {ex.Message}");
+                    // A re-press while a save is still assembling is NOT a failure — stay
+                    // silent (the earlier press will play the success cue when it finishes).
+                    if (ReplayService.SaveInProgress) return;
                     ReplayService.PlayCue(ok: false);  // audible in-game even if the toast isn't visible
                     SafeToast(false, "Nie udało się zapisać powtórki", ex.Message);
                 }

@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace KeepClip;
+namespace KeepClip.Infrastructure;
 
 /// <summary>
 /// Secure secret storage backed by the Windows Credential Manager (the OS keychain),

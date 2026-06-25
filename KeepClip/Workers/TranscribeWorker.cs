@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace KeepClip;
+namespace KeepClip.Workers;
 
 /// <summary>
 /// Background batch transcription — a port of app.py's <c>_transcribe_worker</c> plus

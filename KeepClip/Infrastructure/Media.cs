@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 
-namespace KeepClip;
+namespace KeepClip.Infrastructure;
 
 /// <summary>
 /// ffmpeg/ffprobe helpers: duration probing, thumbnails, broken-clip repair and

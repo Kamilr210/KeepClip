@@ -2,7 +2,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace KeepClip;
+namespace KeepClip.Infrastructure;
 
 /// <summary>
 /// ShadowPlay-style on-screen confirmation that a replay was saved (or failed) —

@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace KeepClip;
+namespace KeepClip.Infrastructure;
 
 /// <summary>
 /// System-wide hotkey for "save replay" (ShadowPlay-style Alt+F10). RegisterHotKey

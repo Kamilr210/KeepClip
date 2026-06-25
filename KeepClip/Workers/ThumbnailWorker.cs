@@ -1,4 +1,4 @@
-namespace KeepClip;
+namespace KeepClip.Workers;
 
 /// <summary>
 /// Background generation of missing thumbnails + duration probing — a port of

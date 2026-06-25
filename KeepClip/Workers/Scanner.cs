@@ -1,4 +1,4 @@
-namespace KeepClip;
+namespace KeepClip.Workers;
 
 /// <summary>
 /// Walk the clips root, register new files in the DB, prune entries whose files

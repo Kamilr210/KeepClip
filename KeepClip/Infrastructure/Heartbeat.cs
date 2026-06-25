@@ -1,4 +1,4 @@
-namespace KeepClip;
+namespace KeepClip.Infrastructure;
 
 /// <summary>
 /// Tracks the last time the frontend pinged us. The idle watcher (Phase 4, desktop

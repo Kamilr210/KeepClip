@@ -4,7 +4,7 @@ using Whisper.net;
 using Whisper.net.Ggml;
 using Whisper.net.LibraryLoader;
 
-namespace KeepClip;
+namespace KeepClip.Infrastructure;
 
 /// <summary>
 /// Speech-to-text engine — a port of <c>transcriber.py</c>. The Python build used

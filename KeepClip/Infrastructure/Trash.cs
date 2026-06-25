@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace KeepClip;
+namespace KeepClip.Infrastructure;
 
 /// <summary>
 /// Recycle Bin deletion via the Win32 shell — the C# stand-in for Python's

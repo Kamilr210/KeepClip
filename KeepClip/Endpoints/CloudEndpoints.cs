@@ -1,0 +1,86 @@
+namespace KeepClip.Endpoints;
+
+/// <summary>Google Drive offload: connection lifecycle + per-clip / per-folder upload/download.
+/// Orchestration lives in <see cref="CloudService"/>.</summary>
+public static class CloudEndpoints
+{
+    public static void MapCloudEndpoints(this WebApplication app)
+    {
+        app.MapGet("/api/cloud/status", async () =>
+        {
+            Heartbeat.Touch();
+            return Results.Json(await CloudService.StatusAsync());
+        });
+
+        app.MapPost("/api/cloud/connect", () =>
+        {
+            Heartbeat.Touch();
+            if (!CloudService.IsConfigured())
+                return Api.Detail(400, "Brak pliku google_client.json w folderze data.");
+            try
+            {
+                var url = CloudService.BeginConnect();
+                DevLog.Add("Chmura: rozpoczęto łączenie z Google Drive (otwarto zgodę OAuth)");
+                return Results.Json(new { auth_url = url });
+            }
+            catch (Exception ex) { return Api.Detail(500, ex.Message); }
+        });
+
+        app.MapPost("/api/cloud/disconnect", async () =>
+        {
+            Heartbeat.Touch();
+            await CloudService.DisconnectAsync();
+            DevLog.Add("Chmura: rozłączono z Google Drive");
+            return Results.Json(new { ok = true });
+        });
+
+        app.MapPost("/api/clips/{clipId:long}/upload", async (long clipId) =>
+        {
+            Heartbeat.Touch();
+            if (!CloudService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            try
+            {
+                bool already = await CloudService.UploadClipAsync(clipId);
+                DevLog.Add($"Chmura: wysłano klip #{clipId}{(already ? " (był już w chmurze)" : " — lokalny plik do Kosza")}");
+                return Results.Json(new { ok = true, already });
+            }
+            catch (FileNotFoundException ex) { return Api.Detail(404, ex.Message); }
+            catch (GoogleDrive.GoogleApiException ex) when (ex.IsInvalidGrant)
+            {
+                return Api.Detail(401, "Wygasło połączenie z Google Drive — połącz ponownie.");
+            }
+            catch (Exception ex) { return Api.Detail(500, ex.Message); }
+        });
+
+        app.MapPost("/api/clips/{clipId:long}/download", async (long clipId) =>
+        {
+            Heartbeat.Touch();
+            if (!CloudService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            try
+            {
+                bool already = await CloudService.DownloadClipAsync(clipId);
+                DevLog.Add($"Chmura: zdjęto klip #{clipId} z chmury na dysk{(already ? " (był już lokalnie)" : "")}");
+                return Results.Json(new { ok = true, already });
+            }
+            catch (FileNotFoundException ex) { return Api.Detail(404, ex.Message); }
+            catch (GoogleDrive.GoogleApiException ex) when (ex.IsInvalidGrant)
+            {
+                return Api.Detail(401, "Wygasło połączenie z Google Drive — połącz ponownie.");
+            }
+            catch (Exception ex) { return Api.Detail(500, ex.Message); }
+        });
+
+        app.MapPost("/api/folders/{folderId:long}/upload", async (long folderId) =>
+        {
+            Heartbeat.Touch();
+            if (!CloudService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            try
+            {
+                var (uploaded, total, skipped, failed) = await CloudService.UploadFolderAsync(folderId);
+                DevLog.Add($"Chmura: wysłano folder #{folderId} — {uploaded}/{total} wysłanych (pominięto {skipped}, błędów {failed})");
+                return Results.Json(new { uploaded, total, skipped, failed });
+            }
+            catch (Exception ex) { return Api.Detail(500, ex.Message); }
+        });
+    }
+}
