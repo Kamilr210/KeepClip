@@ -1,7 +1,7 @@
 namespace KeepClip.Endpoints;
 
-/// <summary>Google Drive offload: connection lifecycle + per-clip / per-folder upload/download.
-/// Orchestration lives in <see cref="CloudService"/>.</summary>
+/// <summary>Google Drive offload: connection lifecycle (<see cref="OAuthService"/>) +
+/// per-clip / per-folder upload/download (<see cref="CloudService"/>).</summary>
 public static class CloudEndpoints
 {
     public static void MapCloudEndpoints(this WebApplication app)
@@ -9,17 +9,17 @@ public static class CloudEndpoints
         app.MapGet("/api/cloud/status", async () =>
         {
             Heartbeat.Touch();
-            return Results.Json(await CloudService.StatusAsync());
+            return Results.Json(await OAuthService.StatusAsync());
         });
 
         app.MapPost("/api/cloud/connect", () =>
         {
             Heartbeat.Touch();
-            if (!CloudService.IsConfigured())
+            if (!OAuthService.IsConfigured())
                 return Api.Detail(400, "Brak pliku google_client.json w folderze data.");
             try
             {
-                var url = CloudService.BeginConnect();
+                var url = OAuthService.BeginConnect();
                 DevLog.Add("Chmura: rozpoczęto łączenie z Google Drive (otwarto zgodę OAuth)");
                 return Results.Json(new { auth_url = url });
             }
@@ -29,7 +29,7 @@ public static class CloudEndpoints
         app.MapPost("/api/cloud/disconnect", async () =>
         {
             Heartbeat.Touch();
-            await CloudService.DisconnectAsync();
+            await OAuthService.DisconnectAsync();
             DevLog.Add("Chmura: rozłączono z Google Drive");
             return Results.Json(new { ok = true });
         });
@@ -37,7 +37,7 @@ public static class CloudEndpoints
         app.MapPost("/api/clips/{clipId:long}/upload", async (long clipId) =>
         {
             Heartbeat.Touch();
-            if (!CloudService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            if (!OAuthService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
             try
             {
                 bool already = await CloudService.UploadClipAsync(clipId);
@@ -55,7 +55,7 @@ public static class CloudEndpoints
         app.MapPost("/api/clips/{clipId:long}/download", async (long clipId) =>
         {
             Heartbeat.Touch();
-            if (!CloudService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            if (!OAuthService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
             try
             {
                 bool already = await CloudService.DownloadClipAsync(clipId);
@@ -73,7 +73,7 @@ public static class CloudEndpoints
         app.MapPost("/api/folders/{folderId:long}/upload", async (long folderId) =>
         {
             Heartbeat.Touch();
-            if (!CloudService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            if (!OAuthService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
             try
             {
                 var (uploaded, total, skipped, failed) = await CloudService.UploadFolderAsync(folderId);
