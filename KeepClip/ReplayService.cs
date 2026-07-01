@@ -458,51 +458,39 @@ public static class ReplayService
         // is no per-frame GPU→CPU→GPU copy; the trade is no geometry pinning (a mid-stream
         // mode change can crash the encoder → the watchdog restarts and re-measures).
         //
-        // setpts=N/{Fps} TIMESTAMP NORMALIZER (replaces the old fps={Fps} filter).
-        // ddagrab on exclusive-fullscreen CS2 delivers frames with irregular PTS — some
-        // close together, some with gaps where the GPU was busy. The fps filter DROPS or
-        // DUPLICATES frames to hit exactly 60, which causes visible micro-stutter (a
-        // duplicated frame = a 16 ms freeze, a dropped frame = a visible hitch). ShadowPlay
-        // avoids this by capturing at GPU level with perfect cadence.
-        //
-        // setpts=N/{Fps} assigns PTS = frame_number/60 to every frame in sequence, producing
-        // perfectly regular timestamps WITHOUT duplicating or dropping anything. Combined
-        // with -fps_mode cfr (which tells the encoder "this is constant-framerate, trust it"),
-        // the output is smooth: each original frame lands exactly where it should, and the
-        // segment muxer sees a proper wallclock timeline (segments come out exactly
-        // SegmentSeconds long). The only case where this differs from ShadowPlay is when the
-        // game runs BELOW the capture FPS — then the stream genuinely has fewer frames per
-        // second, which is correct (you can't invent frames that don't exist).
-        string normCpu = $"setpts=N/{Fps},scale={_capW}:{_capH}:force_original_aspect_ratio=decrease," +
+        // NO pts normalization: ddagrab stamps frames with wallclock µs pts and the muxer
+        // trusts them — exactly the arrangement of the last known-good build. A previous
+        // attempt normalized with `setpts=N/{Fps}` to smooth irregular PTS, but setpts works
+        // in TIMEBASE UNITS (µs here), not seconds — N/60 collapsed every pts to ~0 µs, so
+        // `-segment_time` never elapsed, the first segment never closed, and every save
+        // reported an empty buffer ("bufor pusty"). The correct spelling would be
+        // N/({Fps}*TB), but N-based pts also desync from realtime audio whenever ddagrab
+        // drops frames under GPU load, so wallclock pts are the right call anyway.
+        string normCpu = $"scale={_capW}:{_capH}:force_original_aspect_ratio=decrease," +
                          $"pad={_capW}:{_capH}:(ow-iw)/2:(oh-ih)/2,format=nv12[v]";
-        string normGpu = $"setpts=N/{Fps}[v]";   // timestamp-only; works on D3D11 hwframes
-        // Run audio through aresample in the SAME graph to keep it on the video timeline.
-        // async=1000 lets it SMOOTHLY stretch/squeeze (up to 1000 samples/s ≈ 2%) to absorb
-        // timeline drift, instead of async=1's hard fill/trim (which inserts audible silence
-        // — part of the "audio przerywa" problem). first_pts=0 aligns the audio start with
-        // the video start (both at pts 0) so there's no constant offset either.
-        string audioChain = _audioOn ? "; [0:a]aresample=async=1000:first_pts=0[a]" : "";
         if (tier == TierGdi)
         {
             Add("-f", "gdigrab", "-framerate", Fps.ToString(), "-thread_queue_size", "128",
                 "-offset_x", "0", "-offset_y", "0", "-video_size", $"{_grabW}x{_grabH}",
                 "-i", "desktop");
-            Add("-filter_complex", $"[{(_audioOn ? 1 : 0)}:v]{normCpu}{audioChain}");
+            Add("-filter_complex", $"[{(_audioOn ? 1 : 0)}:v]{normCpu}");
         }
         else if (tier == TierCpu)
         {
             Add("-filter_complex",
-                $"ddagrab=framerate={Fps}:draw_mouse=1,hwdownload,format=bgra,{normCpu}{audioChain}");
+                $"ddagrab=framerate={Fps}:draw_mouse=1,hwdownload,format=bgra,{normCpu}");
         }
         else   // TierGpu: D3D11 frames straight into NVENC, no hwdownload/scale/pad
         {
             Add("-filter_complex",
-                $"ddagrab=framerate={Fps}:draw_mouse=1,{normGpu}{audioChain}");
+                $"ddagrab=framerate={Fps}:draw_mouse=1,null[v]");
         }
         Add("-map", "[v]");
         if (_audioOn)
         {
-            Add("-map", "[a]");
+            // Audio mapped straight from the pipe (sample-count pts), like the known-good
+            // build. Sync healing happens at SAVE time (aresample there), not in capture.
+            Add("-map", "0:a");
             Add("-c:a", "aac", "-b:a", "192k");
         }
 
@@ -530,7 +518,8 @@ public static class ReplayService
                 break;
         }
         Add("-g", gop.ToString());
-        Add("-fps_mode", "cfr");   // setpts gives regular timestamps; cfr tells the muxer to trust them
+        // No -fps_mode: default vsync passes ddagrab's wallclock pts through untouched,
+        // which is what keeps the segment timeline (and A/V sync) real-time correct.
 
         Add("-f", "segment", "-segment_time", SegmentSeconds.ToString(),
             "-segment_start_number", _segStart.ToString(),   // continue numbering across restarts
