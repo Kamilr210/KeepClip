@@ -162,7 +162,18 @@ internal sealed class ShellForm : Form
         var userData = Path.Combine(Config.DataDir, "webview2");
         Directory.CreateDirectory(userData);
 
-        var env = await CoreWebView2Environment.CreateAsync(null, userData);
+        // --force_high_performance_gpu: on dual-GPU machines Windows likes to hand the
+        // WebView2 renderer the power-saving iGPU, whose presenter chokes on the app's own
+        // high-fps recordings (a 165 fps 1440p clip played slow-mo/desynced in-app while the
+        // same file was fine in a system player on the dGPU). PlatformHEVCDecoderSupport
+        // enables hardware HEVC decode in Chromium — future-proofing for an HEVC capture
+        // codec. Both flags are ignored gracefully where unsupported.
+        var opts = new CoreWebView2EnvironmentOptions
+        {
+            AdditionalBrowserArguments =
+                "--force_high_performance_gpu --enable-features=PlatformHEVCDecoderSupport",
+        };
+        var env = await CoreWebView2Environment.CreateAsync(null, userData, opts);
         await _web.EnsureCoreWebView2Async(env);
         var core = _web.CoreWebView2;
 
