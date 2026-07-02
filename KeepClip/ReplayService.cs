@@ -62,13 +62,13 @@ public static class ReplayService
 
     public static bool Enabled => Settings.GetString("replay_enabled") == "1";
     public static int DurationS => ClampInt(Settings.GetString("replay_duration_s"), 15, 600, 120);
-    /// <summary>Capture frame rate (60 default). Higher values up to the monitor's refresh
-    /// give smoother motion on high-refresh displays — there's no point exceeding it, as
-    /// Desktop Duplication can't deliver more than the compositor presents. Anything off
-    /// the allowed list falls back to 60.</summary>
+    /// <summary>Capture frame rate (60 default). Capped at 90: measured real content tops
+    /// out at ~113 unique fps (DWM composition ceiling for Desktop Duplication in
+    /// borderless), so higher settings only inflated files (165 fps ≈ +27% size) and
+    /// strained players. Anything off the allowed list falls back to 60.</summary>
     public static int Fps =>
         int.TryParse(Settings.GetString("replay_fps"), out var f)
-        && f is 30 or 60 or 90 or 120 or 144 or 165 ? f : 60;
+        && f is 30 or 60 or 90 ? f : 60;
     /// <summary>"low" | "medium" | "high" (Niska/Średnia/Wysoka in the UI).</summary>
     public static string Quality
     {

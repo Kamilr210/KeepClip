@@ -16,8 +16,8 @@ public static class ReplayEndpoints
             Heartbeat.Touch();
             if (body.duration_s is < 15 or > 600)
                 return Api.Detail(400, "Długość powtórki musi być w zakresie 15–600 sekund.");
-            if (body.fps is not null && body.fps is not (30 or 60 or 90 or 120 or 144 or 165))
-                return Api.Detail(400, "Obsługiwane wartości FPS: 30, 60, 90, 120, 144 lub 165.");
+            if (body.fps is not null && body.fps is not (30 or 60 or 90))
+                return Api.Detail(400, "Obsługiwane wartości FPS: 30, 60 lub 90.");
             if (body.quality is not null && body.quality is not ("low" or "medium" or "high"))
                 return Api.Detail(400, "Jakość musi być jedną z: low, medium, high.");
             if (body.hotkey is not null && !HotkeyManager.TryParse(body.hotkey, out _, out _))
