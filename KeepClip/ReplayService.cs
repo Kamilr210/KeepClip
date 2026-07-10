@@ -185,27 +185,22 @@ public static class ReplayService
     }
 
     /// <summary>
-    /// Distinct audio confirmation: rising two-tone chime = saved, falling = failed.
+    /// Distinct audio feedback: the KeepClip chime = save fired, falling tone = failed.
     /// Sound is the RELIABLE feedback channel — the popup may not composite over
     /// some fullscreen games. Custom cues live in frontend/sounds (user-swappable);
     /// system sounds are the fallback when the files are missing.
+    /// The chime plays IMMEDIATELY when the save starts (user decision: instant KeepClip
+    /// sound on the press, silence on success, only a failure is voiced afterwards).
     /// </summary>
-    public static void PlayCue(bool ok) => Play(
-        ok ? "replay-saved.wav" : "replay-failed.wav",
-        ok ? System.Media.SystemSounds.Asterisk : System.Media.SystemSounds.Hand);
-
-    /// <summary>Short "save STARTED" blip, played the moment the hotkey/UI fires. The
-    /// assembly takes seconds (big file I/O), so without instant feedback the user can't
-    /// tell mid-game whether the press registered at all.</summary>
-    public static void PlayStartCue() => Play("replay-start.wav", System.Media.SystemSounds.Beep);
-
-    private static void Play(string file, System.Media.SystemSound fallback)
+    public static void PlayCue(bool ok)
     {
         try
         {
-            var wav = Path.Combine(Config.FrontendDir, "sounds", file);
+            var wav = Path.Combine(Config.FrontendDir, "sounds",
+                ok ? "replay-saved.wav" : "replay-failed.wav");
             if (File.Exists(wav)) new System.Media.SoundPlayer(wav).Play();
-            else fallback.Play();
+            else if (ok) System.Media.SystemSounds.Asterisk.Play();
+            else System.Media.SystemSounds.Hand.Play();
         }
         catch { /* sound is best-effort */ }
     }
@@ -229,9 +224,9 @@ public static class ReplayService
 
         // Immediate feedback on BOTH channels: assembling a multi-hundred-MB file takes
         // seconds, and without an instant signal the user can't tell mid-game whether the
-        // press registered (they re-press, or wait a minute doubting it worked). The toast
-        // may not composite over fullscreen games, so a start blip accompanies it.
-        PlayStartCue();
+        // press registered. The KeepClip chime plays RIGHT HERE (not after assembly) —
+        // success stays silent afterwards; only a failure is voiced later.
+        PlayCue(ok: true);
         try { Notifier?.Invoke(true, "Zapisywanie powtórki…", "przetwarzanie, chwila…"); } catch { }
 
         string? listPath = null, snapPath = null, tmpOut = null;
@@ -275,6 +270,9 @@ public static class ReplayService
             var game = DisplayHelper.ForegroundGameName() ?? "Pulpit";
             var outDir = Path.Combine(Settings.GetClipsRoot(), Config.ReplaySubdir);
             Directory.CreateDirectory(outDir);
+            // Sweep temp orphans from earlier failed saves (best-effort; a held file stays).
+            foreach (var stale in Directory.GetFiles(outDir, "replay_out_*.part"))
+                try { File.Delete(stale); } catch { }
             var outName = $"{game} {DateTime.Now:yyyy-MM-dd HH-mm-ss}.mp4";
             var outPath = Path.Combine(outDir, outName);
 
@@ -312,13 +310,19 @@ public static class ReplayService
             if (code != 0 || !File.Exists(tmpOut) || new FileInfo(tmpOut).Length < 10_000)
                 throw new Exception($"Nie udało się złożyć powtórki (ffmpeg: {Tail(err)})");
 
-            File.Move(tmpOut, outPath, overwrite: true);   // same volume → instant rename
+            // Same volume → instant rename. Retried: right after ffmpeg closes the file,
+            // AV/search-indexer/Explorer-thumbnailer often briefly hold it open on the
+            // library drive, and a single rename then fails with a sharing violation
+            // (seen in the wild: "file is being used by another process").
+            for (int attempt = 0; ; attempt++)
+            {
+                try { File.Move(tmpOut, outPath, overwrite: true); break; }
+                catch (IOException) when (attempt < 5) { await Task.Delay(400); }
+            }
             tmpOut = null;
 
-            // Confirm the SAVE as soon as the file is in place — the library scan and
-            // thumbnails are internal bookkeeping and must not delay the user's feedback
-            // (the scan walks the whole clips root, seconds on a big library).
-            PlayCue(ok: true);
+            // Success is confirmed visually only (the chime already played at save start);
+            // the library scan below is internal bookkeeping.
             try { Notifier?.Invoke(true, "Powtórka zapisana", outName); } catch { }
             Console.Error.WriteLine($"Powtórka zapisana ({source}): {outPath}");
 
