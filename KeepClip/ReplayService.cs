@@ -190,15 +190,22 @@ public static class ReplayService
     /// some fullscreen games. Custom cues live in frontend/sounds (user-swappable);
     /// system sounds are the fallback when the files are missing.
     /// </summary>
-    public static void PlayCue(bool ok)
+    public static void PlayCue(bool ok) => Play(
+        ok ? "replay-saved.wav" : "replay-failed.wav",
+        ok ? System.Media.SystemSounds.Asterisk : System.Media.SystemSounds.Hand);
+
+    /// <summary>Short "save STARTED" blip, played the moment the hotkey/UI fires. The
+    /// assembly takes seconds (big file I/O), so without instant feedback the user can't
+    /// tell mid-game whether the press registered at all.</summary>
+    public static void PlayStartCue() => Play("replay-start.wav", System.Media.SystemSounds.Beep);
+
+    private static void Play(string file, System.Media.SystemSound fallback)
     {
         try
         {
-            var wav = Path.Combine(Config.FrontendDir, "sounds",
-                ok ? "replay-saved.wav" : "replay-failed.wav");
+            var wav = Path.Combine(Config.FrontendDir, "sounds", file);
             if (File.Exists(wav)) new System.Media.SoundPlayer(wav).Play();
-            else if (ok) System.Media.SystemSounds.Asterisk.Play();
-            else System.Media.SystemSounds.Hand.Play();
+            else fallback.Play();
         }
         catch { /* sound is best-effort */ }
     }
@@ -220,8 +227,11 @@ public static class ReplayService
         if (Interlocked.CompareExchange(ref _saving, 1, 0) != 0)
             throw new InvalidOperationException("Poprzedni zapis powtórki jeszcze trwa.");
 
-        // Immediate on-screen feedback: the re-encode takes a few seconds, so confirm the
-        // save STARTED (otherwise the user re-presses, thinking nothing happened).
+        // Immediate feedback on BOTH channels: assembling a multi-hundred-MB file takes
+        // seconds, and without an instant signal the user can't tell mid-game whether the
+        // press registered (they re-press, or wait a minute doubting it worked). The toast
+        // may not composite over fullscreen games, so a start blip accompanies it.
+        PlayStartCue();
         try { Notifier?.Invoke(true, "Zapisywanie powtórki…", "przetwarzanie, chwila…"); } catch { }
 
         string? listPath = null, snapPath = null, tmpOut = null;
@@ -278,7 +288,15 @@ public static class ReplayService
             // the oldest segment's keyframe, so the clip can run up to ~SegmentSeconds longer
             // than DurationS — a harmless bit of extra lead-in for a replay. HEVC in mp4 needs
             // the hvc1 tag to play in the in-app player and most other players.
-            tmpOut = Path.Combine(Config.TmpDir, $"replay_out_{Guid.NewGuid():N}.mp4");
+            //
+            // I/O is the whole save cost (hundreds of MB at 90 fps), so the temp file lives
+            // IN THE DESTINATION FOLDER: the final File.Move is a same-volume rename instead
+            // of a cross-drive copy (data/tmp is on C:, the library typically isn't). The
+            // ".part" extension keeps the scanner from registering it mid-write. No
+            // +faststart: it rewrites the entire file once more just to front-load the moov
+            // atom, and both the in-app player (HTTP range) and Drive playback handle
+            // end-of-file moov fine — dropping it roughly halves the save time.
+            tmpOut = Path.Combine(outDir, $"replay_out_{Guid.NewGuid():N}.mp4.part");
             bool hevc = _encoder?.StartsWith("hevc", StringComparison.Ordinal) == true;
             var args = new List<string>
             {
@@ -289,19 +307,23 @@ public static class ReplayService
             if (_audioOn)
                 args.AddRange(new[] { "-map", "0:a:0?", "-c:a", "aac", "-b:a", "192k",
                                       "-af", "aresample=async=1:first_pts=0,apad", "-shortest" });
-            args.AddRange(new[] { "-movflags", "+faststart", tmpOut });
+            args.AddRange(new[] { "-f", "mp4", tmpOut });   // .part wouldn't infer the muxer
             var (code, err) = await RunFfmpegAsync(args.ToArray(), timeoutMs: 120_000);
             if (code != 0 || !File.Exists(tmpOut) || new FileInfo(tmpOut).Length < 10_000)
                 throw new Exception($"Nie udało się złożyć powtórki (ffmpeg: {Tail(err)})");
 
-            File.Move(tmpOut, outPath, overwrite: true);
+            File.Move(tmpOut, outPath, overwrite: true);   // same volume → instant rename
             tmpOut = null;
 
-            Scanner.Scan();
-            ThumbnailWorker.Ensure();
+            // Confirm the SAVE as soon as the file is in place — the library scan and
+            // thumbnails are internal bookkeeping and must not delay the user's feedback
+            // (the scan walks the whole clips root, seconds on a big library).
             PlayCue(ok: true);
             try { Notifier?.Invoke(true, "Powtórka zapisana", outName); } catch { }
             Console.Error.WriteLine($"Powtórka zapisana ({source}): {outPath}");
+
+            Scanner.Scan();
+            ThumbnailWorker.Ensure();
 
             return new Dictionary<string, object?>
             {
