@@ -854,11 +854,15 @@ header {
 .result-date .fav-btn.is-fav { color: #ffc24b; background: transparent; }
 .result-date .fav-btn.is-fav:hover { color: #ffd470; background: var(--card-2); }
 
-/* player header star */
+/* player side-panel star. No fixed 38px box (a relic of the old header placement):
+   it squashed the .side-action-label under the star to ~3px, so the button had no
+   caption unlike its siblings — the shared .side-action-btn layout sizes it now. */
 .player-fav {
-  position: static; opacity: 1; width: 38px; height: 38px;
+  position: static; opacity: 1;
+  width: auto; height: auto;   /* undo .fav-btn's 30px circle so the label fits */
   background: var(--card-2); border: 1px solid var(--border); font-size: 18px;
 }
+.player-fav .fav-star { line-height: 1; }
 .player-fav:hover { background: var(--card); transform: none; }
 .player-fav.is-fav { color: #ffc24b; border-color: #6b5320; background: rgba(245,165,36,.12); }
 

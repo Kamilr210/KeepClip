@@ -524,9 +524,13 @@ async function toggleFavorite(clipId) {
     const data = await res.json();
     const isFav = !!data.favorite;
     // Keep every star for this clip in sync (grid card, search card, player header).
+    // The player button keeps its star in a .fav-star span (a bare textContent write
+    // would wipe its "Ulubione" label); grid/search stars are the button's only text.
     document.querySelectorAll(`.fav-btn[data-fav-id="${clipId}"]`).forEach((b) => {
       b.classList.toggle("is-fav", isFav);
-      b.textContent = isFav ? "★" : "☆";
+      const star = b.querySelector(".fav-star");
+      if (star) star.textContent = isFav ? "★" : "☆";
+      else b.textContent = isFav ? "★" : "☆";
     });
     loadStats();
     if (!els.viewFavorites.hidden) loadFavorites();
@@ -997,7 +1001,9 @@ async function openPlayer(clipId, startAt) {
   const isFav = !!data.clip.favorite;
   els.pfav.dataset.favId = String(clipId);
   els.pfav.classList.toggle("is-fav", isFav);
-  els.pfav.textContent = isFav ? "★" : "☆";
+  // Only the star span — textContent on the button would wipe the "Ulubione" label.
+  const pfavStar = els.pfav.querySelector(".fav-star");
+  if (pfavStar) pfavStar.textContent = isFav ? "★" : "☆";
   updatePlayerCloudBtn(data.clip.storage);
   // Show the clip's thumbnail as a poster so the modal paints the first frame
   // immediately instead of flashing black while the stream starts buffering.
@@ -2651,41 +2657,42 @@ if (els.video) {
   els.ctrlRewind.addEventListener("click", () => els.video.currentTime = Math.max(0, els.video.currentTime - 5));
   els.ctrlForward.addEventListener("click", () => els.video.currentTime = Math.min(els.video.duration, els.video.currentTime + 5));
 
-  // 3. Звук (Открытие микшера по клику)
-  const volumePopover = document.querySelector(".volume-mixer-popover");
+  // 3. Dźwięk — klik na głośnik otwiera suwak głośności.
+  // UWAGA: selektor musi być zakotwiczony przy TYM przycisku — okno „Wytnij” ma
+  // własny .volume-mixer-popover wcześniej w DOM i document.querySelector łapał
+  // tamten (ukryty) popover, przez co klik w głośnik "nic nie robił".
+  const volumePopover = els.ctrlMute?.closest(".volume-control-wrap")
+    ?.querySelector(".volume-mixer-popover");
 
   if (els.ctrlMute && volumePopover && els.ctrlVolume) {
-    
-    // Открываем/закрываем меню при клике на кнопку
+
+    // Otwórz/zamknij suwak; przy otwarciu pokaż aktualną głośność.
     els.ctrlMute.addEventListener("click", (e) => {
-      e.stopPropagation(); // Останавливаем клик, чтобы он не ушел дальше
+      e.stopPropagation(); // nie doklikuj do document (zamknąłby popover od razu)
+      els.ctrlVolume.value = els.video.muted ? 0 : els.video.volume;
       volumePopover.classList.toggle("show");
     });
 
-    // ВАЖНО: Если кликаем или тянем сам ползунок — меню не должно закрываться!
+    // Klik/przeciąganie samego suwaka nie może zamykać popovera.
     volumePopover.addEventListener("click", (e) => {
       e.stopPropagation();
     });
 
-    // Закрываем меню, если кликнули в любое другое место на странице
+    // Klik gdziekolwiek indziej zamyka popover.
     document.addEventListener("click", () => {
       volumePopover.classList.remove("show");
     });
 
-    // Изменение звука
+    // Zmiana głośności suwakiem; 0 = wyciszenie (ikona to odzwierciedla).
     els.ctrlVolume.addEventListener("input", (e) => {
-      // Принудительно превращаем значение в число
-      const vol = parseFloat(e.target.value); 
-      
+      const vol = parseFloat(e.target.value);
       els.video.volume = vol;
       els.video.muted = (vol === 0);
-      
-      // Меняем иконку
       els.ctrlMute.innerHTML = els.video.muted ? playerIcons.volOff : playerIcons.volOn;
     });
 
   } else {
-    console.error("Элементы микшера не найдены в HTML!");
+    console.error("Brak elementów suwaka głośności w HTML!");
   }
 
   // 4. Pełny ekran — celem jest CAŁY #player-box (nagłówek z ✕ + wideo + panel

@@ -646,7 +646,7 @@
       <!-- Боковая панель с кнопками действий (справа от видео) -->
       <aside class="player-side-actions">
         <button id="player-fav" class="side-action-btn fav-btn player-fav" data-fav-id="" data-i18n-title="ui.addToFav" title="Dodaj do ulubionych" aria-label="Dodaj do ulubionych">
-          ☆
+          <span class="fav-star">☆</span>
           <span class="side-action-label" data-i18n="playerActions.favorite">Ulubione</span>
         </button>
         <button id="player-cut" class="side-action-btn primary" data-i18n-title="cutOverlay.title" title="Wytnij fragment do udostępnienia">
@@ -681,12 +681,12 @@
 
     <div class="player-controls-panel">
         <div class="controls-buttons-row">
-          <button id="ctrl-snap" class="ctrl-round-btn" title="Сделать скриншот">
+          <button id="ctrl-snap" class="ctrl-round-btn" data-i18n-title="player.titlebar.snap" title="Zrób zrzut ekranu">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 9c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm5.56 5.44l-1.42 1.41-2.12-2.12-1.42 1.42 2.12 2.12-1.41 1.41H17v-4.24z"/></svg>
           </button>
-          
+
           <div class="volume-control-wrap">
-            <button id="ctrl-mute" class="ctrl-round-btn" title="Вкл/Выкл звук">
+            <button id="ctrl-mute" class="ctrl-round-btn" data-i18n-title="player.titlebar.mute" title="Wył/Wł dźwięk">
               <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
             </button>
             <div class="volume-mixer-popover">
@@ -694,23 +694,23 @@
             </div>
           </div>
 
-          <button id="ctrl-start" class="ctrl-round-btn" title="В начало">
+          <button id="ctrl-start" class="ctrl-round-btn" data-i18n-title="player.titlebar.start" title="Na początek">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
           </button>
-          <button id="ctrl-rewind" class="ctrl-round-btn" title="Назад на 5 сек">
+          <button id="ctrl-rewind" class="ctrl-round-btn" data-i18n-title="player.titlebar.rewind" title="Cofnij 5 sek">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
           </button>
-          <button id="ctrl-play" class="ctrl-round-btn play-btn" title="Play / Pause">
+          <button id="ctrl-play" class="ctrl-round-btn play-btn" data-i18n-title="player.titlebar.play" title="Play / Pause">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
           </button>
-          <button id="ctrl-forward" class="ctrl-round-btn" title="Вперед на 5 сек">
+          <button id="ctrl-forward" class="ctrl-round-btn" data-i18n-title="player.titlebar.forward" title="Naprzód 5 sek">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
           </button>
-          <button id="ctrl-end" class="ctrl-round-btn" title="В конец">
+          <button id="ctrl-end" class="ctrl-round-btn" data-i18n-title="player.titlebar.end" title="Na koniec">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
           </button>
-          <button id="ctrl-speed" class="ctrl-round-btn ctrl-speed-btn" title="Prędkość odtwarzania">1×</button>
-          <button id="ctrl-fullscreen" class="ctrl-round-btn" title="На весь экран">
+          <button id="ctrl-speed" class="ctrl-round-btn ctrl-speed-btn" data-i18n-title="player.titlebar.speed" title="Prędkość odtwarzania">1×</button>
+          <button id="ctrl-fullscreen" class="ctrl-round-btn" data-i18n-title="player.titlebar.fullscreen" title="Pełny ekran">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
           </button>
         </div>

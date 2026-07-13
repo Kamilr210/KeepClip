@@ -85,7 +85,7 @@ const i18n = {
     },
     player: {
       titlebar: {
-        snap:       "Сделать скриншот", /* TODO */
+        snap:       "Zrób zrzut ekranu",
         mute:       "Wył/Wł dźwięk",
         start:      "Na początek",
         rewind:     "Cofnij 5 sek",
