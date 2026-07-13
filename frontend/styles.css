@@ -1244,6 +1244,18 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
   display: block;
 }
 
+/* Przycisk napisów: podświetlony gdy włączone, wygaszony gdy brak transkrypcji */
+.ctrl-round-btn.cc-on { background: var(--accent); color: #fff; }
+.ctrl-round-btn:disabled { opacity: .35; cursor: default; }
+.ctrl-round-btn:disabled:hover { background: rgba(42, 48, 64, 0.75); }
+
+/* Napisy (WebVTT cues) na wideo — spójne z motywem; rozmiar zostawiamy przeglądarce
+   (domyślnie skaluje się z wysokością wideo, także w trybie pełnoekranowym). */
+#player::cue {
+  background: rgba(7, 10, 16, 0.72);
+  color: #fff;
+}
+
 /* Компактный ползунок внутри микшера */
 .compact-slider {
   -webkit-appearance: none;

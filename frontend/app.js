@@ -175,6 +175,7 @@ const els = {
   playerContainer: $("#custom-player-container"),
   playerBox: $("#player-box"),
   ctrlSpeed: $("#ctrl-speed"),
+  ctrlCc: $("#ctrl-cc"),
   // -----------------------------
 };
 els.cutRangeFill = els.cutRange.querySelector(".range-fill");
@@ -1014,6 +1015,7 @@ async function openPlayer(clipId, startAt) {
   els.video.src = `/video/${clipId}?v=${data.clip.size_bytes}`;
   els.video.currentTime = 0;
   currentSegments = data.segments;
+  rebuildSubtitles();
 
   els.segments.innerHTML = currentSegments.length
     ? currentSegments
@@ -1058,6 +1060,54 @@ async function openPlayer(clipId, startAt) {
   );
 
   startSegmentTicker();
+}
+
+// ---------- napisy na wideo (WebVTT budowane z transkrypcji) ----------
+// Segmenty klipu są zamieniane w ścieżkę <track> (blob WebVTT), a napisy renderuje
+// natywnie przeglądarka — idealna synchronizacja bez własnego timera, działa w
+// fullscreen i przy zmianie prędkości. Przełącznik pamiętany w localStorage.
+let _subsUrl = null; // blob URL bieżącej ścieżki (zwalniany przy podmianie/zamknięciu)
+
+const subsEnabled = () => localStorage.getItem("kc_subtitles") === "1";
+
+function vttTime(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = (sec % 60).toFixed(3).padStart(6, "0");
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${s}`;
+}
+
+function clearSubtitles() {
+  els.video.querySelectorAll("track").forEach((tr) => tr.remove());
+  if (_subsUrl) { URL.revokeObjectURL(_subsUrl); _subsUrl = null; }
+}
+
+// (Od)buduj ścieżkę napisów z currentSegments — wołane przy otwarciu klipu i po
+// edycji linijki transkrypcji, żeby poprawka była widoczna na wideo od razu.
+function rebuildSubtitles() {
+  if (!els.ctrlCc) return;
+  clearSubtitles();
+
+  const has = currentSegments.length > 0;
+  els.ctrlCc.disabled = !has;
+  els.ctrlCc.classList.toggle("cc-on", has && subsEnabled());
+  if (!has) return;
+
+  // VTT traktuje <, & jako początek znaczników — escapujemy tekst użytkownika.
+  const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  let vtt = "WEBVTT\n\n";
+  for (const s of currentSegments) {
+    // Cue nie może mieć zerowej/ujemnej długości — wymuś minimum 0.3 s.
+    const end = Math.max(s.end_s, s.start_s + 0.3);
+    vtt += `${vttTime(s.start_s)} --> ${vttTime(end)}\n${esc(s.text)}\n\n`;
+  }
+  _subsUrl = URL.createObjectURL(new Blob([vtt], { type: "text/vtt" }));
+  const track = document.createElement("track");
+  track.kind = "subtitles";
+  track.label = "Transkrypcja";
+  track.src = _subsUrl;
+  els.video.appendChild(track);
+  track.track.mode = subsEnabled() ? "showing" : "hidden";
 }
 
 function startSegmentTicker() {
@@ -1151,6 +1201,7 @@ function enterSegEdit(segEl) {
       if (!r.ok) throw new Error(d.detail || r.statusText);
       seg.text = d.text;
       textDiv.innerHTML = escapeHtml(d.text);
+      rebuildSubtitles();   // poprawiona linijka od razu trafia do napisów na wideo
       finish();
       toast(t("toast.editSaved"));
     } catch (e) {
@@ -1175,6 +1226,7 @@ function closePlayer() {
   els.overlay.hidden = true;
   els.video.pause();
   els.video.removeAttribute("src");
+  clearSubtitles();
   els.video.load();
   stopSegmentTicker();
   closeFoldersDropdown();
@@ -2749,6 +2801,17 @@ if (els.video) {
     const i = SPEEDS.indexOf(els.video.playbackRate);
     setSpeed(SPEEDS[(i + 1) % SPEEDS.length] ?? 1);
   });
+
+  // 4c. Napisy z transkrypcji — przełącznik; wybór pamiętany między klipami.
+  if (els.ctrlCc) {
+    els.ctrlCc.addEventListener("click", () => {
+      const on = !subsEnabled();
+      localStorage.setItem("kc_subtitles", on ? "1" : "0");
+      const tr = els.video.querySelector("track");
+      if (tr) tr.track.mode = on ? "showing" : "hidden";
+      els.ctrlCc.classList.toggle("cc-on", on && !els.ctrlCc.disabled);
+    });
+  }
 
   // 5. Длинный ползунок времени
   let isDragging = false;
