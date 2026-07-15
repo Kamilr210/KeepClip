@@ -3,8 +3,8 @@
 
   Co robi:
     1. Pobiera bootstrapper WebView2 (maly, ~2 MB) do installer\redist\ (jesli brak).
-    2. `dotnet publish` -> self-contained win-x64 do .\publish (runtime .NET w srodku,
-       wiec uzytkownicy koncowi NIE musza nic instalowac).
+    2. `dotnet publish` -> self-contained win-x64 do installer\staging\publish
+       (runtime .NET w srodku, wiec uzytkownicy koncowi NIE musza nic instalowac).
     3. Przycina nieuzywane natywne runtimy (inne OS/architektury) zeby zmniejszyc rozmiar.
     4. Kompiluje installer\KeepClip.iss przez Inno Setup (ISCC). Gdy brak Inno Setup,
        probuje doinstalowac go przez winget.
@@ -46,12 +46,34 @@ function Remove-DevBlocks([string]$file) {
 $InstallerDir = $PSScriptRoot
 $RepoRoot     = Split-Path -Parent $InstallerDir
 $Project      = Join-Path $RepoRoot 'KeepClip\KeepClip.csproj'
-$PublishDir   = Join-Path $RepoRoot 'publish'
+$PublishDir   = Join-Path $InstallerDir 'staging\publish'
 $RedistDir    = Join-Path $InstallerDir 'redist'
 $IssFile      = Join-Path $InstallerDir 'KeepClip.iss'
 $DistDir      = Join-Path $InstallerDir 'dist'
+$GoogleClient = Join-Path $InstallerDir 'embed\google_client.json'
 
 try {
+  # Kazdy instalator przeznaczony dla uzytkownikow musi miec wspolnego klienta
+  # OAuth autora. Bez niego aplikacja zamiast zwyklego logowania Google pokazalaby
+  # uzytkownikowi instrukcje tworzenia projektu w Google Cloud.
+  if (-not $NoInstaller) {
+    Step "Sprawdzam klienta OAuth Google dla instalatora"
+    if (-not (Test-Path -LiteralPath $GoogleClient)) {
+      throw "Brak $GoogleClient. Skopiuj pobrany klient OAuth typu Desktop app do installer\embed\google_client.json."
+    }
+    try {
+      $oauthJson = Get-Content -LiteralPath $GoogleClient -Raw | ConvertFrom-Json
+    } catch {
+      throw "Niepoprawny JSON w ${GoogleClient}: $($_.Exception.Message)"
+    }
+    if ($null -eq $oauthJson.installed `
+        -or [string]::IsNullOrWhiteSpace($oauthJson.installed.client_id) `
+        -or [string]::IsNullOrWhiteSpace($oauthJson.installed.client_secret)) {
+      throw "$GoogleClient musi zawierac klienta Google OAuth typu Desktop app (installed.client_id i installed.client_secret)."
+    }
+    Write-Host "Klient OAuth jest gotowy; instalator pokaze zwykle logowanie Google."
+  }
+
   # --- 1. Bootstrapper WebView2 (best-effort; bez niego instalator i tak sie zbuduje) ---
   Step "Sprawdzam bootstrapper WebView2"
   New-Item -ItemType Directory -Force -Path $RedistDir | Out-Null
@@ -171,7 +193,7 @@ try {
   # --- 5. Kompiluj instalator ---
   Step "Buduje instalator (ISCC)"
   New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
-  & $iscc $IssFile
+  & $iscc "/DPublishDir=$PublishDir" $IssFile
   if ($LASTEXITCODE -ne 0) { throw "ISCC zwrocil kod $LASTEXITCODE." }
 
   $setup = Join-Path $DistDir 'KeepClip-Setup.exe'

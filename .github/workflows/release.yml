@@ -6,10 +6,10 @@
 # Czego CI NIE ma z natury (i jak to jest rozwiązane):
 #  - ffmpeg/ffprobe (gitignored, za duże) -> pobiera je setup.ps1, ten sam
 #    skrypt, którego używa świeży klon na maszynie dewelopera.
-#  - installer/embed/google_client.json (sekret OAuth, nigdy w repo) ->
-#    opcjonalny sekret repozytorium GOOGLE_CLIENT_JSON_B64 (base64 pliku);
-#    gdy go brak, instalator po prostu powstaje bez wbudowanej chmury,
-#    a aplikacja pokazuje panel ręcznej konfiguracji Drive.
+#  - installer/embed/google_client.json (dane klienta OAuth, nigdy w repo) ->
+#    wymagany sekret repozytorium GOOGLE_CLIENT_JSON_B64 (base64 pliku).
+#    Workflow celowo przerywa wydanie, gdy sekretu brakuje lub JSON jest błędny:
+#    publiczny instalator ma zawsze prowadzić prosto do logowania Google.
 name: release
 
 on:
@@ -18,10 +18,6 @@ on:
 
 permissions:
   contents: write   # gh release create
-
-# Krokowy "if" nie czyta secrets wprost — flaga liczona raz, na poziomie workflow.
-env:
-  HAS_GOOGLE_SECRET: ${{ secrets.GOOGLE_CLIENT_JSON_B64 != '' }}
 
 jobs:
   build:
@@ -37,15 +33,29 @@ jobs:
         shell: powershell
         run: powershell -ExecutionPolicy Bypass -File setup.ps1
 
-      - name: Wbuduj klienta OAuth Google (opcjonalny sekret)
-        if: ${{ env.HAS_GOOGLE_SECRET == 'true' }}
+      - name: Wbuduj klienta OAuth Google (wymagany)
         env:
           GOOGLE_CLIENT_JSON_B64: ${{ secrets.GOOGLE_CLIENT_JSON_B64 }}
         shell: powershell
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:GOOGLE_CLIENT_JSON_B64)) {
+            throw "Brak sekretu GOOGLE_CLIENT_JSON_B64. Ustaw go przed utworzeniem publicznego wydania."
+          }
+
           New-Item -ItemType Directory -Force installer\embed | Out-Null
-          [IO.File]::WriteAllBytes("installer\embed\google_client.json",
-            [Convert]::FromBase64String($env:GOOGLE_CLIENT_JSON_B64))
+          try {
+            $bytes = [Convert]::FromBase64String($env:GOOGLE_CLIENT_JSON_B64)
+            [IO.File]::WriteAllBytes("installer\embed\google_client.json", $bytes)
+            $json = [Text.Encoding]::UTF8.GetString($bytes) | ConvertFrom-Json
+          } catch {
+            throw "GOOGLE_CLIENT_JSON_B64 nie zawiera poprawnego pliku JSON zakodowanego base64: $($_.Exception.Message)"
+          }
+
+          if ($null -eq $json.installed `
+              -or [string]::IsNullOrWhiteSpace($json.installed.client_id) `
+              -or [string]::IsNullOrWhiteSpace($json.installed.client_secret)) {
+            throw "Sekret musi zawierać klienta Google OAuth typu Desktop app (obiekt installed z client_id i client_secret)."
+          }
 
       - name: Zbuduj publish + instalator
         shell: powershell

@@ -20,8 +20,11 @@
 #define MyAppPublisher "Kamil"
 #define MyAppURL "https://github.com/Kamilr210/KeepClip"
 #define MyAppExe "KeepClip.exe"
-; Folder z wynikiem `dotnet publish` (sciezki ponizej sa wzgledem tego pliku .iss).
-#define PublishDir "..\publish"
+; Folder z wynikiem `dotnet publish`. build.ps1 nadpisuje go katalogiem stagingowym;
+; wartosc ponizej pozwala nadal kompilowac ten plik recznie.
+#ifndef PublishDir
+  #define PublishDir "..\publish"
+#endif
 
 [Setup]
 AppId={{A1F2C3D4-5E6F-4A8B-9C0D-1E2F3A4B5C6D}
@@ -65,12 +68,12 @@ Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubd
 ; dostarcza build.ps1; gdy go brak, instalator i tak sie zbuduje (skipifsource...).
 Source: "redist\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
 
-; OPCJONALNIE: wbudowany klient OAuth Google (model "Aternos") - jesli autor wrzuci
-; swoj google_client.json do installer\embed\, uzytkownicy koncowi od razu klikaja
-; "Polacz" bez zakladania wlasnego projektu OAuth. Gdy pliku brak, instalator go
-; pomija, a aplikacja pokazuje panel jednorazowej konfiguracji chmury. Plik NIGDY
-; nie trafia do repozytorium (installer\embed\ jest w .gitignore).
-Source: "embed\google_client.json"; DestDir: "{app}\data"; Flags: ignoreversion skipifsourcedoesntexist
+; WYMAGANY wbudowany klient OAuth Google (model "Aternos"). Uzytkownik koncowy od
+; razu klika "Polacz" i loguje sie na swoje konto Google, bez zakladania projektu
+; w Google Cloud. Brak pliku ma zatrzymac kompilacje instalatora zamiast po cichu
+; publikowac wydanie bez dzialajacej chmury. Plik NIGDY nie trafia do repozytorium
+; (installer\embed\ jest w .gitignore); CI odtwarza go z sekretu repozytorium.
+Source: "embed\google_client.json"; DestDir: "{app}\data"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExe}"; WorkingDir: "{app}"

@@ -40,8 +40,18 @@ Pierwsze uruchomienie chwilę potrwa (NuGet + kompilacja) — to normalne.
 
 ## Google Drive (opcjonalnie)
 
-Offload klipów do chmury wymaga własnego OAuth „Desktop app" z Google Cloud Console.
-Pobrany plik JSON zapisz jako `data\google_client.json`. Dokładne kroki pokazuje sama aplikacja w zakładce **Chmura** (dopóki pliku nie ma, widać tam instrukcję). Aplikacja prosi tylko o zakres `drive.file` — widzi wyłącznie pliki, które sama utworzyła.
+W oficjalnym instalatorze klient OAuth aplikacji jest już wbudowany. Użytkownik otwiera
+zakładkę **Chmura**, klika **Połącz z Google Drive** i loguje się na własne konto Google —
+nie tworzy projektu w Google Cloud. KeepClip prosi tylko o zakres `drive.file`, więc widzi
+wyłącznie pliki, które sam utworzył.
+
+Przy uruchamianiu aplikacji bez instalatora (np. `dotnet run`) deweloper zapisuje pobrany
+klient OAuth typu **Desktop app** jako `data\google_client.json`. Build instalatora wymaga
+tego samego pliku pod `installer\embed\google_client.json`; workflow wydania odtwarza go
+z sekretu repozytorium `GOOGLE_CLIENT_JSON_B64` i przerywa publikację, jeśli sekretu brak.
+Projekt Google OAuth używany w oficjalnym wydaniu musi mieć odbiorców **External** oraz
+status publikacji **In production**. Tryb **Testing** służy wyłącznie deweloperom: dopuszcza
+tylko wpisanych testerów, a ich autoryzacja Drive wygasa po 7 dniach.
 
 ---
 

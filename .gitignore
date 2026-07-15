@@ -18,6 +18,8 @@ models/
 # ---- installer build artifacts ----
 # Compiled installers (distributed via GitHub Releases, never committed).
 installer/dist/
+# Isolated `dotnet publish` tree used while compiling the installer.
+installer/staging/
 # Downloaded WebView2 bootstrapper (re-fetched by build.ps1).
 installer/redist/
 # OPTIONAL embedded Google OAuth client (a secret) — never commit.
