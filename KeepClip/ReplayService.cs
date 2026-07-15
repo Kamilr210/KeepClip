@@ -61,6 +61,10 @@ public static class ReplayService
     // ---------- settings (persisted via Settings; UI edits them over /api/replay/config) ----------
 
     public static bool Enabled => Settings.GetString("replay_enabled") == "1";
+    /// <summary>Background mode: closing the window hides the app to the system tray
+    /// (recording keeps running) instead of exiting. Only meaningful while
+    /// <see cref="Enabled"/> — with the buffer off there is nothing to keep alive.</summary>
+    public static bool BackgroundEnabled => Settings.GetString("replay_background") == "1";
     public static int DurationS => ClampInt(Settings.GetString("replay_duration_s"), 15, 600, 120);
     /// <summary>Capture frame rate (60 default). Capped at 90: measured real content tops
     /// out at ~113 unique fps (DWM composition ceiling for Desktop Duplication in
@@ -111,6 +115,7 @@ public static class ReplayService
         return new Dictionary<string, object?>
         {
             ["enabled"] = Enabled,
+            ["background"] = BackgroundEnabled,
             ["running"] = running,
             ["saving"] = _saving != 0,
             ["duration_s"] = DurationS,

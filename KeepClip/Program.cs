@@ -117,7 +117,9 @@ static int FreeLoopbackPort()
 }
 
 // Exit once the frontend has been gone (no heartbeat) past the idle timeout, matching the
-// Python app. Guarded so an in-flight transcription is never interrupted.
+// Python app. Guarded so an in-flight transcription is never interrupted — and so
+// background-mode replay (window hidden to the tray, heartbeats possibly throttled or
+// gone) never gets its recording killed by the idle backstop.
 static void StartIdleWatcher()
 {
     var t = new Thread(() =>
@@ -126,6 +128,7 @@ static void StartIdleWatcher()
         {
             Thread.Sleep(15_000);
             if (TranscribeState.Snapshot().running) continue;
+            if (ReplayService.Enabled && ReplayService.BackgroundEnabled) continue;
             if (Heartbeat.IdleSeconds > Heartbeat.IdleTimeoutSeconds) Environment.Exit(0);
         }
     })

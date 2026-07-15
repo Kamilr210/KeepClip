@@ -450,9 +450,19 @@
     <div id="replay-hotkey-warn" class="config-error" hidden></div>
     <div id="replay-error" class="config-error" hidden></div>
 
-    <label class="replay-toggle-row">
+    <!-- Główny przełącznik bufora powtórek -->
+    <label class="replay-master-row">
+      <span class="replay-master-label" data-i18n="replay.enabled">Włącz natychmiastowe powtórki</span>
       <input type="checkbox" id="replay-enabled" />
-      <span data-i18n="replay.enabled">Nagrywanie w tle włączone</span>
+      <span class="toggle-switch master-switch" aria-hidden="true"></span>
+    </label>
+
+    <label class="replay-toggle-row">
+      <input type="checkbox" id="replay-background" />
+      <span>
+        <span data-i18n="replay.background">Nagrywanie w tle</span>
+        <span class="replay-toggle-hint subtle" data-i18n="replay.backgroundHint">Po zamknięciu okna KeepClip zostaje w zasobniku systemowym i nagrywa dalej.</span>
+      </span>
     </label>
     <label class="replay-toggle-row">
       <input type="checkbox" id="replay-mic" />

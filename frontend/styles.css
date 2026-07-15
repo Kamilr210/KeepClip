@@ -698,6 +698,24 @@ header {
 .toggle-switch.on { background: var(--accent); }
 .toggle-switch.on::after { transform: translateX(16px); }
 
+/* ── Główny przełącznik powtórek (checkbox steruje suwakiem przez :checked) ── */
+.replay-master-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 14px 0 10px; padding: 12px 14px;
+  background: var(--card-2); border: 1px solid var(--border); border-radius: 10px;
+  cursor: pointer; user-select: none;
+}
+.replay-master-row:hover { border-color: var(--accent); }
+.replay-master-label { font-weight: 600; font-size: 14.5px; }
+.replay-master-row input { display: none; }
+.replay-master-row .toggle-switch.master-switch { width: 44px; height: 24px; border-radius: 12px; }
+.replay-master-row .toggle-switch.master-switch::after { width: 18px; height: 18px; }
+.replay-master-row input:checked + .toggle-switch { background: var(--accent); }
+.replay-master-row input:checked + .toggle-switch::after { transform: translateX(20px); }
+
+/* Podpis pod etykietą checkboxa (np. wyjaśnienie nagrywania w tle) */
+.replay-toggle-hint { display: block; font-size: 12px; margin-top: 2px; }
+
 .lang-select-wrap {
   display: flex;
   align-items: center;

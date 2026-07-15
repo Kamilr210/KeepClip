@@ -18,7 +18,9 @@ const i18n = {
     replay: {
       title:        "Natychmiastowa powtórka",
       intro:        "Gdy włączona, pulpit nagrywa się w tle w pętli. Wciśnij skrót w trakcie gry, a ostatnie minuty zapiszą się jako klip w folderze „Powtórki”.",
-      enabled:      "Nagrywanie w tle włączone",
+      enabled:      "Włącz natychmiastowe powtórki",
+      background:   "Nagrywanie w tle",
+      backgroundHint: "Po zamknięciu okna KeepClip zostaje w zasobniku systemowym i nagrywa dalej.",
       mic:          "Nagrywaj mikrofon (miksowany z dźwiękiem gry)",
       duration:     "Długość powtórki",
       durMin:       "{n} min",
@@ -390,7 +392,9 @@ const i18n = {
     replay: {
       title:        "Мгновенный повтор",
       intro:        "Когда включено, рабочий стол записывается в фоне по кругу. Нажмите горячую клавишу во время игры — последние минуты сохранятся как клип в папке «Powtórki».",
-      enabled:      "Фоновая запись включена",
+      enabled:      "Включить мгновенные повторы",
+      background:   "Запись в фоне",
+      backgroundHint: "После закрытия окна KeepClip останется в системном трее и продолжит запись.",
       mic:          "Записывать микрофон (микшируется со звуком игры)",
       duration:     "Длина повтора",
       durMin:       "{n} мин",
@@ -762,7 +766,9 @@ const i18n = {
     replay: {
       title:        "Instant replay",
       intro:        "When enabled, the desktop is continuously recorded in a loop. Press the hotkey while playing and the last minutes are saved as a clip in the \"Powtórki\" folder.",
-      enabled:      "Background recording enabled",
+      enabled:      "Enable instant replay",
+      background:   "Background recording",
+      backgroundHint: "When the window is closed, KeepClip stays in the system tray and keeps recording.",
       mic:          "Record microphone (mixed with game audio)",
       duration:     "Replay length",
       durMin:       "{n} min",
@@ -1134,7 +1140,9 @@ const i18n = {
     replay: {
       title:        "Миттєвий повтор",
       intro:        "Коли ввімкнено, робочий стіл безперервно записується по колу. Натисніть гарячу клавішу під час гри — останні хвилини збережуться як кліп у папці «Powtórki».",
-      enabled:      "Фоновий запис увімкнено",
+      enabled:      "Увімкнути миттєві повтори",
+      background:   "Запис у фоні",
+      backgroundHint: "Після закриття вікна KeepClip залишається в системному треї та продовжує запис.",
       mic:          "Записувати мікрофон (мікшується зі звуком гри)",
       duration:     "Тривалість повтору",
       durMin:       "{n} хв",

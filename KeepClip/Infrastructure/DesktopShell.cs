@@ -32,10 +32,25 @@ internal static class DesktopShell
     [DllImport("user32.dll")] private static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
     private const int SW_RESTORE = 9;
 
-    /// <summary>Second-launch path (single-instance mutex already taken): bring the
-    /// running copy's window to the front so the double-click still "did something".</summary>
+    /// <summary>Named event a second launch signals to make the RUNNING instance show its
+    /// window. Essential for tray mode: a window hidden to the tray has no
+    /// Process.MainWindowHandle, so the old SetForegroundWindow path can't reach it.</summary>
+    internal const string ShowEventName = @"Local\KeepClip-ShowRequest";
+
+    /// <summary>Second-launch path (single-instance mutex already taken): ask the running
+    /// copy to show itself (works also when it's hidden in the tray), falling back to
+    /// focusing its visible window directly.</summary>
     public static void FocusExistingInstance()
     {
+        try
+        {
+            if (EventWaitHandle.TryOpenExisting(ShowEventName, out var ev))
+            {
+                using (ev) ev.Set();
+                return;
+            }
+        }
+        catch { /* signal path unavailable → window-handle fallback below */ }
         try
         {
             using var self = System.Diagnostics.Process.GetCurrentProcess();
@@ -75,6 +90,11 @@ internal sealed class ShellForm : Form
     private bool _isMaximized;
     private Rectangle _restoreBounds;
 
+    // Tray mode ("Nagrywanie w tle"): with the replay buffer enabled + background mode on,
+    // closing the window hides the app to the system tray and recording keeps running.
+    private NotifyIcon? _tray;
+    private bool _exitRequested;   // set by the tray's "Zakończ" so Close() really exits
+
     public ShellForm(string baseUrl)
     {
         _baseUrl = baseUrl;
@@ -87,8 +107,22 @@ internal sealed class ShellForm : Form
         BackColor = AppBg;
         ShowInTaskbar = true;
         TryLoadIcon();
+        InitTray();                         // after TryLoadIcon — reuses the same icon
+        StartShowSignalWaiter();
         RestoreWindowState();               // last session's geometry; first run = maximized
-        FormClosing += (_, _) => SaveWindowState();
+        FormClosing += (_, e) =>
+        {
+            SaveWindowState();
+            // Background mode: a user-initiated close hides to the tray instead of exiting.
+            // Windows shutdown/logoff (other CloseReasons) and the tray's "Zakończ" pass
+            // through so the process can actually die.
+            if (!_exitRequested && e.CloseReason == CloseReason.UserClosing
+                && ReplayService.Enabled && ReplayService.BackgroundEnabled)
+            {
+                e.Cancel = true;
+                HideToTray();
+            }
+        };
 
         _web.Dock = DockStyle.Fill;
         _web.DefaultBackgroundColor = AppBg;   // applied before the page paints
@@ -153,6 +187,86 @@ internal sealed class ShellForm : Form
             if (File.Exists(ico)) Icon = new Icon(ico);
         }
         catch { /* icon is cosmetic; never block startup on it */ }
+    }
+
+    // ---- tray mode ("Nagrywanie w tle") ----
+
+    /// <summary>Create the (hidden) tray icon + menu once. Shown only while the window is
+    /// hidden-to-tray. NO balloon tips anywhere: on this machine ANY toast notification
+    /// minimizes fullscreen games (see ReplayToast) — the icon itself is the only signal.</summary>
+    private void InitTray()
+    {
+        var menu = new ContextMenuStrip();
+        menu.Items.Add("Otwórz KeepClip", null, (_, _) => RestoreFromTray());
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Zakończ i zatrzymaj nagrywanie", null, (_, _) =>
+        {
+            _exitRequested = true;
+            Close();   // real exit: message loop ends → Program stops the buffer + host
+        });
+
+        _tray = new NotifyIcon
+        {
+            Text = "KeepClip — nagrywanie w tle",
+            Icon = Icon ?? SystemIcons.Application,
+            ContextMenuStrip = menu,
+            Visible = false,
+        };
+        _tray.DoubleClick += (_, _) => RestoreFromTray();
+        // NotifyIcon outlives the form unless disposed — a stale ghost icon lingers in
+        // the tray until hovered, so tear it down with the window.
+        FormClosed += (_, _) =>
+        {
+            if (_tray is null) return;
+            _tray.Visible = false;
+            _tray.Dispose();
+            _tray = null;
+        };
+    }
+
+    private void HideToTray()
+    {
+        Hide();
+        if (_tray is not null) _tray.Visible = true;
+    }
+
+    /// <summary>Bring the window back from the tray (tray menu/double-click or a second
+    /// app launch). Safe from any thread — marshals itself onto the UI thread.</summary>
+    private void RestoreFromTray()
+    {
+        if (IsDisposed) return;
+        if (InvokeRequired)
+        {
+            try { BeginInvoke(RestoreFromTray); } catch { /* window torn down */ }
+            return;
+        }
+        if (_tray is not null) _tray.Visible = false;
+        Show();
+        if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+        Activate();
+    }
+
+    /// <summary>Wait (forever, background thread) for the named show-request event that a
+    /// second launch signals — the only reliable wake-up path while the window is hidden
+    /// in the tray (no MainWindowHandle to focus from outside).</summary>
+    private void StartShowSignalWaiter()
+    {
+        var t = new Thread(() =>
+        {
+            try
+            {
+                using var ev = new EventWaitHandle(false, EventResetMode.AutoReset, DesktopShell.ShowEventName);
+                while (true)
+                {
+                    ev.WaitOne();
+                    if (IsDisposed) return;
+                    RestoreFromTray();
+                }
+            }
+            catch { /* form torn down or event unavailable — waiter simply ends */ }
+        })
+        { IsBackground = true, Name = "KeepClip-ShowSignal" };
+        t.Start();
     }
 
     private async Task InitWebViewAsync()

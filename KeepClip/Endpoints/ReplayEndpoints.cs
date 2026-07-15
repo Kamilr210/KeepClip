@@ -24,6 +24,7 @@ public static class ReplayEndpoints
                 return Api.Detail(400, "Nieprawidłowy skrót — użyj modyfikatora i klawisza, np. Alt+F10.");
 
             if (body.enabled is not null) Settings.SetString("replay_enabled", body.enabled.Value ? "1" : "0");
+            if (body.background is not null) Settings.SetString("replay_background", body.background.Value ? "1" : "0");
             if (body.duration_s is not null) Settings.SetString("replay_duration_s", body.duration_s.Value.ToString());
             if (body.fps is not null) Settings.SetString("replay_fps", body.fps.Value.ToString());
             if (body.quality is not null) Settings.SetString("replay_quality", body.quality);
@@ -56,4 +57,4 @@ public static class ReplayEndpoints
     }
 }
 
-record ReplayConfigPayload(bool? enabled, int? duration_s, int? fps, string? quality, string? hotkey, bool? mic, string? audio_output, string? audio_input);
+record ReplayConfigPayload(bool? enabled, bool? background, int? duration_s, int? fps, string? quality, string? hotkey, bool? mic, string? audio_output, string? audio_input);

@@ -145,6 +145,7 @@ const els = {
   replayHotkeyWarn: $("#replay-hotkey-warn"),
   replayError: $("#replay-error"),
   replayEnabled: $("#replay-enabled"),
+  replayBackground: $("#replay-background"),
   replayMic: $("#replay-mic"),
   replayDuration: $("#replay-duration"),
   replayFps: $("#replay-fps"),
@@ -2080,6 +2081,7 @@ async function openReplayModal() {
   const st = await refreshReplayStatus();   // modal still hidden → only updates the sidebar dot
   if (st) {
     els.replayEnabled.checked = !!st.enabled;
+    if (els.replayBackground) els.replayBackground.checked = !!st.background;
     els.replayMic.checked = !!st.mic_enabled;
     els.replayDuration.value = String(st.duration_s);
     if (!els.replayDuration.value) els.replayDuration.value = "120"; // non-preset value from settings.json
@@ -2171,6 +2173,7 @@ els.replayApply.addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         enabled: els.replayEnabled.checked,
+        background: els.replayBackground ? els.replayBackground.checked : null,
         mic: els.replayMic.checked,
         duration_s: parseInt(els.replayDuration.value, 10),
         fps: parseInt(els.replayFps.value, 10),
