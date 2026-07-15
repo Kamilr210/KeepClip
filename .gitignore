@@ -7,7 +7,7 @@ publish/
 
 # ---- KeepClip runtime data (never commit) ----
 # DB, thumbnails, settings.json, and the user's own OAuth client secret all live here.
-data/
+/data/
 
 # ---- ffmpeg/ffprobe (huge, user supplies them) ----
 tools/bin/*.exe

@@ -16,7 +16,7 @@
 ; ============================================================================
 
 #define MyAppName "KeepClip"
-#define MyAppVersion "2.1.0"
+#define MyAppVersion "2.1.1"
 #define MyAppPublisher "Kamil"
 #define MyAppURL "https://github.com/Kamilr210/KeepClip"
 #define MyAppExe "KeepClip.exe"
