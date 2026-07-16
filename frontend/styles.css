@@ -997,13 +997,18 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 }
 .cloud-quota .subtle { margin-top: 6px; font-size: 13px; }
 
-/* ── Zakładka Chmura: panel łączenia (redesign wg makiety) ─────────────── */
+/* ── Zakładka Chmura: panel łączenia (redesign wg makiety) ───────────────
+   Pełnoekranowy i płynny: zajmuje całą szerokość kolumny treści i wypełnia
+   wysokość okna (hero rośnie), a typografia/ilustracja skalują się z
+   rozdzielczością przez clamp() — bez sztywnego max-width. */
 .cloudx-panel {
-  max-width: 1180px;
+  width: 100%;
+  min-height: calc(100vh - 190px);   /* titlebar+nagłówek u góry, padding .main u dołu */
+  display: flex; flex-direction: column;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 22px 26px 16px;
+  padding: clamp(18px, 1.6vw, 30px) clamp(20px, 2.2vw, 40px) 16px;
 }
 
 /* stepper */
@@ -1025,22 +1030,24 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 }
 .cloudx-step-line { width: 90px; max-width: 12vw; height: 1px; background: var(--border); }
 
-/* hero */
+/* hero — flex:1 wypełnia wolną wysokość okna, rozmiary płyną z viewportem */
 .cloudx-hero {
-  display: flex; align-items: center; gap: 28px;
+  flex: 1;
+  display: flex; align-items: center; gap: clamp(24px, 3vw, 60px);
   background: linear-gradient(135deg, rgba(124, 92, 255, .16), rgba(55, 166, 255, .07) 60%, transparent);
   border: 1px solid rgba(124, 92, 255, .35);
   border-radius: 14px;
-  padding: 30px 34px;
+  padding: clamp(24px, 2.6vw, 48px) clamp(26px, 3.2vw, 60px);
 }
 .cloudx-hero-copy { flex: 1.1; min-width: 0; }
-.cloudx-hero-copy h3 { margin: 0 0 10px; font-size: 30px; line-height: 1.18; }
-.cloudx-hero-copy p { margin: 0 0 20px; max-width: 380px; font-size: 14.5px; line-height: 1.55; }
+.cloudx-hero-copy h3 { margin: 0 0 10px; font-size: clamp(26px, 2.4vw, 44px); line-height: 1.18; }
+.cloudx-hero-copy p { margin: 0 0 20px; max-width: 30em; font-size: clamp(13.5px, 1vw, 17px); line-height: 1.55; }
 .cloudx-google-btn {
   display: inline-flex; align-items: center; gap: 11px;
-  padding: 11px 22px; border: none; border-radius: 10px; cursor: pointer;
+  padding: clamp(11px, .9vw, 14px) clamp(22px, 1.8vw, 32px);
+  border: none; border-radius: 10px; cursor: pointer;
   background: linear-gradient(90deg, var(--accent), #3f8cff);
-  color: #fff; font-size: 15px; font-weight: 600;
+  color: #fff; font-size: clamp(15px, 1.05vw, 17px); font-weight: 600;
   transition: filter .15s, transform .1s;
 }
 .cloudx-google-btn:hover { filter: brightness(1.12); }
@@ -1054,7 +1061,7 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 
 /* hero: ilustracja chmury z logo Drive i pływającymi kafelkami */
 .cloudx-hero-art { flex: 1; display: flex; justify-content: center; min-width: 260px; }
-.cloudx-cloud { position: relative; width: 300px; height: 200px; }
+.cloudx-cloud { position: relative; width: clamp(280px, 26vw, 480px); aspect-ratio: 3 / 2; }
 .cloudx-cloud::before {
   content: ""; position: absolute; inset: 10% 8%;
   background: radial-gradient(closest-side, rgba(124, 92, 255, .45), transparent 75%);
@@ -1063,10 +1070,10 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 .cloudx-cloud-svg { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 18px 30px rgba(60, 40, 160, .45)); }
 .cloudx-drive-logo {
   position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
-  width: 84px; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .5));
+  width: 28%; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .5));
 }
 .cloudx-chip {
-  position: absolute; width: 38px; height: 38px; border-radius: 10px;
+  position: absolute; width: clamp(36px, 3vw, 52px); height: clamp(36px, 3vw, 52px); border-radius: 10px;
   background: rgba(20, 24, 44, .85); border: 1px solid rgba(140, 120, 255, .4);
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 6px 16px rgba(0, 0, 0, .4);
@@ -1084,12 +1091,12 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 /* feature cards */
 .cloudx-features {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px; margin-top: 14px;
+  gap: clamp(14px, 1.2vw, 22px); margin-top: clamp(14px, 1.2vw, 22px);
 }
 .cloudx-feature {
   display: flex; gap: 13px; align-items: flex-start;
   background: var(--card-2); border: 1px solid var(--border);
-  border-radius: 12px; padding: 16px;
+  border-radius: 12px; padding: clamp(16px, 1.3vw, 24px);
 }
 .cloudx-fic {
   width: 42px; height: 42px; border-radius: 11px; flex: none;
@@ -1099,21 +1106,22 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 .fic-lock   { background: linear-gradient(135deg, #3f8cff, #7c5cff); }
 .fic-play   { background: linear-gradient(135deg, #37a6ff, #3f8cff); }
 .fic-shield { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
-.cloudx-feature-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-.cloudx-feature-body { font-size: 12.8px; line-height: 1.5; }
+.cloudx-feature-title { font-weight: 600; font-size: clamp(14px, 1vw, 16px); margin-bottom: 4px; }
+.cloudx-feature-body { font-size: clamp(12.8px, .9vw, 14.5px); line-height: 1.5; }
 
 /* permissions */
 .cloudx-perms {
   display: flex; gap: 26px; align-items: center;
   background: var(--card-2); border: 1px solid var(--border);
-  border-radius: 12px; padding: 18px 20px; margin-top: 14px; flex-wrap: wrap;
+  border-radius: 12px; padding: clamp(18px, 1.4vw, 26px) clamp(20px, 1.6vw, 30px);
+  margin-top: clamp(14px, 1.2vw, 22px); flex-wrap: wrap;
 }
 .cloudx-perms-main { display: flex; gap: 13px; align-items: flex-start; flex: 1.2; min-width: 280px; }
 .cloudx-checklist {
   list-style: none; margin: 0; padding: 0 6px;
   flex: 1; min-width: 250px;
-  display: grid; grid-template-columns: 1fr; gap: 8px;
-  font-size: 13px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px 20px;
+  font-size: clamp(13px, .95vw, 15px);
 }
 .cloudx-checklist li { display: flex; align-items: center; gap: 9px; }
 .cloudx-checklist li::before {
