@@ -154,8 +154,7 @@ const els = {
   replayNavDot: $("#replay-nav-dot"),
   replayAudioOutput: $("#replay-audio-output"),
   replayAudioInput: $("#replay-audio-input"),
-  settingsOverlay: $("#settings-overlay"),
-  settingsClose: $("#settings-close"),
+  viewSettings: $("#view-settings"),
   settingsOpenReplay: $("#settings-open-replay"),
   ctrlSnap: $("#ctrl-snap"),
   ctrlMute: $("#ctrl-mute"),
@@ -558,10 +557,13 @@ function setClipChipsBusy(clipId, on) {
     .forEach((b) => { b.classList.toggle("busy", on); b.disabled = on; });
 }
 
-function setCloudConnected(on) {
+function setCloudConnected(on, email) {
   _cloudConnected = !!on;
   document.body.classList.toggle("cloud-connected", _cloudConnected);
   if (els.cloudNavDot) els.cloudNavDot.hidden = !_cloudConnected;
+  // Mini-karta w sidebarze pokazuje konto po połączeniu.
+  const sccEmail = document.getElementById("scc-email");
+  if (sccEmail) sccEmail.textContent = _cloudConnected && email ? email : "";
   if (currentClipId != null && !els.overlay.hidden) {
     updatePlayerCloudBtn(els.pcloud.classList.contains("in-cloud") ? "cloud" : "local");
   }
@@ -766,8 +768,8 @@ async function loadCloud() {
     _showCloudPanel("setup");
     return;
   }
-  setCloudConnected(!!st.connected);
-    setCloudQuota(st);
+  setCloudConnected(!!st.connected, st.email);
+  setCloudQuota(st);
   if (!st.configured) { _showCloudPanel("setup"); return; }
   if (!st.connected) { _showCloudPanel("connect"); return; }
 
@@ -812,7 +814,7 @@ async function startCloudConnect() {
       try { st = await fetch("/api/cloud/status").then((r) => r.json()); } catch { st = {}; }
       if (st.connected) {
         _stopCloudPoll();
-        setCloudConnected(true);
+        setCloudConnected(true, st.email);
         setCloudQuota(st);
         loadCloud();
         toast(t("toast.cloudConnected"));
@@ -1766,34 +1768,15 @@ document.querySelectorAll(".nav-tool[data-action]").forEach((btn) => {
   });
 });
 
-const btnSettings = document.getElementById("btn-settings");
-if (btnSettings) btnSettings.addEventListener("click", openSettingsOverlay);
-
-function openSettingsOverlay() {
-  if (els.settingsOverlay) els.settingsOverlay.hidden = false;
-}
-function closeSettingsOverlay() {
-  if (els.settingsOverlay) els.settingsOverlay.hidden = true;
-}
-if (els.settingsClose) els.settingsClose.addEventListener("click", closeSettingsOverlay);
-if (els.settingsOverlay) {
-  els.settingsOverlay.addEventListener("click", (e) => {
-    if (e.target === els.settingsOverlay) closeSettingsOverlay();
-  });
-}
+// Ustawienia to pełny widok (data-view="settings" w sidebarze), nie modal —
+// przycisk w nawigacji łapie standardowy handler navItems → setView("settings").
 
 document.querySelectorAll(".settings-folder-btn[data-action='change-folder']").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    closeSettingsOverlay();
-    openConfigModal({ mode: "change" });
-  });
+  btn.addEventListener("click", () => openConfigModal({ mode: "change" }));
 });
 
 if (els.settingsOpenReplay) {
-  els.settingsOpenReplay.addEventListener("click", () => {
-    closeSettingsOverlay();
-    openReplayModal();
-  });
+  els.settingsOpenReplay.addEventListener("click", openReplayModal);
 }
 
 async function populateAudioDevices() {
@@ -2287,6 +2270,7 @@ function setView(view) {
   els.viewFolders.hidden = view !== "folders";
   els.viewFavorites.hidden = view !== "favorites";
   els.viewCloud.hidden = view !== "cloud";
+  if (els.viewSettings) els.viewSettings.hidden = view !== "settings";
   if (view === "folders" && _currentFolderId == null) {
     loadFoldersIndex();
   }
@@ -2482,7 +2466,7 @@ setInterval(sendHeartbeat, 30000);
   await loadStats();
   fetch("/api/cloud/status")
     .then((r) => r.json())
-    .then((st) => { setCloudConnected(!!st.connected); setCloudQuota(st); })
+    .then((st) => { setCloudConnected(!!st.connected, st.email); setCloudQuota(st); })
     .catch(() => {});
   const s = await fetch("/api/transcribe/status").then((r) => r.json());
   if (s.running) attachStream();
