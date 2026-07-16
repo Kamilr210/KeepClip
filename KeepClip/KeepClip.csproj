@@ -1,19 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <!-- net*-windows + WinForms: the app is a native desktop shell (WebView2 in a
-         frameless window) that ALSO hosts the ASP.NET server in-process, exactly like
-         the Python build (pywebview window + uvicorn in a background thread). WinExe =
-         no console window for end users; the "server-only" arg runs headless for dev. -->
+    <!-- Typ aplikacji ukrywa konsolę, a osobny tryb pozwala uruchomić sam serwer. -->
     <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <OutputType>WinExe</OutputType>
     <UseWindowsForms>true</UseWindowsForms>
 
-    <!-- Native desktop-app identity: gives KeepClip.exe its own icon (the same one the
-         WebView2 window and installer use) and the metadata Windows shows in the file
-         properties / Add-or-Remove-Programs. -->
     <ApplicationIcon>..\frontend\icons\icon.ico</ApplicationIcon>
     <AssemblyName>KeepClip</AssemblyName>
     <Product>KeepClip</Product>
@@ -25,24 +19,12 @@
     <AssemblyVersion>2.1.1.0</AssemblyVersion>
     <Copyright>© Kamil</Copyright>
 
-    <!-- Self-contained win-x64 publish (runtime bundled, so OTHER users need nothing
-         installed) is driven from installer\build.ps1 and the win-x64 publish profile —
-         NOT pinned here, so a dev `dotnet build`/`run` stays framework-dependent and
-         RID-neutral. The publish is intentionally folder-based (not single-file) and
-         NOT trimmed: WebView2's loader and the Whisper.net native runtimes (Vulkan + CPU
-         under runtimes/) must be real files on disk, FindAppRoot()/the installer expect
-         a folder layout, and WinForms + ASP.NET model-binding are reflection-heavy — the
-         user's top priority is production stability, not a few hundred MB saved. -->
-    <!-- Only ship English framework satellite assemblies (our own UI is Polish HTML, not
-         framework-localized), shrinking the publish tree by dozens of locale folders. -->
+    <!-- Publikacja samowystarczalna pozostaje katalogiem bez przycinania, ponieważ WebView2
+         i natywne biblioteki Whispera muszą istnieć jako osobne pliki. -->
+    <!-- Interfejs ma własne tłumaczenia HTML, więc wystarczą angielskie zasoby platformy. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
 
-    <!-- Developer-only features (the in-app "Logi aplikacji" panel and its capture)
-         compile in by default. A PUBLIC release strips them: CI runs
-         `build.ps1 -PublicRelease` (and GitHub Actions is auto-detected), which passes
-         -p:PublicRelease=true here. Any ordinary local build — `dotnet run`, or the
-         dev's own `dotnet build -c Release` — leaves PublicRelease unset and keeps
-         KEEPCLIP_DEV, so the GitHub installer never ships the log viewer. -->
+    <!-- Właściwość PublicRelease usuwa panel logów z instalatora publikowanego przez CI. -->
     <PublicRelease Condition="'$(PublicRelease)' == ''">false</PublicRelease>
     <DefineConstants Condition="'$(PublicRelease)' != 'true'">$(DefineConstants);KEEPCLIP_DEV</DefineConstants>
   </PropertyGroup>
@@ -50,35 +32,15 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
-    <!-- Speech-to-text engine. Whisper.net is whisper.cpp/GGML (not CTranslate2), so
-         transcripts are functionally equivalent to the Python faster-whisper build but
-         not bit-identical. We reference TWO runtimes and let Whisper.net auto-select the
-         best available at load: Vulkan (GPU on NVIDIA/AMD/Intel — the original ran on the
-         GPU, so this restores that speed and keeps RAM/CPU down) with the CPU runtime as a
-         universal fallback for machines without a usable GPU. Vulkan is portable (it uses
-         the driver's installed Vulkan ICD, no CUDA toolkit needed), which fits the
-         easy-install goal better than an NVIDIA-only CUDA build. -->
+    <!-- Whisper.net wybiera Vulkan, gdy GPU jest dostępny, a w przeciwnym razie używa CPU. -->
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime.Vulkan" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
-    <!-- System-audio capture for the instant-replay buffer (ReplayService). ffmpeg on
-         Windows has no built-in WASAPI loopback, so we capture the default render
-         device in-process and pipe raw PCM into ffmpeg's stdin alongside the ddagrab
-         video. NAudio is managed + COM interop only, so self-contained publish works. -->
+    <!-- NAudio dostarcza dźwięk WASAPI do wejścia FFmpeg, który sam nie obsługuje przechwytywania zwrotnego. -->
     <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
-  <!-- ===================================================================== -->
-  <!-- MSB3277 fix: the WebView2 package ships BOTH a WinForms and a WPF control
-       assembly. We only host the WinForms one (DesktopShell uses
-       Microsoft.Web.WebView2.WinForms). The unused WPF assembly references
-       WindowsBase 5.0.0.0, which conflicts with the framework's 4.0.0.0 and makes
-       RAR emit "Found conflicts between different versions of WindowsBase". The
-       package's Common.targets adds the WPF flavor as a raw <Reference> by full
-       path at evaluation time, so we strip it from @(Reference) BEFORE RAR runs
-       (matching on filename) — after-RAR removal is too late, the warning is raised
-       inside RAR. Nothing we compile uses the WPF control, so this is safe and also
-       keeps Microsoft.Web.WebView2.Wpf.dll out of the publish output. -->
+  <!-- Usuwa nieużywaną bibliotekę WPF przed etapem RAR, aby uniknąć konfliktu WindowsBase. -->
   <Target Name="DropWebView2Wpf" BeforeTargets="ResolveAssemblyReferences">
     <ItemGroup>
       <Reference Remove="@(Reference)"
@@ -86,14 +48,8 @@
     </ItemGroup>
   </Target>
 
-  <!-- ===================================================================== -->
-  <!-- Stage the runtime assets that live OUTSIDE this project (the shared
-       frontend/ and tools/ folders one level up) next to the published exe, so a
-       `dotnet publish` output is a complete, runnable app — exactly the layout
-       FindAppRoot() and the Inno Setup installer expect. Runs only on publish, so
-       dev builds keep their bin/ small. The Whisper model is NOT staged (it
-       auto-downloads on first transcription, ~1.6 GB); data/ is NOT staged (it is
-       per-user runtime state and may hold the Drive OAuth secret). -->
+  <!-- Dołącza interfejs i narzędzia do publikacji; model Whispera oraz dane użytkownika
+       nie mogą trafić do instalatora. -->
   <Target Name="StageRuntimeAssets" AfterTargets="Publish">
     <PropertyGroup>
       <_Pub>$([MSBuild]::EnsureTrailingSlash('$(PublishDir)'))</_Pub>

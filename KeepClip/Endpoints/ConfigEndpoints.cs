@@ -2,11 +2,10 @@ using System.Text;
 
 namespace KeepClip.Endpoints;
 
-/// <summary>Frontend hosting + liveness/config/scan/shutdown, and the dev-only log feed.</summary>
 public static class ConfigEndpoints
 {
 #if KEEPCLIP_DEV
-    private const bool DevBuild = true;   // gates the developer-only "Logi aplikacji" tool in the UI
+    private const bool DevBuild = true;   // Steruje widocznością narzędzia deweloperskiego.
 #else
     private const bool DevBuild = false;
 #endif
@@ -19,7 +18,7 @@ public static class ConfigEndpoints
             if (!File.Exists(idx))
                 return Results.Content("<h1>frontend missing</h1>", "text/html", Encoding.UTF8, 500);
             var html = File.ReadAllText(idx, Encoding.UTF8);
-            // Cache-bust static assets by mtime so an updated CSS/JS reaches the browser.
+            // Czas modyfikacji wymusza pobranie nowej wersji CSS/JS przez przeglądarkę.
             foreach (var name in new[] { "styles.css", "app.js" })
             {
                 var f = Path.Combine(Config.FrontendDir, name);
@@ -39,8 +38,7 @@ public static class ConfigEndpoints
             Heartbeat.Touch();
             var root = Settings.GetClipsRoot();
             var configured = Settings.IsConfigured();
-            // Backward compat: pre-existing installs already have clips registered;
-            // treat them as configured even without an explicit settings.json.
+        // Starsze instalacje mogą nie mieć pliku ustawień, mimo że baza zawiera klipy.
             if (!configured && clips.Count() > 0)
             {
                 Settings.SetClipsRoot(root);
@@ -68,7 +66,7 @@ public static class ConfigEndpoints
             if (!Directory.Exists(newRoot))
                 return Api.Detail(400, $"To nie jest folder: {newRoot}");
             Settings.SetClipsRoot(newRoot);
-            var scan = Scanner.Scan();              // scan immediately so contents show up
+        var scan = Scanner.Scan();              // Skanuje od razu, aby pokazać zawartość.
             ThumbnailWorker.Ensure();
             DevLog.Add($"Zmieniono folder klipów na: {newRoot} (skan: +{scan.GetValueOrDefault("added")} / −{scan.GetValueOrDefault("removed")})");
             return Results.Json(new Dictionary<string, object?>
@@ -88,8 +86,8 @@ public static class ConfigEndpoints
             return Results.Json(result);
         });
 
-        // Graceful process exit for the desktop shell's window-close. Refused mid-run so a
-        // transcription is never killed halfway. Deferred so the HTTP response flushes first.
+        // Odpowiedź musi zostać wysłana przed zamknięciem procesu; aktywna transkrypcja
+        // blokuje wyjście, aby nie przerwać zapisu w połowie.
         app.MapPost("/api/shutdown", () =>
         {
             if (TranscribeState.Snapshot().running)
@@ -99,7 +97,7 @@ public static class ConfigEndpoints
         });
 
 #if KEEPCLIP_DEV
-        // Developer log viewer (compiled out of public releases).
+    // Ten punkt końcowy nie jest kompilowany w wydaniach publicznych.
         app.MapGet("/api/logs", (long? since) =>
         {
             var (seq, lines) = DevLog.GetSince(since ?? 0);

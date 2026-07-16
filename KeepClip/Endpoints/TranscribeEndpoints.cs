@@ -2,11 +2,9 @@ using System.Text.Json;
 
 namespace KeepClip.Endpoints;
 
-/// <summary>Whisper transcription run control + the SSE progress feed.</summary>
 public static class TranscribeEndpoints
 {
-    // The manual SSE path needs its own options (Results.Json uses the DI-configured ones);
-    // keep keys verbatim (snake_case), like the rest of the API.
+    // Ręcznie zapisany SSE omija opcje JSON z DI, więc musi zachować nazwy snake_case.
     private static readonly JsonSerializerOptions SseJson =
         new() { PropertyNamingPolicy = null, DictionaryKeyPolicy = null };
 
@@ -31,19 +29,18 @@ public static class TranscribeEndpoints
             {
                 if (!TranscribeState.Running)
                     return Results.Json(new { cancelled = false, reason = "not_running" });
-                TranscribeState.Cancel = true;   // the worker checks this between clips
+        TranscribeState.Cancel = true;   // Proces roboczy sprawdza flagę pomiędzy klipami.
             }
             DevLog.Add("Transkrypcja: anulowano (zatrzyma się po bieżącym klipie)");
             return Results.Json(new { cancelled = true });
         });
 
-        // Server-Sent Events progress feed. Emits a frame whenever the snapshot changes,
-        // then one final frame once a run has finished.
+        // Strumień wysyła ramkę po każdej zmianie i jedną końcową po zakończeniu.
         app.MapGet("/api/transcribe/stream", async (HttpContext ctx) =>
         {
             ctx.Response.Headers.ContentType = "text/event-stream";
             ctx.Response.Headers.CacheControl = "no-cache";
-            ctx.Response.Headers["X-Accel-Buffering"] = "no";   // disable any proxy buffering
+        ctx.Response.Headers["X-Accel-Buffering"] = "no";   // Wyłącza buforowanie pośrednika.
 
             var ct = ctx.RequestAborted;
             string? last = null;
@@ -59,13 +56,12 @@ public static class TranscribeEndpoints
                         await ctx.Response.Body.FlushAsync(ct);
                         last = payload;
                     }
-                    // Terminal state already emitted above (running flipped / finished_at set
-                    // both change the payload) → close the stream.
+                    // Stan końcowy został już wysłany, więc można zamknąć strumień.
                     if (!snap.running && snap.finished_at is not null) break;
                     await Task.Delay(500, ct);
                 }
             }
-            catch (OperationCanceledException) { /* client disconnected — normal */ }
+            catch (OperationCanceledException) { /* Rozłączenie klienta jest normalne. */ }
         });
     }
 }

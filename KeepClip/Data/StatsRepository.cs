@@ -1,7 +1,5 @@
 namespace KeepClip.Data;
 
-/// <summary>Library-wide counts + per-game breakdown for <c>/api/stats</c>. Disk space is
-/// not a DB concern, so the caller measures it and passes it in.</summary>
 public class StatsRepository
 {
     public Dictionary<string, object?> Get(long? diskTotal, long? diskFree)

@@ -1,6 +1,5 @@
 namespace KeepClip.Endpoints;
 
-/// <summary>Read a clip's transcript segments and edit individual lines.</summary>
 public static class SegmentEndpoints
 {
     public static void MapSegmentEndpoints(this WebApplication app)

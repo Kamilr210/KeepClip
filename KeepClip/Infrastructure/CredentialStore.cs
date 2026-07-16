@@ -3,21 +3,13 @@ using System.Text;
 
 namespace KeepClip.Infrastructure;
 
-/// <summary>
-/// Secure secret storage backed by the Windows Credential Manager (the OS keychain),
-/// via the Win32 <c>Cred*</c> API. We keep the Google Drive <b>refresh token</b> here —
-/// never in plaintext on disk, never in <c>data/</c>, never in the repo. The token is a
-/// long-lived credential that can mint Drive access tokens, so it gets the same OS-level
-/// protection (per-user, DPAPI-encrypted at rest) as a saved password.
-///
-/// Dependency-free P/Invoke, matching the project's "small install, no extra NuGet"
-/// philosophy (same approach as <see cref="Trash"/>).
-/// </summary>
+// Token odświeżania Google jest chroniony przez Menedżera poświadczeń Windows
+// i nigdy nie trafia jawnie do katalogu data ani repozytorium.
 public static class CredentialStore
 {
     private const int CRED_TYPE_GENERIC = 1;
-    private const int CRED_PERSIST_LOCAL_MACHINE = 2; // survives logoff/reboot, this user
-    private const int CRED_MAX_CREDENTIAL_BLOB_SIZE = 5 * 512; // 2560 bytes
+    private const int CRED_PERSIST_LOCAL_MACHINE = 2; // Zachowuje dane po wylogowaniu i restarcie tego użytkownika.
+    private const int CRED_MAX_CREDENTIAL_BLOB_SIZE = 5 * 512; // 2560 bajtów.
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct CREDENTIAL
@@ -26,7 +18,7 @@ public static class CredentialStore
         public int Type;
         public string TargetName;
         public string? Comment;
-        public long LastWritten;            // FILETIME (ignored on write)
+        public long LastWritten;            // Wartość FILETIME, pomijana podczas zapisu.
         public int CredentialBlobSize;
         public IntPtr CredentialBlob;
         public int Persist;
@@ -48,11 +40,6 @@ public static class CredentialStore
     [DllImport("advapi32.dll")]
     private static extern void CredFree(IntPtr cred);
 
-    /// <summary>
-    /// Store (or overwrite) a UTF-16 secret under <paramref name="target"/>.
-    /// <paramref name="userName"/> is cosmetic metadata (shown in the Credential Manager
-    /// UI) — we pass the connected account's e-mail so the entry is self-describing.
-    /// </summary>
     public static void Write(string target, string secret, string? userName = null)
     {
         var blob = Encoding.Unicode.GetBytes(secret);
@@ -82,11 +69,10 @@ public static class CredentialStore
         }
     }
 
-    /// <summary>Read the secret stored under <paramref name="target"/>, or null if absent.</summary>
     public static string? Read(string target)
     {
         if (!CredReadW(target, CRED_TYPE_GENERIC, 0, out IntPtr ptr))
-            return null; // not found (or access denied) → treat as "no token"
+            return null; // Brak wpisu lub dostępu jest traktowany jak brak tokenu.
         try
         {
             var cred = Marshal.PtrToStructure<CREDENTIAL>(ptr);
@@ -102,9 +88,8 @@ public static class CredentialStore
         }
     }
 
-    /// <summary>Delete the secret under <paramref name="target"/>. No-op if it isn't there.</summary>
     public static void Delete(string target)
     {
-        try { CredDeleteW(target, CRED_TYPE_GENERIC, 0); } catch { /* already gone */ }
+        try { CredDeleteW(target, CRED_TYPE_GENERIC, 0); } catch { }
     }
 }

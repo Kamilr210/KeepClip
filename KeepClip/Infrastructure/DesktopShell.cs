@@ -7,23 +7,13 @@ using Microsoft.Web.WebView2.WinForms;
 
 namespace KeepClip.Infrastructure;
 
-/// <summary>
-/// Native desktop shell — the C# port of <c>main_desktop.py</c>'s pywebview window.
-/// A frameless WinForms form hosts a WebView2 control pointed at the in-process ASP.NET
-/// server, and a small injected script re-creates <c>window.pywebview.api</c>
-/// (pick_folder / minimize / close / toggle_maximize) plus pywebview's two frameless
-/// behaviours the CSS relies on: draggable <c>.pywebview-drag-region</c> elements and
-/// edge/corner resizing. The window owns the process lifetime — closing it ends the
-/// WinForms message loop, after which the caller stops the host and exits.
-/// </summary>
 internal static class DesktopShell
 {
-    /// <summary>Open the window and pump messages until it closes. Runs on its own STA thread.</summary>
     public static void Run(string baseUrl)
     {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
-        try { Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); } catch { /* older OS */ }
+        try { Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); } catch { }
         using var form = new ShellForm(baseUrl);
         Application.Run(form);
     }
@@ -32,14 +22,9 @@ internal static class DesktopShell
     [DllImport("user32.dll")] private static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
     private const int SW_RESTORE = 9;
 
-    /// <summary>Named event a second launch signals to make the RUNNING instance show its
-    /// window. Essential for tray mode: a window hidden to the tray has no
-    /// Process.MainWindowHandle, so the old SetForegroundWindow path can't reach it.</summary>
+    // Nazwane zdarzenie pozwala drugiemu uruchomieniu przywrócić okno ukryte w zasobniku.
     internal const string ShowEventName = @"Local\KeepClip-ShowRequest";
 
-    /// <summary>Second-launch path (single-instance mutex already taken): ask the running
-    /// copy to show itself (works also when it's hidden in the tray), falling back to
-    /// focusing its visible window directly.</summary>
     public static void FocusExistingInstance()
     {
         try
@@ -50,7 +35,7 @@ internal static class DesktopShell
                 return;
             }
         }
-        catch { /* signal path unavailable → window-handle fallback below */ }
+        catch { }
         try
         {
             using var self = System.Diagnostics.Process.GetCurrentProcess();
@@ -65,35 +50,31 @@ internal static class DesktopShell
                 }
             }
         }
-        catch { /* best effort — the second copy exits either way */ }
+        catch { }
     }
 }
 
-/// <summary>The frameless host window. Geometry mirrors pywebview: 1280×800, min 900×600.</summary>
 internal sealed class ShellForm : Form
 {
-    // ---- Win32: kick off a native move/resize loop from a web mousedown, exactly like
-    //      pywebview's WindowApi.start_native_resize (ReleaseCapture + WM_NCLBUTTONDOWN). ----
+    // Rozpoczyna natywne przesuwanie lub skalowanie okna po zdarzeniu myszy z WebView2.
     [DllImport("user32.dll")] private static extern bool ReleaseCapture();
     [DllImport("user32.dll")] private static extern bool PostMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
     private const int WM_NCLBUTTONDOWN = 0x00A1;
-    private const int HTCAPTION = 2;        // whole-window move (title bar drag)
-    private const int HTBOTTOMRIGHT = 17;   // start_native_resize() target
+    private const int HTCAPTION = 2;
+    private const int HTBOTTOMRIGHT = 17;
 
-    private static readonly Color AppBg = Color.FromArgb(0x07, 0x0A, 0x10); // --bg, avoids white flash
+    private static readonly Color AppBg = Color.FromArgb(0x07, 0x0A, 0x10);
 
     private readonly string _baseUrl;
     private readonly WebView2 _web = new();
 
-    // toggle_maximize_window restore state (mirrors WindowApi._is_maximized + _restore_*).
     private bool _isMaximized;
     private Rectangle _restoreBounds;
 
-    // Tray mode ("Nagrywanie w tle"): with the replay buffer enabled + background mode on,
-    // closing the window hides the app to the system tray and recording keeps running.
+    // W trybie nagrywania w tle zamknięcie okna ukrywa aplikację w zasobniku.
     private NotifyIcon? _tray;
-    private bool _exitRequested;   // set by the tray's "Zakończ" so Close() really exits
+    private bool _exitRequested;
 
     public ShellForm(string baseUrl)
     {
@@ -103,19 +84,17 @@ internal sealed class ShellForm : Form
         FormBorderStyle = FormBorderStyle.None;
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(1280, 800);
-        MinimumSize = new Size(900, 600);   // enforced by Windows during native resize
+        MinimumSize = new Size(900, 600);
         BackColor = AppBg;
         ShowInTaskbar = true;
         TryLoadIcon();
-        InitTray();                         // after TryLoadIcon — reuses the same icon
+        InitTray();
         StartShowSignalWaiter();
-        RestoreWindowState();               // last session's geometry; first run = maximized
+        RestoreWindowState();
         FormClosing += (_, e) =>
         {
             SaveWindowState();
-            // Background mode: a user-initiated close hides to the tray instead of exiting.
-            // Windows shutdown/logoff (other CloseReasons) and the tray's "Zakończ" pass
-            // through so the process can actually die.
+            // Zamknięcie przez system lub opcję „Zakończ” musi naprawdę zakończyć proces.
             if (!_exitRequested && e.CloseReason == CloseReason.UserClosing
                 && ReplayService.Enabled && ReplayService.BackgroundEnabled)
             {
@@ -125,14 +104,12 @@ internal sealed class ShellForm : Form
         };
 
         _web.Dock = DockStyle.Fill;
-        _web.DefaultBackgroundColor = AppBg;   // applied before the page paints
+        _web.DefaultBackgroundColor = AppBg;
         Controls.Add(_web);
 
         Load += async (_, _) => await InitWebViewAsync();
 
-        // Instant-replay "save" hotkey: this form's handle hosts the system-wide
-        // RegisterHotKey (fires even with a fullscreen game focused). The service's
-        // notifier renders saves as an on-screen toast over the game.
+        // Uchwyt formularza odbiera globalny skrót także wtedy, gdy gra jest na pełnym ekranie.
         HandleCreated += (_, _) =>
         {
             HotkeyManager.Attach(this);
@@ -140,9 +117,6 @@ internal sealed class ShellForm : Form
         };
     }
 
-    /// <summary>WM_HOTKEY → dump the replay ring. Fire-and-forget: the save runs on the
-    /// thread pool so a multi-second concat never freezes the UI thread. The outcome
-    /// shows as an on-screen toast (visible over the game), marshaled back here.</summary>
     protected override void WndProc(ref Message m)
     {
         if (HotkeyManager.HandleMessage(ref m))
@@ -151,17 +125,14 @@ internal sealed class ShellForm : Form
             {
                 try
                 {
-                    // Success shows itself via ReplayService.Notifier (one toast for
-                    // every save source); only the failure needs reporting here.
                     await ReplayService.SaveAsync("hotkey");
                 }
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine($"Powtórka (hotkey): {ex.Message}");
-                    // A re-press while a save is still assembling is NOT a failure — stay
-                    // silent (the earlier press will play the success cue when it finishes).
+                    // Ponowne naciśnięcie podczas zapisu nie jest błędem użytkownika.
                     if (ReplayService.SaveInProgress) return;
-                    ReplayService.PlayCue(ok: false);  // audible in-game even if the toast isn't visible
+                    ReplayService.PlayCue(ok: false);
                     SafeToast(false, "Nie udało się zapisać powtórki", ex.Message);
                 }
             });
@@ -176,7 +147,7 @@ internal sealed class ShellForm : Form
         {
             if (!IsDisposed) BeginInvoke(() => ReplayToast.Display(ok, title, subtitle));
         }
-        catch { /* window torn down mid-save */ }
+        catch { }
     }
 
     private void TryLoadIcon()
@@ -186,14 +157,10 @@ internal sealed class ShellForm : Form
             var ico = Path.Combine(Config.FrontendDir, "icons", "icon.ico");
             if (File.Exists(ico)) Icon = new Icon(ico);
         }
-        catch { /* icon is cosmetic; never block startup on it */ }
+        catch { }
     }
 
-    // ---- tray mode ("Nagrywanie w tle") ----
-
-    /// <summary>Create the (hidden) tray icon + menu once. Shown only while the window is
-    /// hidden-to-tray. NO balloon tips anywhere: on this machine ANY toast notification
-    /// minimizes fullscreen games (see ReplayToast) — the icon itself is the only signal.</summary>
+    // Powiadomienia balonowe są wyłączone, ponieważ potrafią minimalizować gry pełnoekranowe.
     private void InitTray()
     {
         var menu = new ContextMenuStrip();
@@ -202,7 +169,7 @@ internal sealed class ShellForm : Form
         menu.Items.Add("Zakończ i zatrzymaj nagrywanie", null, (_, _) =>
         {
             _exitRequested = true;
-            Close();   // real exit: message loop ends → Program stops the buffer + host
+            Close();
         });
 
         _tray = new NotifyIcon
@@ -213,8 +180,7 @@ internal sealed class ShellForm : Form
             Visible = false,
         };
         _tray.DoubleClick += (_, _) => RestoreFromTray();
-        // NotifyIcon outlives the form unless disposed — a stale ghost icon lingers in
-        // the tray until hovered, so tear it down with the window.
+        // Jawne zwolnienie zapobiega pozostawieniu nieaktywnej ikony w zasobniku.
         FormClosed += (_, _) =>
         {
             if (_tray is null) return;
@@ -230,14 +196,12 @@ internal sealed class ShellForm : Form
         if (_tray is not null) _tray.Visible = true;
     }
 
-    /// <summary>Bring the window back from the tray (tray menu/double-click or a second
-    /// app launch). Safe from any thread — marshals itself onto the UI thread.</summary>
     private void RestoreFromTray()
     {
         if (IsDisposed) return;
         if (InvokeRequired)
         {
-            try { BeginInvoke(RestoreFromTray); } catch { /* window torn down */ }
+            try { BeginInvoke(RestoreFromTray); } catch { }
             return;
         }
         if (_tray is not null) _tray.Visible = false;
@@ -246,9 +210,6 @@ internal sealed class ShellForm : Form
         Activate();
     }
 
-    /// <summary>Wait (forever, background thread) for the named show-request event that a
-    /// second launch signals — the only reliable wake-up path while the window is hidden
-    /// in the tray (no MainWindowHandle to focus from outside).</summary>
     private void StartShowSignalWaiter()
     {
         var t = new Thread(() =>
@@ -263,7 +224,7 @@ internal sealed class ShellForm : Form
                     RestoreFromTray();
                 }
             }
-            catch { /* form torn down or event unavailable — waiter simply ends */ }
+            catch { }
         })
         { IsBackground = true, Name = "KeepClip-ShowSignal" };
         t.Start();
@@ -271,17 +232,11 @@ internal sealed class ShellForm : Form
 
     private async Task InitWebViewAsync()
     {
-        // Keep WebView2's cache/cookies under data/ so a clean uninstall (delete data/)
-        // removes them too — no stray profile next to the exe.
+        // Profil WebView2 trafia do data, aby deinstalator mógł usunąć go razem z aplikacją.
         var userData = Path.Combine(Config.DataDir, "webview2");
         Directory.CreateDirectory(userData);
 
-        // --force_high_performance_gpu: on dual-GPU machines Windows likes to hand the
-        // WebView2 renderer the power-saving iGPU, whose presenter chokes on the app's own
-        // high-fps recordings (a 165 fps 1440p clip played slow-mo/desynced in-app while the
-        // same file was fine in a system player on the dGPU). PlatformHEVCDecoderSupport
-        // enables hardware HEVC decode in Chromium — future-proofing for an HEVC capture
-        // codec. Both flags are ignored gracefully where unsupported.
+        // Wymusza wydajny GPU dla materiałów o wysokim FPS i włącza sprzętowe dekodowanie HEVC.
         var opts = new CoreWebView2EnvironmentOptions
         {
             AdditionalBrowserArguments =
@@ -291,37 +246,27 @@ internal sealed class ShellForm : Form
         await _web.EnsureCoreWebView2Async(env);
         var core = _web.CoreWebView2;
 
-        // App-shell feel without breaking the app: no link status bar, no back/forward
-        // swipe. Context menus + devtools stay on (right-click paste in the segment
-        // editor; inspection when something misbehaves).
         core.Settings.IsStatusBarEnabled = false;
         core.Settings.IsSwipeNavigationEnabled = false;
 
-        // Frameless window dragging: let the page tag its title-bar strip with CSS
-        // `app-region: drag` and have WebView2 run the window move natively. This is
-        // reliable (including dragging onto another monitor), unlike the postMessage →
-        // WM_NCLBUTTONDOWN fallback, which can stall because the web-content process
-        // owns the mouse capture mid-drag. Guarded: older WebView2 runtimes lack the
-        // setter and throw, in which case the JS bridge (__start_drag) still works.
+        // Starsze WebView2 nie obsługuje regionów natywnych; wtedy pozostaje most JS.
         try { core.Settings.IsNonClientRegionSupportEnabled = true; }
-        catch { /* older runtime → JS drag fallback remains active */ }
+        catch { }
 
-        // target=_blank / window.open → OS browser, not a dead child webview.
+        // Nowe okna otwiera w przeglądarce systemowej zamiast w pustym podrzędnym WebView2.
         core.NewWindowRequested += (_, e) =>
         {
             e.Handled = true;
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri) { UseShellExecute = true }); }
-            catch { /* ignore unlaunchable URIs */ }
+            catch { }
         };
 
-        // The pywebview.api shim must exist before the page's own scripts run.
+        // Most musi istnieć przed uruchomieniem skryptów strony.
         await core.AddScriptToExecuteOnDocumentCreatedAsync(BridgeJs);
         core.WebMessageReceived += OnWebMessage;
 
         _web.Source = new Uri(_baseUrl);
     }
-
-    // ---- bridge: JS → host. Runs on the UI thread, so Win32 + dialogs are safe here. ----
 
     private void OnWebMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
@@ -335,13 +280,12 @@ internal sealed class ShellForm : Form
         try { result = Dispatch(req.method, req.args); }
         catch (Exception ex) { error = ex.Message; }
 
-        // Resolve/reject the JS-side promise.
         try
         {
             _web.CoreWebView2.PostWebMessageAsJson(
                 JsonSerializer.Serialize(new BridgeReply(true, req.id, result, error)));
         }
-        catch { /* page navigated away mid-call */ }
+        catch { }
     }
 
     private object? Dispatch(string method, JsonElement[]? args)
@@ -363,15 +307,15 @@ internal sealed class ShellForm : Form
                 ToggleMaximize(Arg(args, 0), Arg(args, 1), Arg(args, 2), Arg(args, 3));
                 return null;
 
-            case "start_native_resize":     // pywebview API parity (no caller in the current UI)
+            case "start_native_resize":
                 BeginNativeDrag(HTBOTTOMRIGHT);
                 return null;
 
-            case "__start_drag":            // mousedown on a .pywebview-drag-region
+            case "__start_drag":
                 BeginNativeDrag(HTCAPTION);
                 return null;
 
-            case "__start_resize":          // mousedown on an injected edge/corner grip
+            case "__start_resize":
                 BeginNativeDrag(Arg(args, 0));
                 return null;
 
@@ -392,15 +336,7 @@ internal sealed class ShellForm : Form
         return dlg.ShowDialog(this) == DialogResult.OK ? dlg.SelectedPath : null;
     }
 
-    // ---- window-state persistence (geometry + maximized flag across sessions) ----
-
-    /// <summary>
-    /// Apply the previous session's geometry. No saved state (first run) starts
-    /// maximized — the frameless flavor: bounds = the screen's WORK area, so the
-    /// taskbar stays visible (real WindowState.Maximized would cover it). Saved
-    /// bounds are validated against the current monitors (one may be unplugged)
-    /// and the form's minimum size before being trusted.
-    /// </summary>
+    // Zapisane położenie jest akceptowane tylko wtedy, gdy przecina aktualnie podłączony ekran.
     private void RestoreWindowState()
     {
         _restoreBounds = DefaultBounds();
@@ -422,7 +358,7 @@ internal sealed class ShellForm : Form
 
         StartPosition = FormStartPosition.Manual;
         _isMaximized = maximized;
-        // Maximize onto the screen the window last lived on, not always the primary.
+        // Maksymalizuje na ekranie, na którym okno znajdowało się poprzednio.
         Bounds = maximized ? Screen.FromRectangle(_restoreBounds).WorkingArea : _restoreBounds;
     }
 
@@ -437,12 +373,10 @@ internal sealed class ShellForm : Form
     {
         try
         {
-            // Minimized bounds are the off-screen -32000 placeholder; the form's own
-            // RestoreBounds holds the real ones. (This form never uses Maximized.)
+            // Dla okna zminimalizowanego rzeczywiste wymiary są dostępne w RestoreBounds.
             var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
 
-            // Dragging/resizing a "maximized" frameless window never clears the flag —
-            // if the bounds no longer hug a work area, what's on screen is the truth.
+            // Zmiana rozmiaru okna bez ramki nie zeruje flagi maksymalizacji, więc weryfikuje granice.
             bool maximized = _isMaximized;
             if (maximized)
             {
@@ -455,11 +389,9 @@ internal sealed class ShellForm : Form
             var r = maximized ? _restoreBounds : bounds;
             Settings.SetString("window_state", $"{(maximized ? 1 : 0)};{r.X};{r.Y};{r.Width};{r.Height}");
         }
-        catch { /* persisting geometry must never block app close */ }
+        catch { }
     }
 
-    /// <summary>Port of <c>toggle_maximize_window</c>: the frontend passes the work area
-    /// (screen minus taskbar); we snap to it and remember the previous bounds to restore.</summary>
     private void ToggleMaximize(int availW, int availH, int availLeft, int availTop)
     {
         if (_isMaximized)
@@ -483,12 +415,7 @@ internal sealed class ShellForm : Form
     private sealed record BridgeRequest(bool __kc, int id, string method, JsonElement[]? args);
     private sealed record BridgeReply(bool __kcReply, int id, object? result, string? error);
 
-    /// <summary>
-    /// Injected before page scripts. Recreates <c>window.pywebview.api</c> over WebView2's
-    /// postMessage channel (with promise correlation), wires <c>.pywebview-drag-region</c>
-    /// to a native window move, lays down thin edge/corner resize grips, and fires
-    /// <c>pywebviewready</c> — the exact surface app.js + index.html expect.
-    /// </summary>
+    // Wstrzyknięty most odtwarza interfejs pywebview używany przez warstwę widoku.
     private const string BridgeJs = """
 (function () {
   if (window.__keepclip) return;
@@ -520,7 +447,7 @@ internal sealed class ShellForm : Form
     start_native_resize: function () { return call('start_native_resize', []); }
   };
 
-  // Move the window by dragging any .pywebview-drag-region element.
+  // Przeciąganie oznaczonego obszaru uruchamia natywne przesuwanie okna.
   document.addEventListener('mousedown', function (ev) {
     if (ev.button !== 0) return;
     var el = ev.target;
@@ -534,12 +461,8 @@ internal sealed class ShellForm : Form
     }
   }, true);
 
-  // Thin invisible grips along the window border → native edge/corner resize.
-  // HT codes: TOP 12, BOTTOM 15, LEFT 10, RIGHT 11, and the four corners 13/14/16/17.
-  // app-region:no-drag is LOAD-BEARING on the top edge/corners: the title bar is
-  // app-region:drag, which WebView2 turns into a native caption region — mouse
-  // events over it never reach the DOM, so without the no-drag punch-out the top
-  // grips could never fire and the window couldn't be resized from the top.
+  // Niewidoczne uchwyty używają kodów HT Win32 do skalowania każdej krawędzi.
+  // Wyłączenie przeciągania jest konieczne u góry, bo natywny pasek przechwytuje mysz.
   function addGrips() {
     if (!document.body || document.querySelector('[data-keepclip-grips]')) return;
     var host = document.createElement('div');

@@ -2,21 +2,10 @@ using System.Globalization;
 
 namespace KeepClip.Services;
 
-/// <summary>
-/// Google Drive offload orchestration on top of <see cref="OAuthService"/> (auth/tokens)
-/// and the low-level <see cref="GoogleDrive"/> REST client: per-clip upload/download/trash,
-/// folder bulk-upload, and the streaming video proxy that lets cloud clips play back in the
-/// browser's &lt;video&gt; element. All token/account state lives in OAuthService.
-/// </summary>
 public static class CloudService
 {
     private const string FolderIdSettingKey = "cloud_folder_id";
 
-    /// <summary>
-    /// Offload a local clip to Drive: upload the file, flip the row to <c>storage='cloud'</c>
-    /// with its <c>remote_id</c>, then send the local file to the Recycle Bin (recoverable).
-    /// Returns true if the clip was already in the cloud (no-op).
-    /// </summary>
     public static async Task<bool> UploadClipAsync(long clipId)
     {
         using var con = Db.Open();
@@ -38,18 +27,12 @@ public static class CloudService
         con.Exec("UPDATE clips SET storage='cloud', remote_id=$rid, remote_uploaded_at=$ts WHERE id=$id",
             ("$rid", remoteId), ("$ts", NowIso()), ("$id", clipId));
 
-        // Local copy → Recycle Bin (recoverable), the whole point of "offload". The cached
-        // thumbnail is kept so the cloud clip still shows a preview in the grid.
+        // Lokalny plik trafia do Kosza, ale miniatura zostaje do podglądu klipu w chmurze.
         Trash.SendWithRetry(filepath);
         OAuthService.InvalidateAbout();
         return false;
     }
 
-    /// <summary>
-    /// Bring a cloud clip back to disk: download it to its original path, flip the row back
-    /// to <c>storage='local'</c>, then move the Drive copy to Drive trash (recoverable).
-    /// Returns true if the clip was already local (no-op).
-    /// </summary>
     public static async Task<bool> DownloadClipAsync(long clipId)
     {
         using var con = Db.Open();
@@ -66,8 +49,7 @@ public static class CloudService
         var token = await OAuthService.GetAccessTokenAsync();
         Directory.CreateDirectory(Path.GetDirectoryName(filepath)!);
 
-        // Download to a sibling temp file, then swap into place so a failed/aborted transfer
-        // never leaves a half-written clip at the real path.
+        // Pobieranie do pliku tymczasowego chroni ścieżkę docelową przed niepełnym plikiem.
         string tmp = filepath + ".part";
         try
         {
@@ -75,19 +57,17 @@ public static class CloudService
             if (File.Exists(filepath)) File.Delete(filepath);
             File.Move(tmp, filepath);
         }
-        finally { if (File.Exists(tmp)) { try { File.Delete(tmp); } catch { /* leftover temp */ } } }
+        finally { if (File.Exists(tmp)) { try { File.Delete(tmp); } catch { } } }
 
         con.Exec("UPDATE clips SET storage='local', remote_id=NULL, remote_uploaded_at=NULL WHERE id=$id",
             ("$id", clipId));
 
-        // Best-effort: the file is safely on disk now, so a trash failure only leaves a
-        // recoverable orphan in the user's Drive.
-        try { await GoogleDrive.TrashAsync(token, remoteId); } catch { /* user can clear it */ }
+// Plik jest już bezpiecznie lokalnie, więc błąd Kosza Dysku Google nie może cofnąć operacji.
+        try { await GoogleDrive.TrashAsync(token, remoteId); } catch { }
         OAuthService.InvalidateAbout();
         return false;
     }
 
-    /// <summary>Upload every local clip in a user folder. Returns a tally for the toast.</summary>
     public static async Task<(int uploaded, int total, int skipped, int failed)> UploadFolderAsync(long folderId)
     {
         List<long> clipIds;
@@ -110,7 +90,6 @@ public static class CloudService
         return (uploaded, clipIds.Count, skipped, failed);
     }
 
-    /// <summary>Best-effort trash of a clip's Drive copy when the row itself is being deleted.</summary>
     public static async Task TryTrashRemoteAsync(string remoteId)
     {
         if (!OAuthService.IsConfigured() || !OAuthService.IsConnected()) return;
@@ -119,13 +98,10 @@ public static class CloudService
             var token = await OAuthService.GetAccessTokenAsync();
             await GoogleDrive.TrashAsync(token, remoteId);
         }
-        catch { /* deletion already succeeded locally; the Drive copy is user-recoverable */ }
+        catch { }
     }
 
-    /// <summary>
-    /// Relay a cloud clip's bytes from Drive to the HTTP response, forwarding the browser's
-    /// Range header (and Drive's 206/Content-Range back) so the &lt;video&gt; element can seek.
-    /// </summary>
+    // Nagłówek HTTP Range i odpowiedź 206 są przekazywane, aby umożliwić przewijanie.
     public static async Task ProxyVideoAsync(HttpContext http, string remoteId)
     {
         string token;
@@ -154,10 +130,9 @@ public static class CloudService
             await using var s = await resp.Content.ReadAsStreamAsync(http.RequestAborted);
             await s.CopyToAsync(http.Response.Body, http.RequestAborted);
         }
-        catch (OperationCanceledException) { /* client seeked or closed the player — normal */ }
+        catch (OperationCanceledException) { }
     }
 
-    // ---- helpers ----
 
     private static async Task<string> EnsureFolderAsync(string token)
     {

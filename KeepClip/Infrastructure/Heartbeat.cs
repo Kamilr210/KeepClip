@@ -1,10 +1,5 @@
 namespace KeepClip.Infrastructure;
 
-/// <summary>
-/// Tracks the last time the frontend pinged us. The idle watcher (Phase 4, desktop
-/// shell) exits the process once we've gone <see cref="IdleTimeoutSeconds"/> with no
-/// activity. Mirrors <c>_touch_heartbeat</c> + the startup grace period in app.py.
-/// </summary>
 public static class Heartbeat
 {
     public const int IdleTimeoutSeconds = 5 * 60;

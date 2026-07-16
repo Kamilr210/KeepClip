@@ -17,9 +17,6 @@ html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); f
 body { padding: 0; }
 a { color: var(--accent-2); }
 
-/* =========================================
-   АНИМИРОВАННЫЕ ОРБЫ (ФОНОВЫЕ ИСТОЧНИКИ СВЕТА)
-   ========================================= */
 #bg-orbs {
   position: fixed;
   inset: 0;
@@ -78,9 +75,6 @@ a { color: var(--accent-2); }
   100% { transform: translate(0, 0) scale(1);         opacity: 0.45; }
 }
 
-/* =========================================
-   SNAP-ИНДИКАТОР (полоска сверху при разворачивании)
-   ========================================= */
 #snap-hint {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -179,7 +173,6 @@ header {
 #progress-text { width: 90px; text-align: right; font-variant-numeric: tabular-nums; }
 #progress-current { margin-top: 6px; font-size: 13px; }
 #progress { position: relative; }
-/* Dismiss button — appears only once the run has finished. */
 .progress-close {
   position: absolute; top: 8px; right: 10px;
   width: 26px; height: 26px; padding: 0;
@@ -212,7 +205,7 @@ header {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-.result.previewing .ts { z-index: 3; }  /* keep duration badge visible over video */
+.result.previewing .ts { z-index: 3; }
 .thumb .ts {
   position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,.7);
   border-radius: 6px; padding: 3px 8px; font-size: 12px; font-variant-numeric: tabular-nums;
@@ -227,10 +220,8 @@ header {
 .result-meta .warn { color: var(--warn); }
 .result-meta-inline { color: var(--muted); }
 
-/* mozaika: górny rząd dużych kafelków + kompaktowe rzędy poniżej (jak na projekcie) */
 .grid.layout-mosaic { grid-template-columns: repeat(8, minmax(0, 1fr)); align-items: start; }
-.layout-mosaic .result:nth-child(-n+4) { grid-column: span 2; }   /* pierwszy rząd: 4 duże */
-/* mniejsze kafelki (5+): zwięźlejszy opis, by ładnie mieściły się w węższej kolumnie */
+.layout-mosaic .result:nth-child(-n+4) { grid-column: span 2; }
 .layout-mosaic .result:nth-child(n+5) .result-body { padding: 8px 9px; }
 .layout-mosaic .result:nth-child(n+5) .result-game { font-size: 10px; margin-bottom: 3px; }
 .layout-mosaic .result:nth-child(n+5) .result-date { font-size: 12px; }
@@ -272,7 +263,6 @@ header {
 .seg .seg-text { flex: 1; }
 .seg mark { background: var(--mark); color: #1a1300; padding: 0 2px; border-radius: 3px; }
 
-/* per-line manual transcript correction */
 .seg .seg-edit {
   flex: 0 0 auto; align-self: flex-start;
   background: transparent; border: none; color: var(--muted);
@@ -294,7 +284,6 @@ header {
 
 .empty { padding: 40px; text-align: center; color: var(--muted); }
 
-/* --- tabs --- */
 .tabs {
   display: flex; gap: 2px; margin-bottom: 16px;
   border-bottom: 1px solid var(--border);
@@ -308,7 +297,6 @@ header {
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--text); border-bottom-color: var(--accent); }
 
-/* --- folders view --- */
 .folders-header {
   display: flex; align-items: center; gap: 12px;
   margin-bottom: 14px;
@@ -350,7 +338,6 @@ header {
 .folder-new-card .icon { font-size: 32px; margin-bottom: 6px; }
 .folder-new-card-inner { text-align: center; }
 
-/* --- selection mode --- */
 #selection-bar {
   display: flex; align-items: center; gap: 16px;
   position: sticky; top: 0; z-index: 50;
@@ -381,7 +368,6 @@ header {
 }
 .result.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 
-/* --- cut modal --- */
 #cut-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2500;
   display: flex; align-items: center; justify-content: center;
@@ -401,10 +387,9 @@ header {
 .cut-range-wrap { margin: 14px 0 18px; }
 .cut-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
 
-/* dual-thumb range slider */
 .range-slider {
   position: relative; height: 36px; user-select: none; touch-action: none;
-  margin: 2px 12px;  /* room for thumbs at edges */
+  margin: 2px 12px;
 }
 .range-track {
   position: absolute; left: 0; right: 0; top: 50%;
@@ -467,7 +452,6 @@ header {
 .cut-estimate.warn { background: #2a1a10; border-color: #5a3020; color: #ffb88a; }
 .cut-estimate.warn b { color: #ffcfa0; }
 
-/* --- folders dropdown (player) --- */
 .folders-dropdown {
   position: absolute; top: calc(100% + 6px); right: 0;
   background: var(--card); border: 1px solid var(--border);
@@ -490,7 +474,6 @@ header {
 }
 .folders-dropdown-empty { padding: 12px; color: var(--muted); font-size: 13px; text-align: center; }
 
-/* --- confirm modal --- */
 #confirm-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 2000;
   display: flex; align-items: center; justify-content: center;
@@ -508,7 +491,6 @@ header {
 #confirm-body { word-break: break-all; }
 .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
-/* --- config modal --- */
 #config-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2500;
   display: flex; align-items: center; justify-content: center;
@@ -574,7 +556,6 @@ header {
 }
 #config-actions { margin-top: 18px; }
 
-/* --- instant replay modal --- */
 #replay-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2500;
   display: flex; align-items: center; justify-content: center;
@@ -608,9 +589,7 @@ header {
 #replay-hotkey.capturing { outline: 2px solid var(--accent); border-color: var(--accent); }
 .replay-actions { margin-top: 20px; align-items: center; }
 .replay-actions-spacer { flex: 1; }
-/* (tuning grid is always editable while the modal is open — no greying) */
 
-/* --- toast --- */
 #toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
   background: var(--card); border: 1px solid var(--border); color: var(--text);
@@ -624,7 +603,6 @@ header {
   to   { opacity: 1; transform: translate(-50%, 0); }
 }
 
-/* ===================== KeepClip shell layout ===================== */
 .app-shell { display: flex; align-items: stretch; min-height: calc(100vh - 32px); position: relative; z-index: 1; }
 
 .sidebar {
@@ -638,7 +616,6 @@ header {
   border-right: 1px solid rgba(255,255,255,0.06);
 }
 
-/* Шумовая текстура поверх сайдбара для имитации Acrylic */
 .sidebar::before {
   content: '';
   position: absolute;
@@ -649,7 +626,6 @@ header {
 }
 .sidebar > * { position: relative; z-index: 1; }
 
-/* ORB TOGGLE в сайдбаре */
 .orb-toggle-wrap {
   display: flex;
   align-items: center;
@@ -698,7 +674,6 @@ header {
 .toggle-switch.on { background: var(--accent); }
 .toggle-switch.on::after { transform: translateX(16px); }
 
-/* ── Główny przełącznik powtórek (checkbox steruje suwakiem przez :checked) ── */
 .replay-master-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   margin: 14px 0 10px; padding: 12px 14px;
@@ -713,7 +688,6 @@ header {
 .replay-master-row input:checked + .toggle-switch { background: var(--accent); }
 .replay-master-row input:checked + .toggle-switch::after { transform: translateX(20px); }
 
-/* Podpis pod etykietą checkboxa (np. wyjaśnienie nagrywania w tle) */
 .replay-toggle-hint { display: block; font-size: 12px; margin-top: 2px; }
 
 .lang-select-wrap {
@@ -752,9 +726,8 @@ header {
 }
 .lang-select:hover, .lang-select:focus { border-color: var(--accent); }
 
-.main { flex: 1 1 auto; min-width: 0; padding: 22px 28px 90px; padding-top: 54px; /* 32px titlebar + 22px original */ }
+.main { flex: 1 1 auto; min-width: 0; padding: 22px 28px 90px; padding-top: 54px; }
 
-/* brand (sidebar) */
 .brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 16px; }
 .brand-logo { display: inline-flex; }
 .kc-logo { width: 38px; height: 38px; display: block; filter: drop-shadow(0 4px 10px rgba(124,92,255,.35)); }
@@ -766,7 +739,6 @@ header {
 }
 .brand-tag { font-size: 11px; color: var(--muted); }
 
-/* nav */
 .side-nav { display: flex; flex-direction: column; gap: 3px; }
 .nav-section {
   font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase;
@@ -791,7 +763,6 @@ header {
 #btn-cancel { color: #ff8c9a; }
 #btn-cancel:hover { background: #2a1820; color: #ffb1bc; }
 
-/* ===================== stat cards ===================== */
 .stats-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
 .stat-card {
   display: flex; align-items: center; gap: 14px;
@@ -811,7 +782,6 @@ header {
 .stat-num { font-size: 23px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .stat-label { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
 
-/* ===================== storage panels (local + cloud) ===================== */
 .storage-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
 .storage-box {
   background: var(--card); border: 1px solid var(--border); border-radius: 14px;
@@ -844,11 +814,9 @@ header {
 .dot-cloud { background: var(--accent-2); }
 @media (max-width: 900px) { .storage-cards { grid-template-columns: 1fr; } }
 
-/* favorites view head */
 .view-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
 .view-head h2 { margin: 0; font-size: 20px; }
 
-/* ===================== favorite star ===================== */
 .fav-btn {
   position: absolute; top: 8px; right: 8px; z-index: 4;
   width: 30px; height: 30px; border-radius: 50%;
@@ -862,7 +830,6 @@ header {
 .fav-btn.is-fav { opacity: 1; color: #ffc24b; }
 .fav-btn.is-fav:hover { color: #ffd470; }
 
-/* favorite star when it sits inline in the card's bottom info bar (next to date) */
 .result-date .fav-btn {
   position: static; flex: 0 0 auto;
   width: 26px; height: 26px; font-size: 16px;
@@ -872,19 +839,15 @@ header {
 .result-date .fav-btn.is-fav { color: #ffc24b; background: transparent; }
 .result-date .fav-btn.is-fav:hover { color: #ffd470; background: var(--card-2); }
 
-/* player side-panel star. No fixed 38px box (a relic of the old header placement):
-   it squashed the .side-action-label under the star to ~3px, so the button had no
-   caption unlike its siblings — the shared .side-action-btn layout sizes it now. */
 .player-fav {
   position: static; opacity: 1;
-  width: auto; height: auto;   /* undo .fav-btn's 30px circle so the label fits */
+  width: auto; height: auto;
   background: var(--card-2); border: 1px solid var(--border); font-size: 18px;
 }
 .player-fav .fav-star { line-height: 1; }
 .player-fav:hover { background: var(--card); transform: none; }
 .player-fav.is-fav { color: #ffc24b; border-color: #6b5320; background: rgba(245,165,36,.12); }
 
-/* ===================== responsive ===================== */
 @media (max-width: 880px) {
   .app-shell { flex-direction: column; }
   .sidebar {
@@ -900,14 +863,11 @@ header {
   .main { padding: 18px; }
 }
 
-/* ===================== cloud (Google Drive) ===================== */
-/* "connected" dot next to the Chmura nav label */
 .nav-dot {
   width: 8px; height: 8px; border-radius: 50%; flex: none;
   background: var(--good); box-shadow: 0 0 0 3px rgba(67,209,122,.18);
 }
 
-/* per-thumb cloud chip — top-left, opposite the favorite star */
 .cloud-chip {
   position: absolute; top: 8px; left: 8px; z-index: 4;
   width: 30px; height: 30px; border-radius: 50%; padding: 0;
@@ -917,7 +877,6 @@ header {
 .cloud-chip svg { width: 17px; height: 17px; display: block; }
 .cloud-chip.in-cloud { color: var(--accent-2); }
 .cloud-chip.in-cloud svg { filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
-/* upload button: only meaningful when an account is connected, fades in on hover */
 .cloud-chip.cloud-up {
   display: none; cursor: pointer; opacity: 0;
   transition: opacity .14s, transform .12s, background .14s;
@@ -925,15 +884,12 @@ header {
 body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 .result:hover .cloud-chip.cloud-up { opacity: 1; }
 .cloud-chip.cloud-up:hover { transform: scale(1.12); background: rgba(0,0,0,.78); color: var(--accent-2); }
-/* remove-from-cloud button (cloud clips): always visible, doubles as the status
-   marker; hover hints removal in red. */
 .cloud-chip.cloud-down {
   display: flex; cursor: pointer; color: var(--accent-2);
   transition: transform .12s, background .14s, color .14s;
 }
 .cloud-chip.cloud-down svg { filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
 .cloud-chip.cloud-down:hover { transform: scale(1.12); background: rgba(0,0,0,.78); color: #ff9b9b; }
-/* in-progress: spinning ring around the chip, glyph dimmed underneath */
 .cloud-chip.busy { opacity: 1 !important; cursor: default; color: var(--accent-2); transform: none; }
 .cloud-chip.busy svg { opacity: .35; }
 .cloud-chip.busy::after {
@@ -941,11 +897,9 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
   border: 2px solid transparent; border-top-color: var(--accent-2);
   animation: spin .7s linear infinite;
 }
-/* smaller chip on the compact mosaic tiles (mirrors the fav-btn rule) */
 .layout-mosaic .result:nth-child(n+5) .cloud-chip { width: 24px; height: 24px; }
 .layout-mosaic .result:nth-child(n+5) .cloud-chip svg { width: 14px; height: 14px; }
 
-/* player header cloud button — clickable in both states (send / take down) */
 #player-cloud.in-cloud {
   color: var(--accent-2); border-color: #2a4a55;
   background: rgba(91,209,255,.10); cursor: pointer; opacity: 1;
@@ -953,7 +907,6 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 #player-cloud.in-cloud:hover { background: rgba(91,209,255,.18); }
 #player-cloud.busy { opacity: .6; cursor: default; }
 
-/* ---- Cloud view ---- */
 .cloud-panel { max-width: 720px; }
 .cloud-hero { text-align: center; padding: 8px 8px 4px; }
 .cloud-hero-ic {
@@ -997,13 +950,9 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 }
 .cloud-quota .subtle { margin-top: 6px; font-size: 13px; }
 
-/* ── Zakładka Chmura: panel łączenia (redesign wg makiety) ───────────────
-   Pełnoekranowy i płynny: zajmuje całą szerokość kolumny treści i wypełnia
-   wysokość okna (hero rośnie), a typografia/ilustracja skalują się z
-   rozdzielczością przez clamp() — bez sztywnego max-width. */
 .cloudx-panel {
   width: 100%;
-  min-height: calc(100vh - 190px);   /* titlebar+nagłówek u góry, padding .main u dołu */
+  min-height: calc(100vh - 190px);
   display: flex; flex-direction: column;
   background: var(--card);
   border: 1px solid var(--border);
@@ -1011,7 +960,6 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
   padding: clamp(18px, 1.6vw, 30px) clamp(20px, 2.2vw, 40px) 16px;
 }
 
-/* stepper */
 .cloudx-steps {
   display: flex; align-items: center; justify-content: center; gap: 14px;
   margin: 2px 0 20px; flex-wrap: wrap;
@@ -1030,7 +978,6 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 }
 .cloudx-step-line { width: 90px; max-width: 12vw; height: 1px; background: var(--border); }
 
-/* hero — flex:1 wypełnia wolną wysokość okna, rozmiary płyną z viewportem */
 .cloudx-hero {
   flex: 1;
   display: flex; align-items: center; gap: clamp(24px, 3vw, 60px);
@@ -1059,7 +1006,6 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 }
 .cloudx-hero-lock { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 12.5px; }
 
-/* hero: ilustracja chmury z logo Drive i pływającymi kafelkami */
 .cloudx-hero-art { flex: 1; display: flex; justify-content: center; min-width: 260px; }
 .cloudx-cloud { position: relative; width: clamp(280px, 26vw, 480px); aspect-ratio: 3 / 2; }
 .cloudx-cloud::before {
@@ -1088,7 +1034,6 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
   50% { transform: translateY(-7px); }
 }
 
-/* feature cards */
 .cloudx-features {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(14px, 1.2vw, 22px); margin-top: clamp(14px, 1.2vw, 22px);
@@ -1109,7 +1054,6 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 .cloudx-feature-title { font-weight: 600; font-size: clamp(14px, 1vw, 16px); margin-bottom: 4px; }
 .cloudx-feature-body { font-size: clamp(12.8px, .9vw, 14.5px); line-height: 1.5; }
 
-/* permissions */
 .cloudx-perms {
   display: flex; gap: 26px; align-items: center;
   background: var(--card-2); border: 1px solid var(--border);
@@ -1139,7 +1083,6 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
   .cloudx-features { grid-template-columns: 1fr; }
 }
 
-/* ── Mini-karta chmury w sidebarze ── */
 .sidebar-cloud-card {
   margin: auto 10px 12px; padding: 11px 12px; text-align: left;
   background: var(--card); border: 1px solid var(--border); border-radius: 12px;
@@ -1159,14 +1102,8 @@ body.cloud-connected .scc-state.on { display: inline-flex; }
 body.cloud-connected .scc-body.off { display: none; }
 body.cloud-connected .scc-body.on { display: block; }
 
-/* =========================================
-   ПРОЗРАЧНАЯ ШАПКА ОКНА (TITLEBAR)
-   ========================================= */
 
 
-/* =========================================
-   КАСТОМНЫЙ СКРОЛЛБАР (ПОЛЗУНОК)
-   ========================================= */
 ::-webkit-scrollbar {
   width: 12px;
   height: 12px;
@@ -1186,12 +1123,7 @@ body.cloud-connected .scc-body.on { display: block; }
   background-color: #404862;
 }
 
-/* =========================================
-   АНИМАЦИИ ОКНА (открытие, закрытие, свернуть)
-   ========================================= */
 
-/* #root — обёртка всего интерфейса включая тайтлбар.
-   Анимируем именно его, а не body, чтобы тайтлбар двигался вместе. */
 #root {
   position: relative;
   min-height: 100vh;
@@ -1199,13 +1131,11 @@ body.cloud-connected .scc-body.on { display: block; }
   animation: windowSnap 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
 }
 
-/* Анимация появления окна при запуске (snap сверху) */
 @keyframes windowSnap {
   0%   { opacity: 0; transform: translateY(-12px) scale(0.985); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Классы для JS-анимаций */
 #root.anim-close {
   transition: opacity 0.18s ease-out, transform 0.18s ease-out !important;
   opacity: 0 !important;
@@ -1223,33 +1153,24 @@ body.cloud-connected .scc-body.on { display: block; }
   transform: translateY(-6px) !important;
 }
 
-/* =========================================
-   УГОЛОК ДЛЯ ИЗМЕНЕНИЯ РАЗМЕРА (RESIZE GRIP)
-   ========================================= */
 .resize-grip {
   position: fixed;
   bottom: 0;
   right: 0;
   width: 16px;
   height: 16px;
-  cursor: nwse-resize; /* Курсор диагональной стрелки */
+  cursor: nwse-resize;
   z-index: 999999;
   
-  /* Рисуем аккуратные диагональные полоски */
   background: linear-gradient(135deg, transparent 40%, #8b92a5 40%, #8b92a5 50%, transparent 50%, transparent 65%, #8b92a5 65%, #8b92a5 75%, transparent 75%);
   opacity: 0.3;
   transition: opacity 0.2s;
 }
 
 .resize-grip:hover {
-  opacity: 1; /* Подсвечиваем при наведении */
+  opacity: 1;
 }
 
-/* =========================================
-   ШАПКА ОКНА (TITLEBAR)
-   position: sticky внутри #root — не занимает место в потоке вертикально,
-   всегда остаётся вверху при скролле, и двигается вместе с #root при анимациях.
-   ========================================= */
 #custom-titlebar {
   display:flex;
   height: 0px;
@@ -1265,9 +1186,7 @@ body.cloud-connected .scc-body.on { display: block; }
 
 .titlebar-drag-region {
   flex-grow: 1;
-  /* The bar itself is 0px tall (so it takes no layout space); like the buttons,
-     this strip overflows downward to give a real 32px grabbable title-bar area.
-     `app-region: drag` lets WebView2 move the window natively (see DesktopShell). */
+/* Pasek nie zajmuje miejsca w układzie, ale wystaje w dół jako natywny obszar przeciągania WebView2. */
   height: 32px;
   pointer-events: auto;
   app-region: drag;
@@ -1277,7 +1196,7 @@ body.cloud-connected .scc-body.on { display: block; }
 .titlebar-controls {
   display: flex;
   pointer-events: auto;
-  /* Keep the window buttons clickable — exclude them from the drag region. */
+/* Przyciski okna muszą być wyłączone z obszaru przeciągania. */
   app-region: no-drag;
   -webkit-app-region: no-drag;
 }
@@ -1315,9 +1234,6 @@ body.cloud-connected .scc-body.on { display: block; }
   color: #ff5c75 !important;
 }
 
-/* =========================================
-   КАСТОМНЫЙ ВИДЕОПЛЕЕР (ПОД ВИДЕО + МИКШЕР)
-   ========================================= */
 #custom-player-container {
   display: flex;
   flex-direction: column;
@@ -1327,9 +1243,9 @@ body.cloud-connected .scc-body.on { display: block; }
 
 .video-center-wrapper {
   width: 100%;
-  flex: 1; /* Позволяет блоку гибко сжиматься */
-  min-height: 0; /* Обязательно для правильной работы флексов */
-  max-height: 50vh; /* Оставляем 50% высоты экрана под видео, остальное пойдет на кнопки и текст */
+  flex: 1;
+  min-height: 0; /* Wymagane, aby zagnieżdżony flex mógł się prawidłowo kurczyć. */
+  max-height: 50vh;
   background: #000;
   display: flex;
   justify-content: center;
@@ -1339,13 +1255,12 @@ body.cloud-connected .scc-body.on { display: block; }
 #custom-player-container #player {
   width: auto;
   height: 100%;
-  max-height: 50vh; /* Синхронизируем с оберткой */
+  max-height: 50vh;
   max-width: 100%;
   object-fit: contain;
   display: block;
 }
 
-/* Панель управления строго ПОД видео (постоянно видимая) */
 .player-controls-panel {
   background: var(--card-2);
   border-top: 1px solid var(--border);
@@ -1355,7 +1270,6 @@ body.cloud-connected .scc-body.on { display: block; }
   gap: 12px;
 }
 
-/* Ряд кнопок */
 .controls-buttons-row {
   display: flex;
   justify-content: center;
@@ -1363,7 +1277,6 @@ body.cloud-connected .scc-body.on { display: block; }
   gap: 10px;
 }
 
-/* Круглые кнопки (уменьшены с 36px до 30px) */
 .ctrl-round-btn {
   background: rgba(42, 48, 64, 0.75);
   border: none;
@@ -1388,7 +1301,6 @@ body.cloud-connected .scc-body.on { display: block; }
   height: 15px;
 }
 
-/* Центральная кнопка Play (уменьшена с 48px до 40px) */
 .ctrl-round-btn.play-btn {
   width: 40px;
   height: 40px;
@@ -1399,7 +1311,6 @@ body.cloud-connected .scc-body.on { display: block; }
   height: 20px;
 }
 
-/* --- ВСПЛЫВАЮЩИЙ МИКШЕР ЗВУКА --- */
 .volume-control-wrap {
   position: relative;
 }
@@ -1414,29 +1325,25 @@ body.cloud-connected .scc-body.on { display: block; }
   padding: 8px 12px;
   border-radius: 6px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-  z-index: 100; /* <-- Вот это гарантирует, что микшер будет поверх всего */
+  z-index: 100;
   margin-bottom: 8px;
   display: none;
 }
 
-/* ПОКАЗЫВАЕМ ТОЛЬКО ПО КЛИКУ (класс .show) */
 .volume-mixer-popover.show {
   display: block;
 }
 
-/* Przycisk napisów: podświetlony gdy włączone, wygaszony gdy brak transkrypcji */
 .ctrl-round-btn.cc-on { background: var(--accent); color: #fff; }
 .ctrl-round-btn:disabled { opacity: .35; cursor: default; }
 .ctrl-round-btn:disabled:hover { background: rgba(42, 48, 64, 0.75); }
 
-/* Napisy (WebVTT cues) na wideo — spójne z motywem; rozmiar zostawiamy przeglądarce
-   (domyślnie skaluje się z wysokością wideo, także w trybie pełnoekranowym). */
+/* Rozmiar napisów WebVTT pozostawia przeglądarce, aby skalował się również w pełnym ekranie. */
 #player::cue {
   background: rgba(7, 10, 16, 0.72);
   color: #fff;
 }
 
-/* Компактный ползунок внутри микшера */
 .compact-slider {
   -webkit-appearance: none;
   width: 70px;
@@ -1455,7 +1362,6 @@ body.cloud-connected .scc-body.on { display: block; }
   cursor: pointer;
 }
 
-/* --- ПОЛЗУНОК ВРЕМЕНИ (НИЖНИЙ РЯД) --- */
 .controls-progress-row {
   display: flex;
   align-items: center;
@@ -1490,9 +1396,6 @@ body.cloud-connected .scc-body.on { display: block; }
   cursor: pointer;
 }
 
-/* ── Tryb pełnoekranowy: fullscreen dostaje CAŁY #player-box, więc nagłówek
-   z ✕, pasek przewijania, prędkość i przycisk wyjścia są widoczne. Wideo
-   rozciąga się na całą dostępną przestrzeń z zachowaniem proporcji. ── */
 #player-box:fullscreen {
   width: 100vw;
   height: 100vh;
@@ -1502,8 +1405,6 @@ body.cloud-connected .scc-body.on { display: block; }
   background: #000;
   position: relative;
 }
-/* Wideo wypełnia CAŁY ekran — paski są nakładkami nad nim, nie zabierają
-   miejsca w układzie, więc obraz jest maksymalny bez ramek przez cały czas. */
 #player-box:fullscreen #custom-player-container {
   position: absolute;
   inset: 0;
@@ -1513,7 +1414,7 @@ body.cloud-connected .scc-body.on { display: block; }
   width: 100%;
   height: 100%;
   max-height: none;
-  object-fit: contain;   /* maksymalny rozmiar bez zniekształcania proporcji */
+  object-fit: contain;
 }
 #player-box:fullscreen .player-head {
   position: absolute;
@@ -1530,10 +1431,8 @@ body.cloud-connected .scc-body.on { display: block; }
   background: linear-gradient(transparent, rgba(0, 0, 0, .85));
   transition: opacity .25s;
 }
-/* segmenty i boczne akcje schodzą z drogi — liczy się obraz */
 #player-box:fullscreen #player-segments { display: none; }
 #player-box:fullscreen .player-side-actions { display: none; }
-/* bezruch myszy → paski i kursor znikają (klasa nadawana z app.js) */
 #player-box:fullscreen.chrome-hidden .player-head,
 #player-box:fullscreen.chrome-hidden .player-controls-panel {
   opacity: 0;
@@ -1541,7 +1440,6 @@ body.cloud-connected .scc-body.on { display: block; }
 }
 #player-box:fullscreen.chrome-hidden { cursor: none; }
 
-/* przycisk prędkości: tekstowa pigułka w rzędzie okrągłych przycisków */
 .ctrl-speed-btn {
   width: auto;
   min-width: 46px;
@@ -1551,7 +1449,6 @@ body.cloud-connected .scc-body.on { display: block; }
   font-weight: 700;
   letter-spacing: .02em;
 }
-/* ── Боковая панель действий плеера (справа от видео) ── */
 #custom-player-container {
   flex-direction: row !important;
   align-items: stretch;
@@ -1650,7 +1547,6 @@ body.cloud-connected .scc-body.on { display: block; }
   left: auto;
 }
 
-/* Кликабельная ссылка на файл */
 .player-file-link {
   color: inherit;
   text-decoration: none;
@@ -1670,12 +1566,10 @@ body.cloud-connected .scc-body.on { display: block; }
   text-decoration: underline;
 }
 
-/* В полноэкранном режиме скрыть боковую панель */
 #custom-player-container:fullscreen .player-side-actions {
   display: none;
 }
 
-/* ── Кастомный плеер в окне "Wytnij fragment" ── */
 #cut-player-container {
   display: flex;
   flex-direction: column;
@@ -1713,7 +1607,6 @@ body.cloud-connected .scc-body.on { display: block; }
   gap: 10px;
 }
 
-/* ── Language switcher ── */
 .lang-switcher-wrap {
   display: flex;
   align-items: center;
@@ -1749,9 +1642,6 @@ body.cloud-connected .scc-body.on { display: block; }
   border-color: var(--accent, #7c5cff);
 }
 
-/* ═══════════════════════════════════════════════
-   SETTINGS OVERLAY
-═══════════════════════════════════════════════ */
 #settings-overlay {
   position: fixed;
   inset: 0;
@@ -1888,7 +1778,6 @@ body.cloud-connected .scc-body.on { display: block; }
 .settings-select:hover,
 .settings-select:focus { border-color: var(--accent, #7c5cff); }
 
-/* Orb toggle inline in settings (strip its sidebar chrome) */
 #settings-box .orb-toggle-wrap {
   padding: 0;
   border: none;
@@ -1899,7 +1788,6 @@ body.cloud-connected .scc-body.on { display: block; }
 }
 #settings-box .orb-toggle-wrap:hover { background: transparent; }
 
-/* Folder change button */
 .settings-folder-btn {
   display: flex;
   align-items: center;
@@ -1911,7 +1799,6 @@ body.cloud-connected .scc-body.on { display: block; }
   white-space: nowrap;
 }
 
-/* Replay section link row */
 .settings-replay-link {
   display: flex;
   align-items: center;
@@ -1927,9 +1814,6 @@ body.cloud-connected .scc-body.on { display: block; }
   white-space: nowrap;
 }
 
-/* ═══════════════════════════════════════════════
-   REPLAY — AUDIO DEVICES SECTION
-═══════════════════════════════════════════════ */
 .replay-audio-section {
   margin-top: 16px;
   padding-top: 14px;
@@ -1968,7 +1852,7 @@ body.cloud-connected .scc-body.on { display: block; }
   border-color: var(--accent, #7c5cff);
 }
 
-/* DEV:START — developer log viewer (dev builds only; stripped from public releases) */
+/* DEV:START — panel logów dostępny tylko w wydaniu deweloperskim */
 #logs-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 2600;
   display: flex; align-items: center; justify-content: center;

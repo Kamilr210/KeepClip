@@ -3,11 +3,6 @@ using System.Text.Json.Nodes;
 
 namespace KeepClip;
 
-/// <summary>
-/// Persistent user-tunable settings, stored as JSON next to the SQLite DB.
-/// Kept separate from <see cref="Config"/> (compile-time constants) so the user
-/// can change the clips folder without editing source. Mirrors <c>settings.py</c>.
-/// </summary>
 public static class Settings
 {
     private static readonly string SettingsPath = Path.Combine(Config.DataDir, "settings.json");
@@ -66,8 +61,6 @@ public static class Settings
 
     public static string GetCutsRoot()
     {
-        // Default: a subfolder inside the clips root so cuts live next to the game
-        // folders and are scanned/accessible in-app (not stranded on the Desktop).
         return StringOrNull(Load(), "cuts_root")
                ?? Path.Combine(GetClipsRoot(), Config.CutsSubdir);
     }
@@ -82,11 +75,8 @@ public static class Settings
         }
     }
 
-    /// <summary>Read an arbitrary persisted string setting (null if unset/empty).
-    /// Used for small bits of remembered state like the Drive folder id.</summary>
     public static string? GetString(string key) => StringOrNull(Load(), key);
 
-    /// <summary>Write an arbitrary persisted string setting.</summary>
     public static void SetString(string key, string value)
     {
         lock (Gate)

@@ -2,18 +2,12 @@ using Microsoft.Data.Sqlite;
 
 namespace KeepClip.Data;
 
-/// <summary>
-/// SQLite layer for KeepClip. Stores clips and transcript segments with FTS5
-/// full-text search. Schema, indexes, and triggers are a 1:1 port of <c>db.py</c>
-/// so an existing Python-created <c>klipy.db</c> opens unchanged.
-/// </summary>
 public static class Db
 {
     public static string DbPath => Config.DbPath;
 
-    // Verbatim port of the Python SCHEMA. The FTS5 virtual table uses the same
-    // unicode61/remove_diacritics tokenizer, and the AI/AD/AU triggers keep the
-    // external-content FTS index in sync with the segments table.
+// Wyzwalacze utrzymują indeks FTS5 w zgodzie z tabelą segmentów, a analizator tekstu
+    // ignoruje znaki diakrytyczne podczas wyszukiwania.
     private const string Schema = @"
 CREATE TABLE IF NOT EXISTS clips (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,7 +79,6 @@ CREATE TRIGGER IF NOT EXISTS segments_au AFTER UPDATE ON segments BEGIN
 END;
 ";
 
-    /// <summary>Create the DB file (if missing), apply the schema, and run migrations.</summary>
     public static void InitDb()
     {
         Directory.CreateDirectory(Config.DataDir);
@@ -98,10 +91,6 @@ END;
         Migrate(con);
     }
 
-    /// <summary>
-    /// Open a connection with foreign keys enforced and a generous busy timeout,
-    /// matching the Python <c>get_conn()</c> contract (PRAGMA foreign_keys=ON, timeout=30).
-    /// </summary>
     public static SqliteConnection Open()
     {
         var csb = new SqliteConnectionStringBuilder
@@ -121,11 +110,8 @@ END;
         return con;
     }
 
-    /// <summary>
-    /// Apply lightweight, idempotent column migrations for older DBs.
-    /// CREATE TABLE IF NOT EXISTS never alters an existing table, so columns
-    /// added after a user already has a DB must be patched in with ALTER TABLE.
-    /// </summary>
+// Warunkowe tworzenie tabeli nie dodaje kolumn do istniejących baz, dlatego
+    // migracje kolumn muszą być idempotentne.
     private static void Migrate(SqliteConnection con)
     {
         var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -133,7 +119,7 @@ END;
         {
             cmd.CommandText = "PRAGMA table_info(clips)";
             using var r = cmd.ExecuteReader();
-            while (r.Read()) cols.Add(r.GetString(1)); // column 1 = name
+        while (r.Read()) cols.Add(r.GetString(1)); // Kolumna 1 zawiera nazwę.
         }
 
         void AddColumn(string name, string ddl)
@@ -145,8 +131,7 @@ END;
         }
 
         AddColumn("favorite", "favorite INTEGER NOT NULL DEFAULT 0");
-        // Cloud storage (Google Drive offload): where the clip's bytes live and,
-        // if in the cloud, the remote object id. 'local' = file on disk at filepath.
+// Informacja, czy plik jest lokalny, czy przeniesiony na Dysk Google.
         AddColumn("storage", "storage TEXT NOT NULL DEFAULT 'local'");
         AddColumn("remote_id", "remote_id TEXT");
         AddColumn("remote_uploaded_at", "remote_uploaded_at TEXT");

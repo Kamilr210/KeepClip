@@ -1,16 +1,10 @@
 <#
-  KeepClip - setup.ps1
-  Pobiera zaleznosci, ktorych NIE ma (i nie moze byc) w repozytorium git:
-    - ffmpeg.exe + ffprobe.exe  ->  tools\bin\
-      (oficjalny build Windows z gyan.dev; pliki >100 MB, wiec GitHub ich nie przyjmuje)
+  Pobiera ffmpeg i ffprobe do tools\bin. Model Whisper oraz folder data powstają
+  automatycznie podczas używania aplikacji.
 
-  Czego ten skrypt NIE robi (bo dzieje sie samo):
-    - Model Whisper (~1.6 GB) pobiera sie sam przy PIERWSZEJ transkrypcji.
-    - Folder data\ (baza, miniatury, ustawienia) tworzy sie sam przy starcie aplikacji.
-
-  Uzycie (w folderze repo):
+  Użycie:
       powershell -ExecutionPolicy Bypass -File setup.ps1
-      ...\setup.ps1 -Force     # wymus ponowne pobranie ffmpeg, nawet gdy juz jest
+      ...\setup.ps1 -Force
 #>
 [CmdletBinding()]
 param([switch]$Force)
@@ -25,7 +19,7 @@ $Ffprobe  = Join-Path $ToolsBin 'ffprobe.exe'
 $Url      = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
 
 try {
-  # --- 1. Sprawdz .NET 10 SDK (wymagane do `dotnet run` / `dotnet build`) ---
+  # SDK .NET 10 jest wymagane do lokalnego uruchamiania i budowania projektu.
   Step "Sprawdzam .NET SDK"
   $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
   if (-not $dotnet) {
@@ -40,7 +34,6 @@ try {
     }
   }
 
-  # --- 2. ffmpeg / ffprobe -> tools\bin ---
   Step "Sprawdzam ffmpeg / ffprobe"
   if ((Test-Path $Ffmpeg) -and (Test-Path $Ffprobe) -and -not $Force) {
     Write-Host "Juz sa w tools\bin - pomijam (uzyj -Force, by pobrac ponownie)."
@@ -66,7 +59,6 @@ try {
     Write-Host "Wrzucono ffmpeg.exe + ffprobe.exe do tools\bin." -ForegroundColor Green
   }
 
-  # --- 3. Weryfikacja ---
   Step "Weryfikacja"
   if (-not ((Test-Path $Ffmpeg) -and (Test-Path $Ffprobe))) {
     throw "Brakuje ffmpeg.exe lub ffprobe.exe w tools\bin - setup nieukonczony."

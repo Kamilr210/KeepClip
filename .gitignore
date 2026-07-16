@@ -1,33 +1,29 @@
-# ---- .NET build output ----
+# Wyniki budowania .NET
 bin/
 obj/
 publish/
 *.user
 .vs/
 
-# ---- KeepClip runtime data (never commit) ----
-# DB, thumbnails, settings.json, and the user's own OAuth client secret all live here.
+# Dane aplikacji: baza, miniatury, ustawienia i lokalny klient OAuth
 /data/
 
-# ---- ffmpeg/ffprobe (huge, user supplies them) ----
+# Duże pliki ffmpeg i ffprobe
 tools/bin/*.exe
 
-# ---- Whisper model (large, downloaded on first run) ----
+# Model Whisper pobierany przy pierwszym użyciu
 models/
 
-# ---- installer build artifacts ----
-# Compiled installers (distributed via GitHub Releases, never committed).
+# Pliki wynikowe instalatora
 installer/dist/
-# Isolated `dotnet publish` tree used while compiling the installer.
 installer/staging/
-# Downloaded WebView2 bootstrapper (re-fetched by build.ps1).
 installer/redist/
-# OPTIONAL embedded Google OAuth client (a secret) — never commit.
+# Sekretny klient OAuth odtwarzany w CI
 installer/embed/
 
-# ---- logs ----
+# Logi
 *.log
 
-# ---- editor / agent ----
+# Edytor i narzędzia deweloperskie
 .claude/
 .idea/

@@ -2,12 +2,8 @@ using Microsoft.Data.Sqlite;
 
 namespace KeepClip.Data;
 
-/// <summary>
-/// Tiny ergonomic helpers over <see cref="SqliteConnection"/> that mirror the way
-/// the Python code uses <c>con.execute(...).fetchall()/fetchone()</c> and returns
-/// <c>dict(row)</c>. Rows come back as ordered dictionaries keyed by column name
-/// with DBNull mapped to null, so they serialize to the exact same JSON shapes.
-/// </summary>
+// Wiersze są zwracane jako słowniki z DBNull zamienionym na null, aby zachować
+// format JSON używany przez interfejs.
 public static class DbExtensions
 {
     public static SqliteCommand Cmd(this SqliteConnection con, string sql,

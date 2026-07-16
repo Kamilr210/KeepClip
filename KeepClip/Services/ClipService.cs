@@ -4,12 +4,6 @@ using System.Text.RegularExpressions;
 
 namespace KeepClip.Services;
 
-/// <summary>
-/// Business logic for clip media operations (fix / cut / delete / retranscribe). Uses the
-/// repositories for persistence and the static infrastructure wrappers (Media, Trash,
-/// Transcriber, CloudService) for the heavy lifting. Returns <see cref="Result{T}"/> so the
-/// endpoints stay thin — they only translate it into an HTTP response.
-/// </summary>
 public class ClipService
 {
     private readonly ClipRepository _clips;
@@ -21,8 +15,6 @@ public class ClipService
         _segments = segments;
     }
 
-    /// <summary>Remux/repair a broken file in place, restoring its mtime, regenerating the
-    /// thumbnail, and shifting transcript segments by any trimmed-off intro.</summary>
     public Result<Dictionary<string, object?>> Fix(long clipId)
     {
         var clip = _clips.GetById(clipId);
@@ -30,17 +22,17 @@ public class ClipService
         var src = clip.Filepath ?? "";
         if (!File.Exists(src)) return Fail(404, "file missing on disk");
 
-        // Preserve the recording date across the ffmpeg-produced replacement.
+        // Plik naprawiony przez ffmpeg ma zachować datę nagrania oryginału.
         var originalMtime = ((DateTimeOffset)File.GetLastWriteTimeUtc(src)).ToUnixTimeMilliseconds() / 1000.0;
 
         var (ok, fixedPath, message, trimmed) = Media.FixBrokenClip(src);
         if (!ok || fixedPath is null) return Fail(422, message);
 
-        // Move original to Recycle Bin, then slot the fixed file into its place.
+        // Oryginał pozostaje możliwy do odzyskania z Kosza.
         try { Trash.Send(src); }
         catch (Exception ex)
         {
-            try { if (File.Exists(fixedPath)) File.Delete(fixedPath); } catch { /* don't strand tmp */ }
+            try { if (File.Exists(fixedPath)) File.Delete(fixedPath); } catch { }
             return Fail(500, $"Nie udało się przenieść oryginału do Kosza: {ex.Message}");
         }
         try { File.Move(fixedPath, src, overwrite: true); }
@@ -73,8 +65,6 @@ public class ClipService
         });
     }
 
-    /// <summary>Cut/compress a fragment to clipsRoot\Wycinki, registering it in the library
-    /// when it lands inside the clips root.</summary>
     public Result<Dictionary<string, object?>> Cut(long clipId, double start, double end, double? targetSizeMb)
     {
         var clip = _clips.GetById(clipId);
@@ -85,7 +75,6 @@ public class ClipService
         var cutsRoot = Settings.GetCutsRoot();
         Directory.CreateDirectory(cutsRoot);
 
-        // Build output filename: <stem>_cut_<start>-<end>[_<sizeMB>MB].mp4 (sanitized).
         var stem = Path.GetFileNameWithoutExtension(src);
         var sLbl = ((int)start).ToString(CultureInfo.InvariantCulture);
         var eLbl = ((int)end).ToString(CultureInfo.InvariantCulture);
@@ -100,7 +89,6 @@ public class ClipService
         var (ok, msg, stats) = Media.CutClip(src, output, start, end, targetSizeMb);
         if (!ok) return Fail(422, msg);
 
-        // Register right away if the cut landed inside the clips root.
         long? newClipId = null;
         var clipsRoot = Settings.GetClipsRoot();
         bool insideLibrary;
@@ -133,12 +121,10 @@ public class ClipService
             ["clip_id"] = newClipId,
             ["in_library"] = newClipId is not null,
         };
-        foreach (var kv in stats) resp[kv.Key] = kv.Value; // **stats
+        foreach (var kv in stats) resp[kv.Key] = kv.Value; // Dołącza pola statystyk do odpowiedzi.
         return Ok(resp);
     }
 
-    /// <summary>Delete a clip: file to Recycle Bin (optional), thumbnail, DB rows, and the
-    /// Drive copy when it was offloaded.</summary>
     public async Task<Result<Dictionary<string, object?>>> DeleteAsync(long clipId, bool deleteFile)
     {
         var clip = _clips.GetById(clipId);
@@ -151,7 +137,7 @@ public class ClipService
         var tp = Config.ThumbPath(clipId);
         if (File.Exists(tp)) { try { File.Delete(tp); } catch (IOException) { } }
 
-        _clips.Delete(clipId); // CASCADE -> segments
+        _clips.Delete(clipId); // Usunięcie kaskadowe obejmuje również segmenty.
 
         if (clip.Storage == "cloud" && clip.RemoteId is { Length: > 0 } rid)
             await CloudService.TryTrashRemoteAsync(rid);
@@ -166,7 +152,6 @@ public class ClipService
         });
     }
 
-    /// <summary>Re-run Whisper for a single clip. Refused while a batch run is active.</summary>
     public Result<Dictionary<string, object?>> Retranscribe(long clipId)
     {
         if (TranscribeState.Snapshot().running)

@@ -4,16 +4,7 @@ using System.Text.Json;
 
 namespace KeepClip.Infrastructure;
 
-/// <summary>
-/// Thin REST client for Google's OAuth token endpoint and the Drive v3 API. Hand-rolled
-/// over <see cref="HttpClient"/> (no Google.Apis SDK) to keep the install small and the
-/// dependency surface tiny, matching the rest of the project. All calls take an access
-/// token; minting/refreshing tokens is <see cref="ExchangeCodeAsync"/> / <see cref="RefreshAsync"/>.
-///
-/// Only the <c>drive.file</c> scope is used, so the app sees <b>only the files it creates</b> —
-/// never the rest of the user's Drive. Account name/e-mail/photo and the storage quota both
-/// come from <c>drive.about.get</c>, so no extra <c>userinfo</c>/<c>openid</c> scope is needed.
-/// </summary>
+// Zakres uprawnień ogranicza dostęp do plików utworzonych przez aplikację.
 public static class GoogleDrive
 {
     public const string TokenEndpoint = "https://oauth2.googleapis.com/token";
@@ -21,18 +12,14 @@ public static class GoogleDrive
     public const string RevokeEndpoint = "https://oauth2.googleapis.com/revoke";
     public const string Scope = "https://www.googleapis.com/auth/drive.file";
 
-    // Short-timeout client for JSON/control calls; infinite-timeout client for the
-    // potentially long upload/download of multi-GB clips (HttpClient.Timeout is the
-    // whole-operation budget, so a fixed value would abort big transfers).
+    // Transfery wielogigabajtowych klipów nie mogą mieć limitu czasu dla całej operacji,
+    // dlatego używają osobnego klienta HTTP bez takiego ograniczenia.
     private static readonly HttpClient Api = new() { Timeout = TimeSpan.FromSeconds(60) };
     private static readonly HttpClient Transfer = new() { Timeout = Timeout.InfiniteTimeSpan };
 
     public readonly record struct TokenResult(string AccessToken, string? RefreshToken, int ExpiresInSeconds);
     public readonly record struct AboutInfo(string? Name, string? Email, string? Photo, long? Usage, long? Limit);
 
-    // ---- OAuth ----
-
-    /// <summary>Exchange an authorization code (+ PKCE verifier) for access/refresh tokens.</summary>
     public static async Task<TokenResult> ExchangeCodeAsync(
         string clientId, string clientSecret, string code, string codeVerifier, string redirectUri)
     {
@@ -52,8 +39,6 @@ public static class GoogleDrive
             json.TryGetProperty("expires_in", out var ei) ? ei.GetInt32() : 3600);
     }
 
-    /// <summary>Mint a fresh access token from a stored refresh token. Refresh tokens are
-    /// reusable, so the result's <c>RefreshToken</c> is usually null (keep the old one).</summary>
     public static async Task<TokenResult> RefreshAsync(string clientId, string clientSecret, string refreshToken)
     {
         using var resp = await Api.PostAsync(TokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
@@ -70,7 +55,6 @@ public static class GoogleDrive
             json.TryGetProperty("expires_in", out var ei) ? ei.GetInt32() : 3600);
     }
 
-    /// <summary>Best-effort revoke of a refresh/access token on disconnect.</summary>
     public static async Task RevokeAsync(string token)
     {
         try
@@ -78,12 +62,9 @@ public static class GoogleDrive
             using var _ = await Api.PostAsync(RevokeEndpoint,
                 new FormUrlEncodedContent(new Dictionary<string, string> { ["token"] = token }));
         }
-        catch { /* revoke is courtesy; local token is cleared regardless */ }
+        catch { }
     }
 
-    // ---- Drive ----
-
-    /// <summary>Account identity + storage quota in one call (needs only drive.file).</summary>
     public static async Task<AboutInfo> GetAboutAsync(string accessToken)
     {
         using var req = Authorized(HttpMethod.Get,
@@ -108,14 +89,8 @@ public static class GoogleDrive
         return new AboutInfo(name, email, photo, usage, limit);
     }
 
-    /// <summary>
-    /// Resolve the app's "KeepClip" Drive folder, creating it if needed. Tries the
-    /// remembered id first, then a name search among app-created folders, then creates one.
-    /// Returns the folder id (persist it via the caller).
-    /// </summary>
     public static async Task<string> EnsureFolderAsync(string accessToken, string folderName, string? knownId)
     {
-        // 1) Remembered id still valid?
         if (!string.IsNullOrEmpty(knownId))
         {
             using var req = Authorized(HttpMethod.Get,
@@ -129,7 +104,6 @@ public static class GoogleDrive
             }
         }
 
-        // 2) Search app-created folders by name.
         string q = Uri.EscapeDataString(
             $"mimeType = 'application/vnd.google-apps.folder' and name = '{folderName.Replace("'", "\\'")}' and trashed = false");
         using (var sreq = Authorized(HttpMethod.Get,
@@ -141,7 +115,6 @@ public static class GoogleDrive
                 return files[0].GetProperty("id").GetString()!;
         }
 
-        // 3) Create it.
         var meta = JsonSerializer.Serialize(new { name = folderName, mimeType = "application/vnd.google-apps.folder" });
         using var creq = Authorized(HttpMethod.Post,
             "https://www.googleapis.com/drive/v3/files?fields=id", accessToken);
@@ -151,16 +124,12 @@ public static class GoogleDrive
         return cj.GetProperty("id").GetString()!;
     }
 
-    /// <summary>
-    /// Resumable upload of a file into <paramref name="parentId"/>. The bytes are streamed
-    /// (never fully buffered) so multi-GB clips don't blow up memory. Returns the new file id.
-    /// </summary>
+    // Dane są strumieniowane, aby duży klip nie był buforowany w pamięci.
     public static async Task<string> UploadResumableAsync(
         string accessToken, string name, string parentId, string filePath, string mimeType)
     {
         long length = new FileInfo(filePath).Length;
 
-        // 1) Initiate the session.
         using var init = Authorized(HttpMethod.Post,
             "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id", accessToken);
         init.Headers.Add("X-Upload-Content-Type", mimeType);
@@ -172,7 +141,6 @@ public static class GoogleDrive
         var session = initResp.Headers.Location
             ?? throw new InvalidOperationException("Drive nie zwrócił adresu sesji uploadu.");
 
-        // 2) Upload the bytes in one streamed PUT.
         using var fs = File.OpenRead(filePath);
         using var put = new HttpRequestMessage(HttpMethod.Put, session);
         put.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -185,7 +153,6 @@ public static class GoogleDrive
         return pj.GetProperty("id").GetString()!;
     }
 
-    /// <summary>Stream a Drive file's bytes to <paramref name="destPath"/>.</summary>
     public static async Task DownloadAsync(string accessToken, string fileId, string destPath)
     {
         using var req = Authorized(HttpMethod.Get,
@@ -197,12 +164,7 @@ public static class GoogleDrive
         await src.CopyToAsync(dst);
     }
 
-    /// <summary>
-    /// Open a Drive file's media stream for proxying to the browser's <c>&lt;video&gt;</c>
-    /// element, forwarding an optional HTTP <c>Range</c> header so seeking works (Drive's
-    /// <c>alt=media</c> endpoint honours ranges and replies 206 with Content-Range). The
-    /// caller owns the returned response: relay its status/headers/body, then dispose it.
-    /// </summary>
+    // Nagłówek HTTP Range jest przekazywany do Dysku Google, aby umożliwić przewijanie.
     public static async Task<HttpResponseMessage> OpenMediaAsync(
         string accessToken, string fileId, string? range, CancellationToken ct)
     {
@@ -213,7 +175,6 @@ public static class GoogleDrive
         return await Transfer.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
     }
 
-    /// <summary>Move a Drive file to the Drive trash (recoverable ~30 days, like the Recycle Bin).</summary>
     public static async Task TrashAsync(string accessToken, string fileId)
     {
         using var req = Authorized(HttpMethod.Patch,
@@ -223,7 +184,6 @@ public static class GoogleDrive
         if (!resp.IsSuccessStatusCode) await ThrowFrom(resp);
     }
 
-    // ---- helpers ----
 
     private static HttpRequestMessage Authorized(HttpMethod method, string url, string accessToken)
     {
@@ -242,8 +202,6 @@ public static class GoogleDrive
     private static async Task ThrowFrom(HttpResponseMessage resp)
         => throw new GoogleApiException(ExtractError(await resp.Content.ReadAsStringAsync(), resp));
 
-    /// <summary>Pull a human-usable message out of Google's error JSON (token endpoint uses
-    /// <c>error_description</c>; the Drive API uses <c>error.message</c>).</summary>
     private static string ExtractError(string body, HttpResponseMessage resp)
     {
         try
@@ -256,12 +214,10 @@ public static class GoogleDrive
                 if (err.TryGetProperty("message", out var m)) return m.GetString() ?? body;
             }
         }
-        catch { /* not JSON */ }
+        catch { }
         return $"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}";
     }
 
-    /// <summary>Carries whether the failure means the grant is dead (token revoked/expired),
-    /// so the caller can flip to "disconnected" instead of just surfacing an error.</summary>
     public sealed class GoogleApiException(string message) : Exception(message)
     {
         public bool IsInvalidGrant =>

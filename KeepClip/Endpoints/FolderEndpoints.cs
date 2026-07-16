@@ -1,7 +1,5 @@
 namespace KeepClip.Endpoints;
 
-/// <summary>User folders (collections of clips) and their membership. SQL lives in
-/// <see cref="FolderRepository"/>; these handlers just validate + shape responses.</summary>
 public static class FolderEndpoints
 {
     public static void MapFolderEndpoints(this WebApplication app)

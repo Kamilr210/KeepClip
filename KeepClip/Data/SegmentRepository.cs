@@ -1,6 +1,5 @@
 namespace KeepClip.Data;
 
-/// <summary>Segments (transcript lines) access, plus the FTS search query.</summary>
 public class SegmentRepository
 {
     private static readonly Dictionary<string, string> SearchSorts = new()
@@ -12,7 +11,6 @@ public class SegmentRepository
         ["smallest"] = "c.size_bytes ASC, score ASC",
     };
 
-    /// <summary>A clip's transcript lines (raw rows, ordered by start time).</summary>
     public List<Dictionary<string, object?>> ListByClipId(long clipId)
     {
         using var con = Db.Open();
@@ -21,7 +19,6 @@ public class SegmentRepository
             ("$id", clipId));
     }
 
-    /// <summary>True if the segment existed and its text was updated.</summary>
     public bool UpdateText(long segmentId, string text)
     {
         using var con = Db.Open();
@@ -44,7 +41,6 @@ public class SegmentRepository
             ("$c", clipId), ("$s", startS), ("$e", endS), ("$t", text));
     }
 
-    /// <summary>Replace all of a clip's segments in one transaction (used by retranscribe).</summary>
     public void ReplaceAll(long clipId, IEnumerable<(double Start, double End, string Text)> segs)
     {
         using var con = Db.Open();
@@ -56,8 +52,8 @@ public class SegmentRepository
         tx.Commit();
     }
 
-    /// <summary>Shift a clip's segments by <paramref name="offset"/> seconds, dropping any that
-    /// fall entirely before zero. Returns (shifted, dropped) counts. Used after a fix-trim.</summary>
+    // Po przycięciu uszkodzonego początku klipu przesuwa znaczniki czasu i usuwa
+    // segmenty, które znalazły się całkowicie przed zerem.
     public (int shifted, int dropped) ShiftTimestamps(long clipId, double offset)
     {
         using var con = Db.Open();
@@ -82,7 +78,6 @@ public class SegmentRepository
         return (shifted, dropped);
     }
 
-    /// <summary>Full-text search hits (raw rows) for the already-built FTS expression.</summary>
     public List<Dictionary<string, object?>> Search(string ftsQuery, string? sort, int limit)
     {
         var order = SearchSorts.GetValueOrDefault(sort ?? "relevance", SearchSorts["relevance"]);

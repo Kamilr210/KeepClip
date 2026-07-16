@@ -1,10 +1,5 @@
 namespace KeepClip.Domain;
 
-/// <summary>
-/// A service-layer outcome that carries an HTTP-shaped failure without the service
-/// knowing about HttpContext: success holds a <typeparamref name="T"/>, failure holds a
-/// status code + message. Endpoints translate it to <c>Results.Json</c> / problem details.
-/// </summary>
 public class Result<T>
 {
     public bool IsSuccess { get; }

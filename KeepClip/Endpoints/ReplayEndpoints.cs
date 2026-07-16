@@ -1,6 +1,5 @@
 namespace KeepClip.Endpoints;
 
-/// <summary>Instant-replay buffer control: status, config, manual save, audio devices.</summary>
 public static class ReplayEndpoints
 {
     public static void MapReplayEndpoints(this WebApplication app)
@@ -30,13 +29,12 @@ public static class ReplayEndpoints
             if (body.quality is not null) Settings.SetString("replay_quality", body.quality);
             if (body.hotkey is not null) Settings.SetString("replay_hotkey", body.hotkey);
             if (body.mic is not null) Settings.SetString("replay_mic", body.mic.Value ? "1" : "0");
-            // Audio device picks: the modal always sends both (null = "default" option), so a
-            // null clears the stored ID back to the robust default rather than meaning "absent".
+            // null oznacza powrót do domyślnego urządzenia, nie brak pola w żądaniu.
             Settings.SetString("replay_audio_output", body.audio_output ?? "");
             Settings.SetString("replay_audio_input", body.audio_input ?? "");
 
-            ReplayService.ApplyConfig();   // start/stop/restart the buffer to match
-            HotkeyManager.Refresh();       // re-register the (possibly new) combo
+        ReplayService.ApplyConfig();   // Dostosowuje stan bufora do nowych ustawień.
+        HotkeyManager.Refresh();       // Ponownie rejestruje skrót klawiaturowy.
             return Results.Json(ReplayService.Status());
         });
 
@@ -48,7 +46,6 @@ public static class ReplayEndpoints
             catch (Exception ex) { return Api.Detail(500, ex.Message); }
         });
 
-        // Audio output/input devices for the replay settings dropdowns.
         app.MapGet("/api/replay/audio-devices", () =>
         {
             Heartbeat.Touch();

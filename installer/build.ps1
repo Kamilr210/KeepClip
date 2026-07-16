@@ -1,27 +1,16 @@
 <#
-  KeepClip - jednokomendowy build instalatora (C# / .NET self-contained).
+  Buduje samowystarczalną publikację win-x64 i instalator KeepClip przez Inno Setup.
 
-  Co robi:
-    1. Pobiera bootstrapper WebView2 (maly, ~2 MB) do installer\redist\ (jesli brak).
-    2. `dotnet publish` -> self-contained win-x64 do installer\staging\publish
-       (runtime .NET w srodku, wiec uzytkownicy koncowi NIE musza nic instalowac).
-    3. Przycina nieuzywane natywne runtimy (inne OS/architektury) zeby zmniejszyc rozmiar.
-    4. Kompiluje installer\KeepClip.iss przez Inno Setup (ISCC). Gdy brak Inno Setup,
-       probuje doinstalowac go przez winget.
-    5. Wynik: installer\dist\KeepClip-Setup.exe (do wrzucenia na GitHub Releases).
-
-  Uzycie:
+  Użycie:
       powershell -ExecutionPolicy Bypass -File installer\build.ps1
-      ...\build.ps1 -SkipPublish      # gdy publish juz jest aktualny (szybka iteracja)
-      ...\build.ps1 -NoInstaller      # sam publish, bez budowania .exe instalatora
+      ...\build.ps1 -SkipPublish
+      ...\build.ps1 -NoInstaller
 #>
 [CmdletBinding()]
 param(
   [switch]$SkipPublish,
   [switch]$NoInstaller,
-  # Public release: strips developer-only features (the "Logi aplikacji" panel) from
-  # the build. Auto-on under GitHub Actions, so the automated release workflow never
-  # ships dev tools even if the switch is forgotten.
+  # Wydanie publiczne usuwa panel logów; GitHub Actions włącza ten tryb automatycznie.
   [switch]$PublicRelease
 )
 
@@ -31,9 +20,7 @@ $Public = $PublicRelease.IsPresent -or ($env:GITHUB_ACTIONS -eq 'true')
 
 function Step($m) { Write-Host ""; Write-Host "==> $m" -ForegroundColor Cyan }
 
-# Remove <!-- DEV:START -->...<!-- DEV:END --> (HTML) and /* DEV:START */.../* DEV:END */
-# (JS) blocks from a published frontend file. Written UTF-8 without BOM (the app reads
-# index.html as UTF-8; a BOM there is asking for trouble).
+# Usuwa bloki DEV z publikowanego interfejsu i zapisuje UTF-8 bez BOM.
 function Remove-DevBlocks([string]$file) {
   if (-not (Test-Path $file)) { return }
   $txt = [IO.File]::ReadAllText($file)
@@ -74,7 +61,7 @@ try {
     Write-Host "Klient OAuth jest gotowy; instalator pokaze zwykle logowanie Google."
   }
 
-  # --- 1. Bootstrapper WebView2 (best-effort; bez niego instalator i tak sie zbuduje) ---
+  # Brak małego instalatora WebView2 nie blokuje budowy głównego instalatora.
   Step "Sprawdzam bootstrapper WebView2"
   New-Item -ItemType Directory -Force -Path $RedistDir | Out-Null
   $wv2 = Join-Path $RedistDir 'MicrosoftEdgeWebview2Setup.exe'
@@ -91,7 +78,6 @@ try {
     }
   }
 
-  # --- 2. dotnet publish (self-contained win-x64) ---
   if ($SkipPublish) {
     Step "Pomijam publish (-SkipPublish)"
     if (-not (Test-Path (Join-Path $PublishDir 'KeepClip.exe'))) {
@@ -109,21 +95,19 @@ try {
       '-p:PublishTrimmed=false',
       '-o', $PublishDir
     )
-    if ($Public) { $pubArgs += '-p:PublicRelease=true' }  # drops KEEPCLIP_DEV (no log endpoint/capture)
+    if ($Public) { $pubArgs += '-p:PublicRelease=true' }
     Write-Host ("Tryb: {0}" -f $(if ($Public) { 'PUBLICZNY (bez funkcji deweloperskich)' } else { 'deweloperski' }))
     & dotnet @pubArgs
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish zwrocil kod $LASTEXITCODE." }
   }
 
-  # Public release: also physically strip the dev-only UI from the staged frontend, so
-  # the installer doesn't even contain the "Logi aplikacji" markup/script.
+  # Samo wyłączenie backendu nie wystarcza: usuwa również kod panelu z plików instalatora.
   if ($Public) {
     Step "Public release: usuwam funkcje deweloperskie z frontendu"
     Remove-DevBlocks (Join-Path $PublishDir 'frontend\index.html')
     Remove-DevBlocks (Join-Path $PublishDir 'frontend\app.js')
   }
 
-  # --- 3. Przytnij nieuzywane natywne runtimy (proces win-x64 ich nie laduje) ---
   Step "Przycinam nieuzywane runtimy (inne OS/architektury)"
   $prune = @(
     (Join-Path $PublishDir 'runtimes\win-x86'),
@@ -146,11 +130,10 @@ try {
     return
   }
 
-  # --- 4. Znajdz / doinstaluj Inno Setup (ISCC) ---
   Step "Szukam kompilatora Inno Setup (ISCC.exe)"
   function Find-ISCC {
-    # Inno Setup instaluje sie czesto PER-USER (do %LOCALAPPDATA%\Programs), nie tylko
-    # do Program Files - sprawdzamy oba, plus sciezke z rejestru (InstallLocation) i PATH.
+    # Inno Setup często instaluje się dla bieżącego użytkownika, dlatego sprawdzamy
+    # katalogi użytkownika i systemu, rejestr oraz ścieżkę wyszukiwania programów.
     $cands = @(
       (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'),
       (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
@@ -190,7 +173,6 @@ try {
   }
   Write-Host "ISCC: $iscc"
 
-  # --- 5. Kompiluj instalator ---
   Step "Buduje instalator (ISCC)"
   New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
   & $iscc "/DPublishDir=$PublishDir" $IssFile

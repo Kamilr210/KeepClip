@@ -5,46 +5,29 @@ using System.Text.Json;
 
 namespace KeepClip.Infrastructure;
 
-/// <summary>
-/// Google OAuth 2.0 lifecycle for the Drive offload: PKCE loopback connect, access-token
-/// cache/refresh, account/quota status, and disconnect. Owns ALL auth state — <see cref="CloudService"/>
-/// sits on top of this and only calls its public/internal methods for the actual
-/// upload/download/proxy work.
-///
-/// "Aternos-style single client": the OAuth <i>app</i> credentials come from one gitignored
-/// file (<see cref="Config.GoogleClientPath"/>) the author embeds in shipped builds — no
-/// per-user setup. The per-user <i>refresh token</i> lives in the Windows Credential Manager
-/// (<see cref="CredentialStore"/>), never in plaintext. Single account, single process; all
-/// state below is static.
-/// </summary>
+// Wspólny klient OAuth jest dostarczany z instalatorem, a token odświeżania konkretnego
+// użytkownika trafia wyłącznie do Menedżera poświadczeń Windows.
 public static class OAuthService
 {
-    // Access-token cache. Refresh tokens are long-lived; access tokens last ~1 h, so we
-    // mint one and reuse it until just before expiry. SemaphoreSlim (not lock) because the
-    // refresh call is async.
+    // SemaphoreSlim chroni asynchroniczne odświeżanie tokenu przed równoległymi żądaniami.
     private static readonly SemaphoreSlim TokenGate = new(1, 1);
     private static string? _accessToken;
     private static DateTimeOffset _accessExpiry = DateTimeOffset.MinValue;
 
-    // Account/quota cache so the frontend's frequent /api/cloud/status polls don't hammer
-    // Drive. Short TTL keeps the quota bar reasonably fresh.
+    // Krótka pamięć podręczna chroni Dysk Google przed częstymi zapytaniami interfejsu.
     private static readonly object AboutGate = new();
     private static GoogleDrive.AboutInfo? _about;
     private static DateTimeOffset _aboutAt = DateTimeOffset.MinValue;
     private static readonly TimeSpan AboutTtl = TimeSpan.FromSeconds(20);
     private static string? _lastError;
 
-    // In-flight OAuth connect (loopback listener + PKCE state), at most one at a time.
+    // Jednocześnie może trwać tylko jeden przepływ PKCE z lokalnym adresem zwrotnym.
     private static readonly object ConnectGate = new();
     private static HttpListener? _listener;
     private static CancellationTokenSource? _connectCts;
 
-    // ---- configuration / connection state ----
-
-    /// <summary>True once the author/user has dropped <c>data/google_client.json</c>.</summary>
     public static bool IsConfigured() => File.Exists(Config.GoogleClientPath);
 
-    /// <summary>True when a refresh token is stored (i.e. an account has been linked).</summary>
     public static bool IsConnected() =>
         !string.IsNullOrEmpty(CredentialStore.Read(Config.DriveTokenTarget));
 
@@ -52,7 +35,7 @@ public static class OAuthService
     {
         using var doc = JsonDocument.Parse(File.ReadAllText(Config.GoogleClientPath));
         var root = doc.RootElement;
-        // Google's downloaded JSON wraps the creds in "installed" (Desktop app) or "web".
+    // Google opakowuje dane klienta w obiekt `installed` albo `web`.
         var creds = root.TryGetProperty("installed", out var ins) ? ins
                   : root.TryGetProperty("web", out var web) ? web
                   : root;
@@ -62,13 +45,6 @@ public static class OAuthService
         return (id, secret);
     }
 
-    // ---- status ----
-
-    /// <summary>
-    /// Assemble the payload the Cloud view polls: <c>configured</c>, <c>connected</c>, and
-    /// (when connected) the account identity + storage quota. Keys match the frontend
-    /// verbatim (name/email/photo/usage/limit/error).
-    /// </summary>
     public static async Task<Dictionary<string, object?>> StatusAsync()
     {
         var st = new Dictionary<string, object?>
@@ -92,14 +68,14 @@ public static class OAuthService
         }
         catch (GoogleDrive.GoogleApiException ex) when (ex.IsInvalidGrant)
         {
-            // Grant is dead (revoked/expired) → drop the token and fall back to "connect".
+            // Cofnięta lub wygasła zgoda wymaga ponownego połączenia konta.
             DisconnectLocal();
             st["connected"] = false;
         }
         catch (Exception ex)
         {
-            // Transient (network/Drive blip) — still linked: surface the error and reuse
-            // the last known account/quota so the panel doesn't flicker empty.
+            // Błąd przejściowy nie rozłącza konta; zachowujemy ostatnie dane, aby panel
+            // nie migał pustym stanem.
             _lastError = ex.Message;
             st["connected"] = true;
             st["error"] = ex.Message;
@@ -115,10 +91,6 @@ public static class OAuthService
         return st;
     }
 
-    // ---- tokens ----
-
-    /// <summary>A valid access token, refreshed if the cached one is near expiry. Used by
-    /// <see cref="CloudService"/> for every Drive call.</summary>
     internal static async Task<string> GetAccessTokenAsync()
     {
         await TokenGate.WaitAsync();
@@ -134,9 +106,9 @@ public static class OAuthService
             {
                 var tok = await GoogleDrive.RefreshAsync(id, secret, refresh);
                 _accessToken = tok.AccessToken;
-                // Renew a minute early to avoid races near the boundary.
+                // Minuta zapasu zapobiega użyciu tokenu wygasającego w trakcie żądania.
                 _accessExpiry = DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, tok.ExpiresInSeconds - 60));
-                if (!string.IsNullOrEmpty(tok.RefreshToken)) // Google rotates rarely; keep up to date if so
+        if (!string.IsNullOrEmpty(tok.RefreshToken)) // Aktualizuje token, jeżeli Google go zmieniło.
                     CredentialStore.Write(Config.DriveTokenTarget, tok.RefreshToken!);
                 return _accessToken;
             }
@@ -161,21 +133,11 @@ public static class OAuthService
         return about;
     }
 
-    /// <summary>Force the next status poll to re-fetch the quota (usage changed).</summary>
     internal static void InvalidateAbout() { lock (AboutGate) { _aboutAt = DateTimeOffset.MinValue; } }
 
-    // ---- connect (OAuth 2.0 PKCE, loopback redirect) ----
-
-    /// <summary>
-    /// Start an OAuth connect: spin up a one-shot loopback listener, build the Google
-    /// consent URL (PKCE, offline access) and return it. The frontend opens the URL in a
-    /// browser tab and polls <see cref="StatusAsync"/>; when Google redirects back, the
-    /// listener exchanges the code and stores the refresh token, flipping "connected" to
-    /// true on the next poll.
-    /// </summary>
     public static string BeginConnect()
     {
-        var (clientId, _) = LoadClient(); // validate config up front
+        var (clientId, _) = LoadClient(); // Sprawdza konfigurację przed rozpoczęciem operacji.
 
         int port = FreeLoopbackPort();
         string redirectUri = $"http://127.0.0.1:{port}/";
@@ -187,12 +149,11 @@ public static class OAuthService
         listener.Prefixes.Add(redirectUri);
         listener.Start();
 
-        var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)); // matches the frontend's poll cap
+        var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)); // Zgodne z limitem odpytywania interfejsu.
         lock (ConnectGate)
         {
-            // Replace any previous in-flight attempt.
             _connectCts?.Cancel();
-            try { _listener?.Close(); } catch { /* already closed */ }
+            try { _listener?.Close(); } catch { }
             _listener = listener;
             _connectCts = cts;
         }
@@ -208,8 +169,8 @@ public static class OAuthService
             "code_challenge="       + challenge,
             "code_challenge_method=S256",
             "state="                + state,
-            "access_type=offline",  // ask for a refresh token
-            "prompt=consent",       // force its issuance even on re-consent
+            "access_type=offline",  // Prosi o token odświeżania.
+            "prompt=consent",       // Wymusza jego wydanie także przy ponownej zgodzie.
         });
     }
 
@@ -223,7 +184,7 @@ public static class OAuthService
             {
                 var ctxTask = listener.GetContextAsync();
                 var done = await Task.WhenAny(ctxTask, Task.Delay(Timeout.Infinite, ct));
-                if (done != ctxTask) break; // cancelled / timed out
+            if (done != ctxTask) break; // Operację anulowano albo przekroczono czas oczekiwania.
                 var ctx = await ctxTask;
 
                 var q = ctx.Request.QueryString;
@@ -231,7 +192,7 @@ public static class OAuthService
                 string? state = q["state"];
                 string? error = q["error"];
 
-                // Stray requests (e.g. the browser's favicon probe) — answer and keep waiting.
+    // Żądanie ikony strony nie może zakończyć oczekiwania na odpowiedź OAuth.
                 if (code is null && error is null) { ctx.Response.StatusCode = 204; ctx.Response.Close(); continue; }
 
                 if (error is null && code is not null && state == expectedState)
@@ -243,7 +204,7 @@ public static class OAuthService
                         if (string.IsNullOrEmpty(tok.RefreshToken))
                             throw new InvalidOperationException("Google nie zwrócił tokenu odświeżania.");
 
-                        // Fetch identity to label the credential entry and warm the cache.
+                        // E-mail opisuje wpis w Menedżerze poświadczeń, ale nie jest wymagany.
                         string? email = null;
                         try
                         {
@@ -251,7 +212,7 @@ public static class OAuthService
                             email = about.Email;
                             lock (AboutGate) { _about = about; _aboutAt = DateTimeOffset.UtcNow; }
                         }
-                        catch { /* identity is cosmetic; the token is what matters */ }
+                        catch { }
 
                         CredentialStore.Write(Config.DriveTokenTarget, tok.RefreshToken!, email);
                         await TokenGate.WaitAsync(ct);
@@ -275,13 +236,13 @@ public static class OAuthService
                 {
                     WriteHtml(ctx, "Logowanie anulowane", error ?? "Brak kodu autoryzacji.");
                 }
-                break; // one-shot: a real redirect (success or denial) ends the attempt
+            break; // Pierwsze właściwe przekierowanie kończy próbę, niezależnie od wyniku.
             }
         }
         catch (Exception ex) { _lastError = ex.Message; }
         finally
         {
-            try { listener.Close(); } catch { /* already closed */ }
+            try { listener.Close(); } catch { }
             lock (ConnectGate) { if (_listener == listener) { _listener = null; _connectCts = null; } }
         }
     }
@@ -302,12 +263,9 @@ public static class OAuthService
             ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
             ctx.Response.OutputStream.Close();
         }
-        catch { /* client closed the tab */ }
+        catch { }
     }
 
-    // ---- disconnect ----
-
-    /// <summary>Revoke the grant with Google (best-effort) and clear all local state.</summary>
     public static async Task DisconnectAsync()
     {
         var refresh = CredentialStore.Read(Config.DriveTokenTarget);
@@ -326,13 +284,12 @@ public static class OAuthService
         lock (ConnectGate)
         {
             _connectCts?.Cancel();
-            try { _listener?.Close(); } catch { /* already closed */ }
+            try { _listener?.Close(); } catch { }
             _listener = null;
             _connectCts = null;
         }
     }
 
-    // ---- helpers ----
 
     private static int FreeLoopbackPort()
     {

@@ -1,15 +1,6 @@
-# Automatyczny release: wypchnięcie tagu "v*" (np. v2.1.0) buduje na czysto
-# self-contained publish + instalator Inno Setup i publikuje KeepClip-Setup.exe
-# w GitHub Releases. Dzięki temu "exe na GitHubie" nigdy nie jest stary —
-# nowy release = jedna komenda: git tag vX.Y.Z && git push origin vX.Y.Z
-#
-# Czego CI NIE ma z natury (i jak to jest rozwiązane):
-#  - ffmpeg/ffprobe (gitignored, za duże) -> pobiera je setup.ps1, ten sam
-#    skrypt, którego używa świeży klon na maszynie dewelopera.
-#  - installer/embed/google_client.json (dane klienta OAuth, nigdy w repo) ->
-#    wymagany sekret repozytorium GOOGLE_CLIENT_JSON_B64 (base64 pliku).
-#    Workflow celowo przerywa wydanie, gdy sekretu brakuje lub JSON jest błędny:
-#    publiczny instalator ma zawsze prowadzić prosto do logowania Google.
+# Tag v* buduje samowystarczalny instalator i publikuje go w sekcji wydań GitHub.
+# FFmpeg pobiera setup.ps1, a klient OAuth powstaje z sekretu GOOGLE_CLIENT_JSON_B64.
+# Brak lub błędna wartość sekretu celowo przerywa wydanie.
 name: release
 
 on:

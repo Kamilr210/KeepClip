@@ -1,7 +1,5 @@
 namespace KeepClip.Endpoints;
 
-/// <summary>Clip endpoints — thin: list/favorite/thumb hit the repository directly, while
-/// fix/cut/delete/retranscribe delegate to <see cref="ClipService"/>.</summary>
 public static class ClipEndpoints
 {
     public static void MapClipEndpoints(this WebApplication app)
@@ -39,8 +37,7 @@ public static class ClipEndpoints
         app.MapDelete("/api/clips/{clipId:long}", async (long clipId, bool? delete_file, ClipService clips) =>
             Respond(await clips.DeleteAsync(clipId, delete_file ?? true)));
 
-        // Thumbnails (lazy generation + remember failures). A media-serving endpoint, so it
-        // talks to the repository directly rather than going through a service.
+        // Miniatury są generowane leniwie, a nieudane próby zapamiętywane w bazie.
         app.MapGet("/thumb/{clipId:long}", (long clipId, ClipRepository clips) =>
         {
             var p = Config.ThumbPath(clipId);
@@ -51,7 +48,7 @@ public static class ClipEndpoints
                     return Api.Detail(404, "no thumbnail");
                 if (!Media.MakeThumbnail(clipId, row["filepath"] as string ?? ""))
                 {
-                    clips.SetThumbState(clipId, 2);   // don't retry on every scroll
+            clips.SetThumbState(clipId, 2);   // Nie ponawia próby przy każdym przewinięciu.
                     return Api.Detail(404, "no thumbnail");
                 }
                 clips.SetThumbState(clipId, 1);

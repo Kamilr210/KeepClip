@@ -2,13 +2,10 @@ using System.Diagnostics;
 
 namespace KeepClip.Endpoints;
 
-/// <summary>Serving clip video (local range streaming; cloud clips proxied from Drive)
-/// and the "show in Explorer" shell action.</summary>
 public static class MediaEndpoints
 {
     public static void MapMediaEndpoints(this WebApplication app)
     {
-        // Local range streaming; cloud clips proxied from Drive.
         app.MapGet("/video/{clipId:long}", async (long clipId, HttpContext http, ClipRepository clips) =>
         {
             var clip = clips.GetById(clipId);
@@ -17,7 +14,7 @@ public static class MediaEndpoints
             {
                 if (string.IsNullOrEmpty(clip.RemoteId)) return Api.Detail(404, "cloud clip has no remote id");
                 await CloudService.ProxyVideoAsync(http, clip.RemoteId);
-                return Results.Empty; // response already written by the proxy
+            return Results.Empty; // Odpowiedź została już zapisana przez pośrednika.
             }
             if (string.IsNullOrEmpty(clip.Filepath) || !File.Exists(clip.Filepath))
                 return Api.Detail(404, "file missing on disk");
@@ -32,7 +29,7 @@ public static class MediaEndpoints
             try
             {
                 var psi = new ProcessStartInfo { FileName = "explorer.exe", UseShellExecute = false };
-                // /select highlights the file inside its folder; a bare path opens the folder.
+        // Ścieżka /select otwiera folder z zaznaczonym plikiem.
                 psi.ArgumentList.Add(File.Exists(p) ? $"/select,{p}" : p);
                 Process.Start(psi);
             }

@@ -1,10 +1,7 @@
 namespace KeepClip.Workers;
 
-/// <summary>
-/// Walk the clips root, register new files in the DB, prune entries whose files
-/// vanished. 1:1 port of <c>scanner.py</c>. Cloud-offloaded clips (storage='cloud')
-/// are never pruned and their path is reserved so a reappearance can't duplicate.
-/// </summary>
+// Klipy przeniesione do chmury nie są usuwane z bazy, a ich ścieżki pozostają
+// zarezerwowane, aby ponowne pojawienie się pliku nie utworzyło duplikatu.
 public static class Scanner
 {
     public static Dictionary<string, object?> Scan()
@@ -37,7 +34,6 @@ public static class Scanner
 
         con.Exec("UPDATE clips SET has_thumb=0 WHERE has_thumb=2");
 
-        // Remove rows for files that no longer exist (but never cloud clips).
         var deadIds = new List<long>();
         var existingPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var row in con.Query("SELECT id, filepath, storage FROM clips"))
@@ -53,11 +49,10 @@ public static class Scanner
         {
             var tp = Config.ThumbPath(cid);
             try { if (File.Exists(tp)) File.Delete(tp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
-            con.Exec("DELETE FROM clips WHERE id=$id", ("$id", cid)); // CASCADE removes segments
+            con.Exec("DELETE FROM clips WHERE id=$id", ("$id", cid)); // Usunięcie kaskadowe obejmuje segmenty.
             removed++;
         }
 
-        // Insert new ones.
         foreach (var spath in onDisk)
         {
             if (existingPaths.Contains(spath)) continue;

@@ -1,13 +1,11 @@
 namespace KeepClip.Endpoints;
 
-/// <summary>Library-wide statistics for the dashboard cards (<c>/api/stats</c>).</summary>
 public static class StatsEndpoints
 {
     public static void MapStatsEndpoints(this WebApplication app)
     {
         app.MapGet("/api/stats", (StatsRepository stats) =>
         {
-            // Disk space isn't a DB concern — measure it here and let the repo do the rest.
             long? diskTotal = null, diskFree = null;
             try
             {
@@ -19,7 +17,7 @@ public static class StatsEndpoints
                     diskFree = di.AvailableFreeSpace;
                 }
             }
-            catch { /* disk info best-effort */ }
+            catch { /* Brak informacji o dysku nie blokuje statystyk. */ }
 
             return Results.Json(stats.Get(diskTotal, diskFree));
         });

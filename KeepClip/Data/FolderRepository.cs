@@ -1,13 +1,9 @@
 namespace KeepClip.Data;
 
-/// <summary>Outcome of a folder create/rename that can hit the UNIQUE-name constraint.</summary>
 public enum FolderWrite { Ok, NotFound, Duplicate }
 
-/// <summary>Outcome of adding a clip to a folder (distinguishes the two 404 cases).</summary>
 public enum AddClipResult { Ok, NoFolder, NoClip }
 
-/// <summary>Folders and folder↔clip membership. Read methods return raw rows that match
-/// the existing JSON; writes return small enums so endpoints stay free of SQL/Sqlite types.</summary>
 public class FolderRepository
 {
     private static readonly Dictionary<string, string> ClipSorts = new()
@@ -36,7 +32,6 @@ public class FolderRepository
         return folders;
     }
 
-    /// <summary>Create a folder; returns its new row, or null if the name is already taken.</summary>
     public Dictionary<string, object?>? Create(string name)
     {
         using var con = Db.Open();
@@ -55,7 +50,6 @@ public class FolderRepository
         return FolderWrite.Ok;
     }
 
-    /// <summary>Delete a folder; returns its name, or null if it didn't exist.</summary>
     public string? Delete(long id)
     {
         using var con = Db.Open();
@@ -65,7 +59,6 @@ public class FolderRepository
         return row["name"] as string;
     }
 
-    /// <summary>A folder's row + its clips (raw rows), or null if the folder doesn't exist.</summary>
     public (Dictionary<string, object?> folder, List<Dictionary<string, object?>> clips)? ListClips(long folderId, string? sort, int limit)
     {
         using var con = Db.Open();

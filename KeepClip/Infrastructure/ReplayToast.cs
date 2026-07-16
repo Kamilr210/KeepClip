@@ -4,33 +4,17 @@ using System.Windows.Forms;
 
 namespace KeepClip.Infrastructure;
 
-/// <summary>
-/// ShadowPlay-style on-screen confirmation that a replay was saved (or failed) —
-/// visible over games, because the in-app toast is useless mid-match. A small
-/// borderless, topmost, non-activating window in the top-right corner of the
-/// primary screen that fades in, lingers ~3.5 s and fades out.
-///
-/// Two windowing rules are load-bearing here:
-///  1. NON-ACTIVATING (WS_EX_NOACTIVATE + ShowWithoutActivation): stealing focus
-///     from a fullscreen game minimizes it.
-///  2. After the one-time Show(), the window NEVER changes window state again —
-///     no Hide(), no Close(). It "disappears" purely by animating Opacity to 0
-///     and stays formally visible (and click-through, WS_EX_TRANSPARENT) forever.
-///     Field-measured on a sensitive setup: Close() AND even Hide() of this
-///     never-activated topmost window minimized a fullscreen game at the exact
-///     millisecond of the hide (the same machine loses the game on Teams
-///     notifications). An opacity-only, input-transparent layered window gives
-///     the shell literally no window-state event to react to.
-/// Must be used from the WinForms UI thread (the shell form marshals).
-/// </summary>
+// Okno powiadomienia nie może przejąć fokusu ani zmienić stanu po pierwszym wyświetleniu,
+// bo późniejsze ukrycie lub zamknięcie potrafi zminimalizować grę. Znika wyłącznie przez
+// animację Opacity do zera i pozostaje przezroczyste dla kliknięć. Używać w wątku UI.
 internal sealed class ReplayToast : Form
 {
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
-    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;  // Win11: 2 = round
+    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;  // W Windows 11 wartość 2 oznacza zaokrąglenie.
     private const int WS_EX_NOACTIVATE = 0x08000000;
-    private const int WS_EX_TOOLWINDOW = 0x00000080;       // no Alt-Tab entry
-    private const int WS_EX_TRANSPARENT = 0x00000020;      // click-through: can never take the mouse
+    private const int WS_EX_TOOLWINDOW = 0x00000080;       // Ukrywa okno na liście Alt+Tab.
+    private const int WS_EX_TRANSPARENT = 0x00000020;      // Przepuszcza kliknięcia myszy.
 
     private static ReplayToast? _instance;
 
@@ -45,7 +29,6 @@ internal sealed class ReplayToast : Form
     private static readonly Color Good = Color.FromArgb(0x46, 0xD1, 0x69);
     private static readonly Color Bad = Color.FromArgb(0xFF, 0x6B, 0x81);
 
-    /// <summary>Show (or re-show with new content) the toast. UI thread only.</summary>
     public static void Display(bool ok, string title, string subtitle)
     {
         if (_instance is null || _instance.IsDisposed) _instance = new ReplayToast();
@@ -59,7 +42,7 @@ internal sealed class ReplayToast : Form
         ShowInTaskbar = false;
         TopMost = true;
         Opacity = 0;
-        BackColor = Color.FromArgb(0x14, 0x18, 0x22);   // matches the app's card tone
+        BackColor = Color.FromArgb(0x14, 0x18, 0x22);   // Odpowiada kolorowi kart aplikacji.
 
         _icon = new Label
         {
@@ -84,7 +67,6 @@ internal sealed class ReplayToast : Form
             AutoEllipsis = true,
             Bounds = new Rectangle(58, 40, 308, 22),
         };
-        // Slim accent bar on the left edge, like the app's status accents.
         _bar = new Panel { Bounds = new Rectangle(0, 0, 4, 76) };
         Controls.AddRange(new Control[] { _bar, _icon, _titleLb, _subLb });
         ClientSize = new Size(380, 76);
@@ -99,7 +81,7 @@ internal sealed class ReplayToast : Form
                 var fadeOut = _ageMs - FadeMs - LingerMs;
                 Opacity = Math.Max(0.0, 1.0 - (double)fadeOut / FadeMs);
                 if (Opacity <= 0)
-                    _anim.Stop();   // opacity-0 only — never Hide()/Close(), see class comment
+        _anim.Stop();   // Nie ukrywa ani nie zamyka okna; uzasadnienie znajduje się nad klasą.
             }
         };
     }
@@ -118,7 +100,7 @@ internal sealed class ReplayToast : Form
 
         _ageMs = 0;
         Opacity = 0;
-        if (!Visible) Show();   // one-time only (ShowWithoutActivation ⇒ SW_SHOWNOACTIVATE)
+        if (!Visible) Show();   // Wywoływane tylko raz, bez aktywowania okna.
         _anim.Stop();
         _anim.Start();
     }
@@ -140,6 +122,6 @@ internal sealed class ReplayToast : Form
         base.OnHandleCreated(e);
         int round = 2;
         try { DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); }
-        catch { /* Win10: square corners, fine */ }
+        catch { /* Windows 10 pozostaje przy prostych narożnikach. */ }
     }
 }

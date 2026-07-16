@@ -2,32 +2,14 @@ using System.Globalization;
 
 namespace KeepClip.Workers;
 
-/// <summary>
-/// Background batch transcription — a port of app.py's <c>_transcribe_worker</c> plus
-/// the start/cancel glue around it. A single run drains clips needing transcription
-/// (all of them with <c>force</c>, otherwise only <c>transcribed_at IS NULL</c>),
-/// updating <see cref="TranscribeState"/> so /status and the SSE stream can follow
-/// along. Never more than one run at a time.
-/// </summary>
 public static class TranscribeWorker
 {
     private static readonly object StartLock = new();
     private static Task? _task;
 
-    /// <summary>UTC timestamp matching Python's <c>datetime.now(utc).isoformat(timespec="seconds")</c>
-    /// (e.g. <c>2026-06-02T14:30:45+00:00</c>) — used for clips.transcribed_at and finished_at.</summary>
     public static string NowIso() =>
         DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
 
-    /// <summary>
-    /// Begin a run if none is active. Returns false if one is already running (the
-    /// caller maps that to <c>{started:false, reason:"already_running"}</c>). Flags are
-    /// flipped synchronously so /status reflects "running" the instant this returns.
-    /// The work list is computed here too (not inside the background task), so
-    /// <paramref name="total"/> reports the exact clip count the moment this returns —
-    /// letting the caller answer "no new clips" without waiting on / attaching to the
-    /// stream (which would otherwise flash an empty "Zakończono 0/0" bar).
-    /// </summary>
     public static bool Start(bool force, out int total)
     {
         total = 0;
@@ -45,8 +27,7 @@ public static class TranscribeWorker
                 TranscribeState.Current = null;
             }
 
-            // Resolve the clip list synchronously (all clips with force, otherwise only
-            // those not yet transcribed) so the count is known before we return.
+        // Lista jest wyliczana synchronicznie, aby odpowiedź od razu znała dokładną liczbę.
             List<Dictionary<string, object?>> clips;
             using (var con = Db.Open())
             {
@@ -87,10 +68,7 @@ public static class TranscribeWorker
                 string fp = clip["filepath"] as string ?? "";
                 string name = Path.GetFileName(fp);
 
-                // Cloud-offloaded clips have no local file — the Python worker would hit
-                // the !exists branch below and DELETE the row, silently dropping a clip the
-                // user deliberately moved to Drive. We diverge from Python here on purpose
-                // (user decision): skip storage='cloud' without deleting or transcribing.
+                // Klipy w chmurze nie mają lokalnego pliku, ale nie wolno usuwać ich z bazy.
                 string storage = clip["storage"] as string ?? "local";
                 if (storage == "cloud")
                 {
@@ -99,7 +77,6 @@ public static class TranscribeWorker
                     continue;
                 }
 
-                // File vanished since the scan: drop the row and move on (no orphan).
                 if (!File.Exists(fp))
                 {
                     TranscribeState.PushLog($"[!] Brak pliku, pomijam: {name}");
@@ -121,8 +98,6 @@ public static class TranscribeWorker
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
 
-                // Opportunistic housekeeping (mirrors the Python worker): fill duration
-                // and a thumbnail while we have the file open anyway.
                 double? dur = Media.ProbeDuration(fp);
                 using (var con = Db.Open())
                 {

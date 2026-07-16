@@ -1,20 +1,16 @@
 namespace KeepClip;
 
-/// <summary>JSON snapshot of the transcription run — mirrors <c>TranscribeState.snapshot()</c>.</summary>
 public sealed record TranscribeSnapshot(
     bool running,
     int total,
     int done,
-    object? current,          // { id, filename, game } or null
+    object? current,          // Obiekt z identyfikatorem, nazwą pliku i grą albo null.
     string? error,
     string? finished_at,
     List<string> log_tail);
 
-/// <summary>
-/// Shared transcription progress state, guarded by a single lock — a port of the
-/// Python <c>TranscribeState</c> + <c>_push_log</c>. The worker (Phase 3) drives
-/// these fields; <see cref="Snapshot"/> feeds /api/transcribe/status and the SSE stream.
-/// </summary>
+// Stan jest współdzielony przez proces roboczy i punkty końcowe, dlatego wszystkie odczyty oraz
+// zapisy przechodzą przez jedną blokadę.
 public static class TranscribeState
 {
     public static readonly object Lock = new();
@@ -23,7 +19,7 @@ public static class TranscribeState
     public static bool Cancel;
     public static int Total;
     public static int Done;
-    public static object? Current;        // { id, filename, game } or null
+    public static object? Current;        // Identyfikator, nazwa pliku i gra albo null.
     public static string? Error;
     public static string? FinishedAt;
 

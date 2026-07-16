@@ -1,6 +1,5 @@
 namespace KeepClip.Domain;
 
-/// <summary>Library-wide statistics for the dashboard cards.</summary>
 public record Stats(
     long Clips,
     long Transcribed,
@@ -14,5 +13,4 @@ public record Stats(
     IReadOnlyList<GameStat> Games
 );
 
-/// <summary>Per-game clip counts (total + transcribed).</summary>
 public record GameStat(string Game, long Clips, long Done);

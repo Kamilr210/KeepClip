@@ -92,7 +92,7 @@
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.6224 10.3954L18.5247 7.7448L20 6L18 4L16.2647 5.48295L13.5578 4.36974L13.0954 2H10.9046L10.4422 4.36974L7.73528 5.48295L6 4L4 6L5.47534 7.7448L4.37764 10.3954L2 10.9046V13.0954L4.37764 13.6046L5.47534 16.2552L4 18L6 20L7.73528 18.517L10.4422 19.6303L10.9046 22H13.0954L13.5578 19.6303L16.2647 18.517L18 20L20 18L18.5247 16.2552L19.6224 13.6046L22 13.0954V10.9046L19.6224 10.3954Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         <span class="nav-label" data-i18n="nav.settings">Ustawienia</span>
       </button>
-      <!-- DEV:START — log viewer; stripped from public CI releases (build.ps1 -PublicRelease) -->
+        <!-- DEV:START — panel logów usuwany z publicznego wydania przez build.ps1 -PublicRelease -->
       <button class="nav-tool" id="btn-logs" type="button" hidden>
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>
         <span class="nav-label">Logi aplikacji</span>
@@ -100,7 +100,6 @@
       <!-- DEV:END -->
     </nav>
 
-    <!-- Mini-karta stanu chmury (klik → zakładka Chmura) -->
     <button class="sidebar-cloud-card" id="sidebar-cloud-card" type="button">
       <div class="scc-head">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.2 3.9 3.9 0 0 1 17 18z"/></svg>
@@ -295,7 +294,6 @@
       </div>
 
       <div id="cloud-connect" class="cloudx-panel" hidden>
-        <!-- Stepper -->
         <div class="cloudx-steps" aria-hidden="true">
           <div class="cloudx-step current"><span class="cloudx-step-n">1</span><span data-i18n="cloudx.step1">Połącz konto</span></div>
           <div class="cloudx-step-line"></div>
@@ -304,7 +302,6 @@
           <div class="cloudx-step"><span class="cloudx-step-n">3</span><span data-i18n="cloudx.step3">Gotowe</span></div>
         </div>
 
-        <!-- Hero -->
         <div class="cloudx-hero">
           <div class="cloudx-hero-copy">
             <h3 data-i18n-html="cloudx.heroTitle">Połącz KeepClip<br>z Google Drive</h3>
@@ -346,7 +343,6 @@
           </div>
         </div>
 
-        <!-- Feature cards -->
         <div class="cloudx-features">
           <div class="cloudx-feature">
             <span class="cloudx-fic fic-files" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5h5"/></svg></span>
@@ -371,7 +367,6 @@
           </div>
         </div>
 
-        <!-- Permissions -->
         <div class="cloudx-perms">
           <div class="cloudx-perms-main">
             <span class="cloudx-fic fic-shield" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z"/><path d="m9 11.5 2 2 4-4"/></svg></span>
@@ -432,8 +427,7 @@
   <div id="config-box">
     <h3 id="config-title">…</h3>
     <p id="config-intro" class="subtle">
-      Aplikacja przeszuka ten folder i wszystkie pod-foldery w poszukiwaniu plików wideo.
-      Typowa lokalizacja klipów NVIDIA ShadowPlay to <code>C:\Users\&lt;ty&gt;\Videos\NVIDIA</code>.
+      Aby zacząć, wskaż folder z klipami. Aplikacja przeszuka go wraz z pod-folderami jeśli są
     </p>
     <label class="config-label" data-i18n="configLabel.folderPath">Ścieżka folderu</label>
     <div class="folder-input-wrap">
@@ -442,7 +436,7 @@
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
         </svg>
       </button>
-      <input id="config-path" type="text" placeholder="C:\Users\...\Videos\NVIDIA" autocomplete="off" spellcheck="false" />
+      <input id="config-path" type="text" placeholder="C:\Users\...\Videos" autocomplete="off" spellcheck="false" />
     </div>
     <div id="config-error" class="config-error" hidden></div>
     <div id="config-actions" class="confirm-actions">
@@ -452,7 +446,6 @@
   </div>
 </div>
 
-<!-- Settings overlay -->
 <div id="settings-overlay" hidden>
   <div id="settings-box">
     <header class="settings-head">
@@ -463,7 +456,6 @@
       <button id="settings-close" class="settings-close-btn" title="Zamknij" data-i18n-title="titlebar.close">✕</button>
     </header>
 
-    <!-- 🎨 Language & appearance -->
     <section class="settings-section">
       <div class="settings-section-title">
         <span class="settings-section-icon">🎨</span>
@@ -495,7 +487,6 @@
       </div>
     </section>
 
-    <!-- 📁 Clips folder -->
     <section class="settings-section">
       <div class="settings-section-title">
         <span class="settings-section-icon">📁</span>
@@ -513,7 +504,6 @@
       </div>
     </section>
 
-    <!-- ⏺ Instant Replay -->
     <section class="settings-section">
       <div class="settings-section-title">
         <span class="settings-section-icon">⏺</span>
@@ -527,7 +517,6 @@
   </div>
 </div>
 
-<!-- Instant replay (ShadowPlay-style rolling buffer) settings -->
 <div id="replay-overlay" hidden>
   <div id="replay-box">
     <h3 data-i18n="replay.title">Natychmiastowa powtórka</h3>
@@ -543,7 +532,6 @@
     <div id="replay-hotkey-warn" class="config-error" hidden></div>
     <div id="replay-error" class="config-error" hidden></div>
 
-    <!-- Główny przełącznik bufora powtórek -->
     <label class="replay-master-row">
       <span class="replay-master-label" data-i18n="replay.enabled">Włącz natychmiastowe powtórki</span>
       <input type="checkbox" id="replay-enabled" />
@@ -596,7 +584,6 @@
       </div>
     </div>
 
-    <!-- Audio devices -->
     <div class="replay-audio-section">
       <div class="replay-audio-title" data-i18n="replay.audioSection">Urządzenia audio</div>
       <div class="replay-grid">
@@ -624,7 +611,7 @@
   </div>
 </div>
 
-<!-- DEV:START — application log viewer; stripped from public CI releases -->
+      <!-- DEV:START — panel logów usuwany z publicznego wydania -->
 <div id="logs-overlay" hidden>
   <div id="logs-box">
     <header class="logs-head">
@@ -746,7 +733,6 @@
         <video id="player" preload="auto" playsinline></video>
       </div>
 
-      <!-- Боковая панель с кнопками действий (справа от видео) -->
       <aside class="player-side-actions">
         <button id="player-fav" class="side-action-btn fav-btn player-fav" data-fav-id="" data-i18n-title="ui.addToFav" title="Dodaj do ulubionych" aria-label="Dodaj do ulubionych">
           <span class="fav-star">☆</span>
@@ -834,24 +820,19 @@
 
 <script src="/static/i18n.js"></script>
 <script>
-/* ── i18n: инициализация ДО app.js ── */
 (function() {
   var SUPPORTED = ['en', 'uk', 'pl', 'ru', ];
 
-  // 1. Определяем язык: URL-параметр ?lang= → localStorage → язык браузера → pl
   var lang = null;
 
-  // URL-параметр (надёжно работает в pywebview после reload)
   try {
     var urlLang = new URLSearchParams(window.location.search).get('lang');
     if (urlLang && SUPPORTED.indexOf(urlLang) !== -1) {
       lang = urlLang;
-      // Синхронизируем localStorage с тем что пришло в URL
       try { localStorage.setItem('keepclip_lang', lang); } catch(e) {}
     }
   } catch(e) {}
 
-  // localStorage
   if (!lang) {
     try {
       var saved = localStorage.getItem('keepclip_lang');
@@ -859,21 +840,17 @@
     } catch(e) {}
   }
 
-  // Язык браузера
   if (!lang) {
     var bl = (navigator.language || '').slice(0, 2).toLowerCase();
     if (SUPPORTED.indexOf(bl) !== -1) lang = bl;
   }
 
-  // Fallback
   if (!lang) lang = 'pl';
 
   window.LANG = lang;
 
-  // Нормализуем: const i18n из файла → window.i18n
   if (!window.i18n && typeof i18n !== 'undefined') window.i18n = i18n;
 
-  // 2. Функция перевода
   window.t = function(key) {
     if (!window.i18n) return key;
     var keys = key.split('.');
@@ -882,41 +859,34 @@
     return (typeof node === 'string') ? node : key;
   };
 
-  // 3. Вспомогательные функции
   function qs(sel) { return document.querySelector(sel); }
   function setAttr(id, attr, key) { var e = document.getElementById(id); if (e) e.setAttribute(attr, t(key)); }
 
-  // 4. Все [data-i18n] элементы (textContent)
   Array.from(document.querySelectorAll('[data-i18n]')).forEach(function(el) {
     var val = t(el.getAttribute('data-i18n'));
     if (val) el.textContent = val;
   });
 
-  // 4b. [data-i18n-html] — innerHTML (строки с тегами <b>, <code>)
   Array.from(document.querySelectorAll('[data-i18n-html]')).forEach(function(el) {
     var val = t(el.getAttribute('data-i18n-html'));
     if (val) el.innerHTML = val;
   });
 
-  // 4c. [data-i18n-title] — атрибут title
   Array.from(document.querySelectorAll('[data-i18n-title]')).forEach(function(el) {
     var val = t(el.getAttribute('data-i18n-title'));
     if (val) el.title = val;
   });
 
-  // 4d. [data-i18n-aria] — атрибут aria-label
   Array.from(document.querySelectorAll('[data-i18n-aria]')).forEach(function(el) {
     var val = t(el.getAttribute('data-i18n-aria'));
     if (val) el.setAttribute('aria-label', val);
   });
 
-  // 4e. [data-i18n-placeholder] — атрибут placeholder
   Array.from(document.querySelectorAll('[data-i18n-placeholder]')).forEach(function(el) {
     var val = t(el.getAttribute('data-i18n-placeholder'));
     if (val) el.placeholder = val;
   });
 
-  // 5. Атрибуты title / placeholder / aria-label
   setAttr('btn-minimize',    'title', 'titlebar.minimize');
   setAttr('btn-maximize',    'title', 'titlebar.maximize');
   setAttr('btn-close',       'title', 'titlebar.close');
@@ -935,7 +905,6 @@
   var qEl = document.getElementById('q');
   if (qEl) qEl.placeholder = t('search.placeholder');
 
-  // 6. Select опции
   var gfOpt = qs('#game-filter option[value=""]');
   if (gfOpt) gfOpt.textContent = t('search.allGames');
 
@@ -944,15 +913,12 @@
     if (sortMap[o.value]) o.textContent = t(sortMap[o.value]);
   });
 
-  // 7. Переключатель языка
   var langSel = document.getElementById('lang-select');
   if (langSel) {
     langSel.value = lang;
     langSel.addEventListener('change', function() {
       var chosen = langSel.value;
-      // Сохраняем в localStorage
       try { localStorage.setItem('keepclip_lang', chosen); } catch(e) {}
-      // Перезагружаем с ?lang= чтобы гарантировать смену языка в pywebview
       var url = window.location.href.split('?')[0];
       window.location.href = url + '?lang=' + chosen;
     });
@@ -962,7 +928,6 @@
 <script src="/static/app.js"></script>
 
 <script>
-/* ── Орбы: переключатель анимации ── */
 (function() {
   var orbsOn = true;
   var orb1 = document.getElementById('orb1');
@@ -983,7 +948,6 @@
   });
 })();
 
-/* ── Анимации кнопок тайтлбара ── */
 (function() {
   var snapHint = document.getElementById('snap-hint');
 
@@ -1012,13 +976,11 @@
     }, 260);
   }
 
-  // Привязываем к кнопкам кастомного тайтлбара
   var btnClose = document.getElementById('btn-close');
   var btnMin   = document.getElementById('btn-minimize');
   var btnMax   = document.getElementById('btn-maximize');
 
   if (btnClose) btnClose.addEventListener('click', function(e) {
-    // Вызываем оригинальный pywebview-обработчик ПОСЛЕ анимации
     animClose();
   });
   if (btnMin) btnMin.addEventListener('click', animMinimize);

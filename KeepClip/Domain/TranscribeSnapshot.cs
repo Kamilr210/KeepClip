@@ -1,6 +1,5 @@
 namespace KeepClip.Domain;
 
-/// <summary>A point-in-time view of the transcription worker for the status/SSE endpoints.</summary>
 public record TranscribeSnapshot(
     bool Running,
     string? CurrentClip,

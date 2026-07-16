@@ -3,27 +3,16 @@ namespace KeepClip;
 #if KEEPCLIP_DEV
 using System.Text;
 
-/// <summary>
-/// Developer-only in-memory event log. <see cref="Install"/> tees
-/// <see cref="Console.Error"/> into a capped ring buffer at startup, so the in-app
-/// "Logi aplikacji" panel can show everything the app already writes to stderr
-/// (replay/audio status, the watchdog, transcription, errors) plus the explicit
-/// user-action lines added throughout the request handlers (<see cref="Add"/>).
-///
-/// <para><b>Stripped from public releases.</b> When KEEPCLIP_DEV is NOT defined
-/// (CI passes -p:PublicRelease=true) the whole capture machinery, the /api/logs
-/// endpoint and the UI are gone. <see cref="Add"/>/<see cref="Install"/> still
-/// exist but as no-ops (see the #else below) so call sites need no #if guards and
-/// compile to nothing.</para>
-/// </summary>
+// W trybie deweloperskim przechwytuje stderr do ograniczonego bufora kołowego.
+// W wydaniu publicznym implementację zastępują puste metody, dzięki czemu miejsca
+// wywołań nie wymagają dyrektyw #if.
 public static class DevLog
 {
-    private const int MaxLines = 4000;   // trims oldest first; generous for a session
+    private const int MaxLines = 4000;   // Po przekroczeniu limitu usuwa najstarsze wpisy.
     private static readonly object Gate = new();
     private static readonly LinkedList<(long Seq, string Line)> _lines = new();
     private static long _seq;
 
-    /// <summary>Tee Console.Error → ring buffer. Call once, early in startup.</summary>
     public static void Install()
     {
         Console.SetError(TextWriter.Synchronized(new TeeWriter(Console.Error)));
@@ -40,8 +29,6 @@ public static class DevLog
         }
     }
 
-    /// <summary>Lines with Seq &gt; <paramref name="since"/> plus the latest Seq, for
-    /// incremental polling. <c>since=0</c> returns everything currently retained.</summary>
     public static (long seq, string[] lines) GetSince(long since)
     {
         lock (Gate)
@@ -59,8 +46,7 @@ public static class DevLog
         Add("— log wyczyszczony —");
     }
 
-    /// <summary>Forwards to real stderr AND mirrors each completed line into the ring.
-    /// Line-buffered so partial Write() calls don't fragment entries.</summary>
+    // Buforowanie do końca wiersza zapobiega dzieleniu wpisów przez częściowe zapisy.
     private sealed class TeeWriter : TextWriter
     {
         private readonly TextWriter _inner;
@@ -89,7 +75,7 @@ public static class DevLog
         public override void WriteLine(string? value)
         {
             _inner.WriteLine(value);
-            if (_buf.Length > 0) FlushLine();              // emit any pending partial first
+            if (_buf.Length > 0) FlushLine();              // Najpierw zapisuje oczekujący fragment.
             if (!string.IsNullOrEmpty(value)) DevLog.Add(value);
         }
 
@@ -102,8 +88,6 @@ public static class DevLog
     }
 }
 #else
-/// <summary>Public-release stub: developer log is compiled out. These no-ops let call
-/// sites stay clean (no #if), and the JIT inlines them to nothing.</summary>
 public static class DevLog
 {
     public static void Install() { }

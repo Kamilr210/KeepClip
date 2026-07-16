@@ -4,17 +4,14 @@ if (!window.i18n && typeof i18n !== 'undefined') window.i18n = i18n;
 
 const LANG = (() => {
   const SUPPORTED = ['en', 'uk', 'pl', 'ru', ];
-  // 1. URL-параметр ?lang=
   try {
     const urlLang = new URLSearchParams(window.location.search).get('lang');
     if (urlLang && SUPPORTED.includes(urlLang)) return urlLang;
   } catch(e) {}
-  // 2. localStorage
   try {
     const saved = localStorage.getItem('keepclip_lang');
     if (saved && SUPPORTED.includes(saved)) return saved;
   } catch(e) {}
-  // 3. Язык браузера
   const bl = (navigator.language || '').slice(0, 2).toLowerCase();
   if (SUPPORTED.includes(bl)) return bl;
   return 'pl';
@@ -108,7 +105,7 @@ const els = {
   cutSourceName: $("#cut-source-name"),
   cutVideo: $("#cut-video"),
   cutRange: $("#cut-range"),
-  cutRangeFill: null,  // wired in init
+  cutRangeFill: null,
   cutRangeStart: null,
   cutRangeEnd: null,
   cutPlayhead: null,
@@ -160,7 +157,6 @@ const els = {
   settingsOverlay: $("#settings-overlay"),
   settingsClose: $("#settings-close"),
   settingsOpenReplay: $("#settings-open-replay"),
-  // --- НОВЫЕ ЭЛЕМЕНТЫ ПЛЕЕРА ---
   ctrlSnap: $("#ctrl-snap"),
   ctrlMute: $("#ctrl-mute"),
   ctrlStart: $("#ctrl-start"),
@@ -177,7 +173,6 @@ const els = {
   playerBox: $("#player-box"),
   ctrlSpeed: $("#ctrl-speed"),
   ctrlCc: $("#ctrl-cc"),
-  // -----------------------------
 };
 els.cutRangeFill = els.cutRange.querySelector(".range-fill");
 els.cutRangeStart = els.cutRange.querySelector(".range-thumb.start");
@@ -214,7 +209,7 @@ function pluralPl(n, one, few, many) {
 const clipsWord = (n) => pluralPl(n, "klip", "klipy", "klipów");
 
 function parseTime(s) {
-  // Accept "M:SS", "MM:SS", "H:MM:SS", or plain seconds. Returns seconds (float) or NaN.
+// Przyjmuje M:SS, H:MM:SS albo liczbę sekund.
   if (typeof s !== "string" && typeof s !== "number") return NaN;
   s = String(s).trim();
   if (!s) return NaN;
@@ -242,10 +237,9 @@ function fmtSize(bytes) {
   return bytes + " B";
 }
 
-// Cached so the two storage bars can re-render whenever either data source
-// (local /api/stats, or the Drive quota) refreshes independently.
+// Oba paski miejsca mogą odświeżać się niezależnie, dlatego przechowują ostatnie dane.
 let _lastStats = null;
-let _cloudQuota = null; // {usage, limit} when connected, else null
+let _cloudQuota = null;
 
 async function loadStats() {
   const r = await fetch("/api/stats").then((r) => r.json());
@@ -261,7 +255,6 @@ async function loadStats() {
   if (cur) els.gameFilter.value = cur;
 }
 
-// Update the cached Drive quota from a /api/cloud/status payload and repaint.
 function setCloudQuota(st) {
   _cloudQuota = st && st.connected && st.usage != null
     ? { usage: st.usage, limit: st.limit }
@@ -269,13 +262,11 @@ function setCloudQuota(st) {
   renderStorage();
 }
 
-// Re-pull the Drive quota after an op that changed cloud usage (upload/download).
 function refreshCloudQuota() {
   if (!_cloudConnected) return;
   fetch("/api/cloud/status").then((r) => r.json()).then(setCloudQuota).catch(() => {});
 }
 
-// Paint both storage bars (local disk + Drive)
 function renderStorage() {
   const s = _lastStats || {};
   
@@ -284,7 +275,6 @@ function renderStorage() {
     return Math.max(0, Math.min(100, (part / whole) * 100));
   };
 
-  // ---- ЛОКАЛЬНЫЙ ДИСК ----
   const lClips = s.local_bytes || 0;
   const dTotal = s.disk_total || 0;
   const dFree = s.disk_free != null ? s.disk_free : 0;
@@ -303,10 +293,9 @@ function renderStorage() {
   let lClipsPct = pct(lClips, dTotal);
   let lOtherPct = pct(lOther, dTotal);
 
-  // Даем фиолетовой полоске минимум 0.5% ширины (1-2 пикселя), чтобы ее всегда было видно
+    // Minimalna szerokość pozwala zobaczyć użycie mniejsze niż jeden piksel.
   if (lClips > 0 && lClipsPct < 0.2) lClipsPct = 0.5;
 
-  // ИЩЕМ ЭЛЕМЕНТЫ НАПРЯМУЮ, ЧТОБЫ ИЗБЕЖАТЬ ОШИБОК
   const localFillClips = document.getElementById("local-fill-clips");
   const localFillOther = document.getElementById("local-fill-other");
 
@@ -314,19 +303,16 @@ function renderStorage() {
   if (localFillOther) localFillOther.style.width = lOtherPct + "%";
 
 
-  // ---- ОБЛАКО (Google Drive) ----
   const cClips = s.cloud_bytes || 0;
   if (els.cloudClips) els.cloudClips.textContent = fmtSize(cClips);
   
   const q = _cloudQuota;
   
-  // Ищем элементы облака напрямую
   const cloudFillClips = document.getElementById("cloud-fill-clips");
   const cloudFillOther = document.getElementById("cloud-fill-other");
   const cloudBarContainer = cloudFillClips ? cloudFillClips.parentElement : null;
   
   if (q && q.limit) {
-    // ОБЛАКО ПОДКЛЮЧЕНО
     const cUsed = q.usage || 0;
     const cOther = Math.max(0, cUsed - cClips);
     const cFree = Math.max(0, q.limit - cUsed);
@@ -347,7 +333,6 @@ function renderStorage() {
     if (cloudBarContainer) cloudBarContainer.style.visibility = "visible";
     
   } else {
-    // ОБЛАКО ОТКЛЮЧЕНО ИЛИ БЕЗЛИМИТНО
     if (els.cloudTotal) els.cloudTotal.textContent = (q && _cloudConnected) ? "∞" : "—";
     
     if (els.cloudFree) {
@@ -374,16 +359,13 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) { return escapeHtml(s); }
 
-// Snippet from FTS comes with <mark> tags already. We let it through but sanitize the rest.
+// Wynik FTS zawiera znaczniki <mark>; pozostały kod HTML musi zostać usunięty.
 function safeSnippet(html) {
-  // Strip tags except <mark>/</mark>; the snippet is server-generated so we trust it
-  // but be defensive in case the segment text contained '<' etc.
   return String(html ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/&lt;mark&gt;/g, "<mark>").replace(/&lt;\/mark&gt;/g, "</mark>");
 }
 
 function syncSortOptions() {
-  // Show "Trafność" only when there's a search query
   const hasQuery = els.q.value.trim().length > 0;
   const relOpt = els.sort.querySelector('option[value="relevance"]');
   if (relOpt) {
@@ -412,15 +394,9 @@ async function doSearch() {
   renderResults(results);
 }
 
-// Re-renderuje aktualną zawartość #results z uwzględnieniem aktywnego układu.
-// Ustawiane przez renderRecent (mozaika wrzuca ulubione na początek), zerowane
-// przez renderResults (wyniki wyszukiwania zostają w kolejności trafień).
 let _repaint = null;
 
 function favoritesFirst(clips) {
-  // Stabilnie: najpierw ulubione (zachowując ich kolejność), potem reszta.
-  // Dzięki temu duże kafelki górnego rzędu w mozaice to ulubione — a gdy ich
-  // za mało, dopełniają je pozostałe (najnowsze) klipy.
   const fav = [];
   const rest = [];
   for (const c of clips) (c.favorite ? fav : rest).push(c);
@@ -473,7 +449,7 @@ function clipCard(c) {
 }
 
 function renderResults(rows) {
-  _repaint = null; // wyniki wyszukiwania zostają w kolejności trafień (bez przestawiania ulubionych)
+  _repaint = null;
   if (!rows.length) {
     els.results.innerHTML = `<div class="empty">${t("search.noResults")}</div>`;
     return;
@@ -514,7 +490,6 @@ function renderResults(rows) {
   });
 }
 
-// ---------- favorites ----------
 function favStar(clipId, isFav) {
   return `<button class="fav-btn ${isFav ? "is-fav" : ""}" data-fav-id="${clipId}" title="Ulubione" aria-label="Przełącz ulubione">${isFav ? "★" : "☆"}</button>`;
 }
@@ -525,9 +500,7 @@ async function toggleFavorite(clipId) {
     if (!res.ok) throw new Error();
     const data = await res.json();
     const isFav = !!data.favorite;
-    // Keep every star for this clip in sync (grid card, search card, player header).
-    // The player button keeps its star in a .fav-star span (a bare textContent write
-    // would wipe its "Ulubione" label); grid/search stars are the button's only text.
+  // Synchronizuje wszystkie wystąpienia klipu bez usuwania etykiety przycisku odtwarzacza.
     document.querySelectorAll(`.fav-btn[data-fav-id="${clipId}"]`).forEach((b) => {
       b.classList.toggle("is-fav", isFav);
       const star = b.querySelector(".fav-star");
@@ -554,9 +527,7 @@ async function loadFavorites() {
   );
 }
 
-// One delegated, capture-phase listener handles the star on every grid (clips,
-// search, favorites, folder detail) and the player header. Capturing on document
-// runs before the card's own click, so we suppress opening the player / selecting.
+// Faza przechwytywania obsługuje gwiazdkę przed kliknięciem otwierającym odtwarzacz.
 document.addEventListener("click", (e) => {
   const fb = e.target.closest(".fav-btn");
   if (!fb) return;
@@ -566,19 +537,14 @@ document.addEventListener("click", (e) => {
   if (id) toggleFavorite(id);
 }, true);
 
-// ---------- cloud (Google Drive) ----------
 let _cloudConnected = false;
-// Clip ids whose cloud op (upload OR download) is in flight, so a fast second
-// click (the chip lingers a beat before the DOM swap) can't fire a duplicate.
+// Blokuje powtórne kliknięcie, dopóki operacja chmurowa danego klipu trwa.
 const _busyClipIds = new Set();
 const CLOUD_UP_GLYPH =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.2 3.9 3.9 0 0 1 17 18z"/><path d="M12 12v5M9.5 14.5 12 12l2.5 2.5"/></svg>';
 const CLOUD_DOWN_GLYPH =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.2 3.9 3.9 0 0 1 17 18z"/><path d="M12 17v-5M9.5 14.5 12 17l2.5-2.5"/></svg>';
 
-// A chip in the corner of each thumb. Cloud clips get a "remove from cloud"
-// button (download back to disk); local clips get an upload button (only
-// actionable while an account is connected, via body.cloud-connected).
 function cloudChip(c) {
   if (c && c.storage === "cloud") {
     return `<button class="cloud-chip cloud-down" data-cloud-down-id="${c.id}" title="${t('cloud.downloadTooltip')}" aria-label="${t('cloud.downloadAria')}">${CLOUD_DOWN_GLYPH}</button>`;
@@ -586,8 +552,6 @@ function cloudChip(c) {
   return `<button class="cloud-chip cloud-up" data-cloud-up-id="${c.id}" title="${t('cloud.uploadTooltip')}" aria-label="${t('cloud.uploadTooltip')}">${CLOUD_UP_GLYPH}</button>`;
 }
 
-// Toggle the spinning "in progress" state on a clip's chip wherever it shows
-// (covers both the upload and the remove buttons for that clip id).
 function setClipChipsBusy(clipId, on) {
   document
     .querySelectorAll(`.cloud-up[data-cloud-up-id="${clipId}"], .cloud-down[data-cloud-down-id="${clipId}"]`)
@@ -599,12 +563,10 @@ function setCloudConnected(on) {
   document.body.classList.toggle("cloud-connected", _cloudConnected);
   if (els.cloudNavDot) els.cloudNavDot.hidden = !_cloudConnected;
   if (currentClipId != null && !els.overlay.hidden) {
-    // keep the player button honest if connection flips while a clip is open
     updatePlayerCloudBtn(els.pcloud.classList.contains("in-cloud") ? "cloud" : "local");
   }
 }
 
-// Swap a clip's UPLOAD chips to the "remove from cloud" button everywhere it shows.
 function markClipCloudInDom(clipId) {
   document.querySelectorAll(`.cloud-up[data-cloud-up-id="${clipId}"]`).forEach((btn) => {
     const b = document.createElement("button");
@@ -617,7 +579,6 @@ function markClipCloudInDom(clipId) {
   });
 }
 
-// Inverse: swap a clip's REMOVE chips back to the upload button (restored to disk).
 function markClipLocalInDom(clipId) {
   document.querySelectorAll(`.cloud-down[data-cloud-down-id="${clipId}"]`).forEach((btn) => {
     const b = document.createElement("button");
@@ -630,7 +591,6 @@ function markClipLocalInDom(clipId) {
   });
 }
 
-// Mark the player header button as busy with a progress label, or restore it.
 function setPlayerCloudBusy(srcBtn, label) {
   if (!srcBtn || srcBtn.id !== "player-cloud") return;
   srcBtn.disabled = true;
@@ -643,7 +603,7 @@ async function uploadClipToCloud(clipId, srcBtn) {
     toast(t("toast.cloudConnectFirst"), "error");
     return;
   }
-  if (_busyClipIds.has(clipId)) return;  // an op for this clip is already running
+  if (_busyClipIds.has(clipId)) return;
   _busyClipIds.add(clipId);
   setClipChipsBusy(clipId, true);
   setPlayerCloudBusy(srcBtn, "☁ Wysyłam…");
@@ -672,7 +632,7 @@ async function downloadClipFromCloud(clipId, srcBtn) {
     toast(t("toast.cloudConnectFirst"), "error");
     return;
   }
-  if (_busyClipIds.has(clipId)) return;  // an op for this clip is already running
+  if (_busyClipIds.has(clipId)) return;
   _busyClipIds.add(clipId);
   setClipChipsBusy(clipId, true);
   setPlayerCloudBusy(srcBtn, "☁ Pobieram…");
@@ -696,7 +656,6 @@ async function downloadClipFromCloud(clipId, srcBtn) {
   }
 }
 
-// Delegated capture listeners for the per-card chips (mirror the fav-btn one).
 document.addEventListener("click", (e) => {
   const up = e.target.closest(".cloud-up");
   if (up) {
@@ -721,22 +680,20 @@ function updatePlayerCloudBtn(storage) {
   b.classList.remove("busy");
   b.disabled = false;
 
-  // Иконка: Zdejmij z chmury (только SVG, без отступов)
   const svgDownload = `<svg style="width: 19px; height: 19px;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M12 22V16M12 22L14 20M12 22L10 20" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M22 13.3529C22 15.6958 20.5562 17.7055 18.5 18.5604M14.381 8.02721C14.9767 7.81911 15.6178 7.70588 16.2857 7.70588C16.9404 7.70588 17.5693 7.81468 18.1551 8.01498M7.11616 10.6089C6.8475 10.5567 6.56983 10.5294 6.28571 10.5294C3.91878 10.5294 2 12.4256 2 14.7647C2 16.6611 3.26124 18.2664 5 18.8061M7.11616 10.6089C6.88706 9.9978 6.7619 9.33687 6.7619 8.64706C6.7619 5.52827 9.32028 3 12.4762 3C15.4159 3 17.8371 5.19371 18.1551 8.01498M7.11616 10.6089C7.68059 10.7184 8.20528 10.9374 8.66667 11.2426M18.1551 8.01498C19.0446 8.31916 19.8345 8.83436 20.4633 9.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>`;
 
-  // Иконка: Wyślij do chmury (только SVG, без отступов)
   const svgUpload = `<svg style="width: 19px; height: 19px;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M12 16V22M12 16L14 18M12 16L10 18" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M22 13.3529C22 15.6958 20.5562 17.7055 18.5 18.5604M14.381 8.02721C14.9767 7.81911 15.6178 7.70588 16.2857 7.70588C16.9404 7.70588 17.5693 7.81468 18.1551 8.01498M7.11616 10.6089C6.8475 10.5567 6.56983 10.5294 6.28571 10.5294C3.91878 10.5294 2 12.4256 2 14.7647C2 16.6611 3.26124 18.2664 5 18.8061M7.11616 10.6089C6.88706 9.9978 6.7619 9.33687 6.7619 8.64706C6.7619 5.52827 9.32028 3 12.4762 3C15.4159 3 17.8371 5.19371 18.1551 8.01498M7.11616 10.6089C7.68059 10.7184 8.20528 10.9374 8.66667 11.2426M18.1551 8.01498C19.0446 8.31916 19.8345 8.83436 20.4633 9.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>`;
 
   if (storage === "cloud") {
     b.hidden = false;
     b.classList.add("in-cloud");
     b.innerHTML = svgDownload; 
-    b.title = "Pobierz klip z chmury z powrotem na dysk"; // Подсказка при наведении осталась
+      b.title = "Pobierz klip z chmury z powrotem na dysk";
   } else if (_cloudConnected) {
     b.hidden = false;
     b.classList.remove("in-cloud");
     b.innerHTML = svgUpload;
-    b.title = "Wyślij klip do chmury (Google Drive)"; // Подсказка при наведении осталась
+      b.title = "Wyślij klip do chmury (Google Drive)";
   } else {
     b.hidden = true;
   }
@@ -791,7 +748,6 @@ if (els.btnUploadFolder) {
   });
 }
 
-// ---- Cloud view: connect / status / disconnect ----
 let _cloudPollTimer = null;
 
 function _showCloudPanel(which) {
@@ -811,7 +767,7 @@ async function loadCloud() {
     return;
   }
   setCloudConnected(!!st.connected);
-  setCloudQuota(st);  // keep the sidebar Drive bar in sync
+    setCloudQuota(st);
   if (!st.configured) { _showCloudPanel("setup"); return; }
   if (!st.connected) { _showCloudPanel("connect"); return; }
 
@@ -861,7 +817,7 @@ async function startCloudConnect() {
         loadCloud();
         toast(t("toast.cloudConnected"));
       } else if (tries > 150) {
-        _stopCloudPoll(); // ~5 min cap
+  _stopCloudPoll();
       }
     }, 2000);
   } catch (e) {
@@ -892,25 +848,23 @@ if (els.cloudDisconnectBtn) {
   });
 }
 
-// Returning from the Google consent tab should refresh the Cloud view at once.
+// Po powrocie z ekranu zgody Google odświeża stan połączenia.
 window.addEventListener("focus", () => { if (!els.viewCloud.hidden) loadCloud(); });
 
-// ---------- clip layout: równa siatka vs mozaika ----------
 let _layoutMode = "grid";
 function applyLayout(mode) {
   _layoutMode = mode === "mosaic" ? "mosaic" : "grid";
   els.results.classList.toggle("layout-mosaic", _layoutMode === "mosaic");
   els.layoutBtns.forEach((b) => b.classList.toggle("active", b.dataset.layout === _layoutMode));
   try { localStorage.setItem("keepclip_layout", _layoutMode); } catch {}
-  if (_repaint) _repaint(); // przełączenie układu przestawia ulubione do góry (mozaika)
+  if (_repaint) _repaint();
 }
 els.layoutBtns.forEach((b) => b.addEventListener("click", () => applyLayout(b.dataset.layout)));
 applyLayout((() => { try { return localStorage.getItem("keepclip_layout"); } catch { return null; } })() || "mosaic");
 
-// ---------- hover preview (YouTube-style) ----------
 const HOVER_DELAY_MS = 250;
 let _hoverTimer = null;
-let _activePreview = null; // { card, video }
+let _activePreview = null;
 
 function _stopActivePreview() {
   if (!_activePreview) return;
@@ -931,10 +885,7 @@ function _startPreview(card) {
   if (!cid) return;
   const size = card.dataset.size || "0";
   const duration = parseFloat(card.dataset.duration || "0");
-  // If this card came from a search result, jump to the matched moment.
-  // Otherwise start at 5s (skips loading screens / intro UI). For very short
-  // clips, start at the midpoint; if we don't know the duration yet, still
-  // start at 5s — browser will just clamp if the file is shorter.
+  // Wynik wyszukiwania startuje w trafieniu, a zwykły podgląd omija początek klipu.
   const matchStart = parseFloat(card.dataset.start || "NaN");
   let startAt;
   if (isFinite(matchStart) && matchStart > 0) {
@@ -953,9 +904,7 @@ function _startPreview(card) {
   video.loop = true;
   video.playsInline = true;
   video.preload = "auto";
-  // Media fragments URI (#t=N) is the most reliable way to start a streamed
-  // <video> at an offset — way more dependable than setting currentTime, which
-  // gets clobbered by Chrome's autoplay/streaming machinery.
+// Fragment adresu jest stabilniejszy niż właściwość currentTime przy strumieniowaniu w Chrome.
   const fragment = startAt > 0 ? `#t=${startAt.toFixed(2)}` : "";
   video.src = `/video/${cid}?v=${size}${fragment}`;
   video.addEventListener("loadedmetadata", () => {
@@ -966,10 +915,8 @@ function _startPreview(card) {
   _activePreview = { card, video };
 }
 
-// Single delegated listener on the results grid — works for both initial render
-// and re-renders after search/sort, no need to rebind on each.
 els.results.addEventListener("mouseover", (e) => {
-  if (_selectionMode) return;  // no previews while picking clips for a folder
+  if (_selectionMode) return;
   const card = e.target.closest(".result");
   if (!card) return;
   if (_activePreview && _activePreview.card === card) return;
@@ -979,21 +926,19 @@ els.results.addEventListener("mouseover", (e) => {
 els.results.addEventListener("mouseout", (e) => {
   const card = e.target.closest(".result");
   if (!card) return;
-  // mouseout fires when moving between children — only act if we actually left the card
+// Zdarzenie mouseout występuje też między elementami karty, więc reaguje dopiero po jej opuszczeniu.
   const goingTo = e.relatedTarget;
   if (goingTo && card.contains(goingTo)) return;
   clearTimeout(_hoverTimer);
   if (_activePreview && _activePreview.card === card) _stopActivePreview();
 });
-// Scroll = stop preview (avoids playing video flying off-screen)
 els.results.addEventListener("scroll", _stopActivePreview, { passive: true });
 window.addEventListener("scroll", _stopActivePreview, { passive: true });
 
-// ---------- player ----------
 let currentSegments = [];
 let currentClipId = null;
 let segmentTickerInterval = null;
-let editingSegId = null;  // id of the segment currently being hand-edited, or null
+let editingSegId = null;
 
 async function openPlayer(clipId, startAt) {
   currentClipId = clipId;
@@ -1003,16 +948,12 @@ async function openPlayer(clipId, startAt) {
   const isFav = !!data.clip.favorite;
   els.pfav.dataset.favId = String(clipId);
   els.pfav.classList.toggle("is-fav", isFav);
-  // Only the star span — textContent on the button would wipe the "Ulubione" label.
   const pfavStar = els.pfav.querySelector(".fav-star");
   if (pfavStar) pfavStar.textContent = isFav ? "★" : "☆";
   updatePlayerCloudBtn(data.clip.storage);
-  // Show the clip's thumbnail as a poster so the modal paints the first frame
-  // immediately instead of flashing black while the stream starts buffering.
+  // Miniatura zapobiega czarnemu ekranowi podczas rozpoczęcia buforowania.
   els.video.poster = `/thumb/${clipId}?v=${data.clip.size_bytes}`;
-  // Cache-bust the video URL by size_bytes — when a clip is fixed its content
-  // (and size) changes, so this URL changes and the browser refetches instead
-  // of serving the old bytes from cache.
+// Rozmiar w adresie unieważnia pamięć podręczną po naprawieniu zawartości klipu.
   els.video.src = `/video/${clipId}?v=${data.clip.size_bytes}`;
   els.video.currentTime = 0;
   currentSegments = data.segments;
@@ -1033,7 +974,7 @@ async function openPlayer(clipId, startAt) {
 
   els.segments.querySelectorAll(".seg").forEach((el) => {
     el.addEventListener("click", (e) => {
-      // Don't seek when interacting with the inline editor or its trigger.
+    // Obsługa edytora nie może przewijać odtwarzacza.
       if (e.target.closest(".seg-edit, .seg-edit-box") || el.classList.contains("editing")) return;
       const t = parseFloat(el.dataset.start);
       els.video.currentTime = t;
@@ -1063,11 +1004,9 @@ async function openPlayer(clipId, startAt) {
   startSegmentTicker();
 }
 
-// ---------- napisy na wideo (WebVTT budowane z transkrypcji) ----------
-// Segmenty klipu są zamieniane w ścieżkę <track> (blob WebVTT), a napisy renderuje
-// natywnie przeglądarka — idealna synchronizacja bez własnego timera, działa w
-// fullscreen i przy zmianie prędkości. Przełącznik pamiętany w localStorage.
-let _subsUrl = null; // blob URL bieżącej ścieżki (zwalniany przy podmianie/zamknięciu)
+// Segmenty klipu tworzą ścieżkę napisów WebVTT, którą przeglądarka synchronizuje
+// bez własnego zegara również w trybie pełnoekranowym i przy zmianie prędkości.
+let _subsUrl = null;
 
 const subsEnabled = () => localStorage.getItem("kc_subtitles") === "1";
 
@@ -1083,8 +1022,7 @@ function clearSubtitles() {
   if (_subsUrl) { URL.revokeObjectURL(_subsUrl); _subsUrl = null; }
 }
 
-// (Od)buduj ścieżkę napisów z currentSegments — wołane przy otwarciu klipu i po
-// edycji linijki transkrypcji, żeby poprawka była widoczna na wideo od razu.
+// Odbudowuje ścieżkę także po ręcznej edycji transkrypcji.
 function rebuildSubtitles() {
   if (!els.ctrlCc) return;
   clearSubtitles();
@@ -1094,11 +1032,11 @@ function rebuildSubtitles() {
   els.ctrlCc.classList.toggle("cc-on", has && subsEnabled());
   if (!has) return;
 
-  // VTT traktuje <, & jako początek znaczników — escapujemy tekst użytkownika.
+    // VTT interpretuje znaki < i &, więc tekst użytkownika wymaga zakodowania.
   const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   let vtt = "WEBVTT\n\n";
   for (const s of currentSegments) {
-    // Cue nie może mieć zerowej/ujemnej długości — wymuś minimum 0.3 s.
+    // Każdy napis musi mieć dodatnią długość czasu.
     const end = Math.max(s.end_s, s.start_s + 0.3);
     vtt += `${vttTime(s.start_s)} --> ${vttTime(end)}\n${esc(s.text)}\n\n`;
   }
@@ -1127,7 +1065,7 @@ function startSegmentTicker() {
       const isActive = parseInt(el.dataset.id, 10) === activeId;
       if (isActive && !el.classList.contains("active")) {
         el.classList.add("active");
-        // Don't yank the view while the user is hand-editing a line.
+  // Nie przewija listy podczas ręcznej edycji.
         if (editingSegId === null) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
       } else if (!isActive) {
         el.classList.remove("active");
@@ -1142,8 +1080,6 @@ function stopSegmentTicker() {
   }
 }
 
-// Inline-edit a single transcript line. Whisper isn't always accurate, so this
-// lets the user correct the wording by hand and persist it (search updates too).
 function enterSegEdit(segEl) {
   if (segEl.classList.contains("editing")) return;
   const id = parseInt(segEl.dataset.id, 10);
@@ -1151,7 +1087,7 @@ function enterSegEdit(segEl) {
   if (!seg) return;
 
   editingSegId = id;
-  els.video.pause();  // keep the active-line auto-scroll from fighting the cursor
+  els.video.pause();
   segEl.classList.add("editing");
 
   const textDiv = segEl.querySelector(".seg-text");
@@ -1168,7 +1104,6 @@ function enterSegEdit(segEl) {
       <button class="btn ghost seg-edit-cancel">${t('nav.cancel')}</button>
       <button class="btn primary seg-edit-save">${t('player.editSave')}</button>
     </div>`;
-  // Clicks inside the editor must never seek the video.
   box.addEventListener("click", (e) => e.stopPropagation());
   segEl.appendChild(box);
 
@@ -1202,7 +1137,7 @@ function enterSegEdit(segEl) {
       if (!r.ok) throw new Error(d.detail || r.statusText);
       seg.text = d.text;
       textDiv.innerHTML = escapeHtml(d.text);
-      rebuildSubtitles();   // poprawiona linijka od razu trafia do napisów na wideo
+        rebuildSubtitles();
       finish();
       toast(t("toast.editSaved"));
     } catch (e) {
@@ -1215,14 +1150,13 @@ function enterSegEdit(segEl) {
   box.querySelector(".seg-edit-cancel").addEventListener("click", finish);
   box.querySelector(".seg-edit-save").addEventListener("click", save);
   ta.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(); }  // cancel edit, don't close player
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); finish(); }
     else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); save(); }
   });
 }
 
 function closePlayer() {
-  // Zamknięcie ✕ w trybie pełnoekranowym musi też opuścić fullscreen,
-  // inaczej zostaje czarny pełny ekran bez niczego.
+// Zamknięcie odtwarzacza musi najpierw opuścić tryb pełnoekranowy.
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   els.overlay.hidden = true;
   els.video.pause();
@@ -1240,15 +1174,13 @@ els.overlay.addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-    // W fullscreen Esc obsługuje natywnie przeglądarka (wychodzi z pełnego
-    // ekranu) — nie zamykaj wtedy całego odtwarzacza w tym samym naciśnięciu.
+// W trybie pełnoekranowym pierwsze Esc obsługuje natywnie przeglądarka.
     if (document.fullscreenElement) return;
     if (!els.confirmOverlay.hidden) hideConfirm();
     else if (!els.overlay.hidden && editingSegId === null) closePlayer();
   }
 });
 
-// ---------- confirm modal + toast ----------
 let confirmResolver = null;
 const _confirmWarnEl = document.querySelector("#confirm-box .confirm-warn");
 const _defaultWarn = _confirmWarnEl ? _confirmWarnEl.innerHTML : "";
@@ -1295,30 +1227,26 @@ function toast(msg, kind = "ok") {
   toastTimer = setTimeout(() => { els.toast.hidden = true; }, 3500);
 }
 
-// ---------- player: cut fragment ----------
-let _cutTargetMb = null;    // null = no compression (default)
+let _cutTargetMb = null;
 let _cutStartS = 0;
 let _cutEndS = 0;
-let _cutMaxS = 0;            // = video duration
+let _cutMaxS = 0;
 let _cutPlayheadTimer = null;
 
 function openCutModal() {
   if (!currentClipId) return;
   els.cutSourceName.textContent = els.pfile.textContent;
 
-  // Load the same video into the modal preview (cache-bust by size, same as main player)
   const mainSrc = els.video.src;
   els.cutVideo.src = mainSrc;
   els.cutVideo.currentTime = 0;
 
-  // Default range: ±5s around current player position
   const ct = els.video.currentTime || 0;
   const dur = els.video.duration || ct + 10;
   _cutMaxS = dur;
   _cutStartS = Math.max(0, ct - 5);
   _cutEndS = Math.min(dur, _cutStartS + 10);
 
-  // Default preset = bez kompresji
   _cutTargetMb = null;
   els.cutPresets.forEach((b) => b.classList.toggle("active", b.dataset.mb === ""));
   els.cutCustomMb.value = "";
@@ -1326,7 +1254,6 @@ function openCutModal() {
 
   els.cutOverlay.hidden = false;
 
-  // Wait for cut-video metadata to know real duration, then position thumbs
   const onReady = () => {
     _cutMaxS = els.cutVideo.duration || _cutMaxS;
     _cutStartS = Math.min(_cutStartS, _cutMaxS - 0.1);
@@ -1339,7 +1266,6 @@ function openCutModal() {
   if (els.cutVideo.readyState >= 1) onReady();
   else els.cutVideo.addEventListener("loadedmetadata", onReady, { once: true });
 
-  // initial paint with the guess values (will adjust on metadata if needed)
   _updateCutSliderUI();
   updateCutEstimate();
 }
@@ -1383,22 +1309,19 @@ function _updateCutSliderUI() {
   els.cutDurationLabel.textContent = `${(_cutEndS - _cutStartS).toFixed(2)} s`;
 }
 
-// --- range slider drag ---
-let _cutDragging = null;  // "start" | "end" | null
+let _cutDragging = null;
 els.cutRangeStart.addEventListener("pointerdown", (e) => _beginCutDrag(e, "start"));
 els.cutRangeEnd.addEventListener("pointerdown", (e) => _beginCutDrag(e, "end"));
 els.cutRange.addEventListener("pointermove", _onCutDragMove);
 els.cutRange.addEventListener("pointerup", _endCutDrag);
 els.cutRange.addEventListener("pointercancel", _endCutDrag);
 els.cutRange.addEventListener("pointerleave", _endCutDrag);
-// Click on track = move nearest thumb
 els.cutRange.addEventListener("click", (e) => {
   if (e.target !== els.cutRange && !e.target.classList.contains("range-track") && !e.target.classList.contains("range-fill")) return;
   if (_cutMaxS <= 0) return;
   const rect = els.cutRange.getBoundingClientRect();
   const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
   const t = pct * _cutMaxS;
-  // pick whichever thumb is closer
   const distToStart = Math.abs(t - _cutStartS);
   const distToEnd = Math.abs(t - _cutEndS);
   if (distToStart < distToEnd) {
@@ -1454,7 +1377,7 @@ function updateCutEstimate() {
   }
 
   if (_cutTargetMb == null) {
-    // No compression — estimate from source bitrate (very rough)
+    // Bez kompresji szacuje rozmiar na podstawie przepływności pliku źródłowego.
     const src = document.querySelector(`.result[data-clip-id="${currentClipId}"]`);
     const srcSize = parseFloat(src?.dataset?.size || "0");
     const srcDur = parseFloat(src?.dataset?.duration || "0");
@@ -1468,7 +1391,7 @@ function updateCutEstimate() {
     return;
   }
 
-  // With compression target — compute the bitrate the backend will use
+    // Dla kompresji odtwarza obliczenie docelowej przepływności używane przez serwer.
   const targetBytes = _cutTargetMb * 1024 * 1024;
   const audioKbps = 128;
   const audioBytes = (audioKbps * 1000 / 8) * duration;
@@ -1535,8 +1458,6 @@ els.cutGo.addEventListener("click", async () => {
     if (!r.ok) throw new Error(data.detail || r.statusText);
     closeCutModal();
     showCutSuccess(data);
-    // The cut now lives inside the library, so refresh the grid + game filter
-    // to surface it (and the "Wycinki" category) without a manual scan.
     if (data.in_library) {
       await loadStats();
       await doSearch();
@@ -1551,7 +1472,6 @@ els.cutGo.addEventListener("click", async () => {
 });
 
 function showCutSuccess(data) {
-  // Re-use the confirm modal as a "done" dialog with custom buttons
   const ok = showConfirm({
     title: t("cutSuccess.title"),
     body: `${data.output_name} — ${data.size_mb} MB`,
@@ -1559,7 +1479,6 @@ function showCutSuccess(data) {
     yesLabel: t("cutSuccess.showInFolder"),
     yesClass: "primary",
   });
-  // Override the cancel button text to "Zamknij" for this dialog
   els.confirmNo.textContent = t("confirm.closeBtn");
   ok.then(async (clicked) => {
     els.confirmNo.textContent = t("confirm.cancelBtn");
@@ -1582,7 +1501,6 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !els.cutOverlay.hidden) closeCutModal();
 });
 
-// ---------- player: add/remove from folders ----------
 async function openFoldersDropdown() {
   if (!currentClipId) return;
   const [allFolders, membership] = await Promise.all([
@@ -1609,7 +1527,6 @@ async function openFoldersDropdown() {
   els.pfoldersDropdown.innerHTML = html;
   els.pfoldersDropdown.hidden = false;
 
-  // wire checkboxes
   els.pfoldersDropdown.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
     cb.addEventListener("change", async () => {
       const fid = parseInt(cb.dataset.folderId, 10);
@@ -1626,7 +1543,6 @@ async function openFoldersDropdown() {
     });
   });
 
-  // wire new-folder add
   const newInput = document.getElementById("player-new-folder-name");
   const newBtn = document.getElementById("player-new-folder-btn");
   const createInline = async () => {
@@ -1641,7 +1557,6 @@ async function openFoldersDropdown() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.detail || r.statusText);
-      // add the clip to the new folder automatically
       await fetch(`/api/folders/${data.id}/clips/${currentClipId}`, { method: "POST" });
       toast(t("toast.folderCreated").replace("{name}", data.name));
       await openFoldersDropdown();
@@ -1677,7 +1592,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// ---------- re-transcribe clip ----------
 els.pretrans.addEventListener("click", async () => {
   if (!currentClipId) return;
   els.pretrans.disabled = true;
@@ -1692,7 +1606,7 @@ els.pretrans.addEventListener("click", async () => {
     closePlayer();
     setTimeout(() => openPlayer(cid, 0), 200);
     await loadStats();
-    doSearch(); // odśwież siatkę pod odtwarzaczem, żeby klip stracił etykietę „nie transkrybowane"
+    doSearch();
   } catch (e) {
     toast(t("toast.transcribeError").replace("{error}", e.message), "error");
   } finally {
@@ -1701,7 +1615,6 @@ els.pretrans.addEventListener("click", async () => {
   }
 });
 
-// ---------- fix clip ----------
 els.pfix.addEventListener("click", async () => {
   if (!currentClipId) return;
   const filename = els.pfile.textContent;
@@ -1723,7 +1636,6 @@ els.pfix.addEventListener("click", async () => {
       ? t("toast.fixRepaired").replace("{seconds}", data.trimmed_seconds.toFixed(0))
       : t("toast.fixRemuxed");
     toast(msg);
-    // reload video with cache-busting param so the browser refetches
     const cid = currentClipId;
     closePlayer();
     setTimeout(() => openPlayer(cid, 0), 200);
@@ -1736,7 +1648,6 @@ els.pfix.addEventListener("click", async () => {
   }
 });
 
-// ---------- delete clip ----------
 els.pdelete.addEventListener("click", async () => {
   if (!currentClipId) return;
   const filename = els.pfile.textContent;
@@ -1747,10 +1658,7 @@ els.pdelete.addEventListener("click", async () => {
   if (!ok) return;
   const clipId = currentClipId;
   els.pdelete.disabled = true;
-  // Release the video file BEFORE deleting. While the player streams a clip the
-  // OS keeps its handle open, so Windows refuses to move it to the Recycle Bin
-  // (WinError 32). closePlayer() drops the <video> src; the short wait lets the
-  // server-side stream actually close before we ask to trash the file.
+  // Najpierw zwalnia strumień wideo, aby Windows mógł przenieść plik do Kosza.
   closePlayer();
   await new Promise((resolve) => setTimeout(resolve, 200));
   try {
@@ -1776,7 +1684,6 @@ els.pdelete.addEventListener("click", async () => {
   }
 });
 
-// ---------- search / filter ----------
 let searchTimer = null;
 els.q.addEventListener("input", () => {
   clearTimeout(searchTimer);
@@ -1785,7 +1692,6 @@ els.q.addEventListener("input", () => {
 els.gameFilter.addEventListener("change", doSearch);
 els.sort.addEventListener("change", doSearch);
 
-// ---------- actions ----------
 async function runScan({ showToastAlways = false } = {}) {
   const r = await fetch("/api/scan", { method: "POST" }).then((r) => r.json());
   const parts = [];
@@ -1829,7 +1735,6 @@ async function startTranscribe(force = false) {
     toast(t("toast.transcribeAlreadyRunning"), "error");
     return;
   }
-  // Nothing to do: skip the progress bar entirely and just notify at the bottom.
   if (r.total === 0) {
     toast(force ? t("toast.transcribeNoAll") : t("toast.transcribeNoNew"));
     return;
@@ -1852,7 +1757,6 @@ async function retranscribeAll() {
   await startTranscribe(true);
 }
 
-// ---------- sidebar tool actions ----------
 document.querySelectorAll(".nav-tool[data-action]").forEach((btn) => {
   btn.addEventListener("click", () => {
     const action = btn.dataset.action;
@@ -1862,11 +1766,9 @@ document.querySelectorAll(".nav-tool[data-action]").forEach((btn) => {
   });
 });
 
-// ---------- settings button in nav ----------
 const btnSettings = document.getElementById("btn-settings");
 if (btnSettings) btnSettings.addEventListener("click", openSettingsOverlay);
 
-// ---------- settings overlay ----------
 function openSettingsOverlay() {
   if (els.settingsOverlay) els.settingsOverlay.hidden = false;
 }
@@ -1880,7 +1782,6 @@ if (els.settingsOverlay) {
   });
 }
 
-// "Change folder" button inside settings overlay
 document.querySelectorAll(".settings-folder-btn[data-action='change-folder']").forEach((btn) => {
   btn.addEventListener("click", () => {
     closeSettingsOverlay();
@@ -1888,7 +1789,6 @@ document.querySelectorAll(".settings-folder-btn[data-action='change-folder']").f
   });
 });
 
-// "Open replay settings" button inside settings overlay
 if (els.settingsOpenReplay) {
   els.settingsOpenReplay.addEventListener("click", () => {
     closeSettingsOverlay();
@@ -1896,11 +1796,9 @@ if (els.settingsOpenReplay) {
   });
 }
 
-// ---------- audio device enumeration ----------
 async function populateAudioDevices() {
   if (!els.replayAudioOutput || !els.replayAudioInput) return;
   try {
-    // Try backend API first (Python can enumerate WASAPI devices)
     const r = await fetch("/api/replay/audio-devices");
     if (r.ok) {
       const data = await r.json();
@@ -1908,8 +1806,8 @@ async function populateAudioDevices() {
       fillDeviceSelect(els.replayAudioInput,  data.inputs  || [], t("replay.audioDefault"));
       return;
     }
-  } catch { /* fall through to Web Audio */ }
-  // Fallback: browser MediaDevices (may be limited in pywebview without permissions)
+    } catch { /* Przechodzi do zapasowej obsługi Web Audio. */ }
+  // Awaryjnie używa interfejsu MediaDevices, który w WebView2 może mieć ograniczone uprawnienia.
   try {
     await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -1917,13 +1815,12 @@ async function populateAudioDevices() {
     const inputs  = devices.filter(d => d.kind === "audioinput");
     fillDeviceSelect(els.replayAudioOutput, outputs.map(d => ({ id: d.deviceId, name: d.label || d.deviceId })), t("replay.audioDefault"));
     fillDeviceSelect(els.replayAudioInput,  inputs.map(d => ({ id: d.deviceId, name: d.label  || d.deviceId })), t("replay.audioDefault"));
-  } catch { /* no audio permissions */ }
+  } catch { /* Brak uprawnień do urządzeń dźwiękowych. */ }
 }
 
 function fillDeviceSelect(sel, devices, defaultLabel) {
   if (!sel) return;
   const current = sel.value;
-  // Clear all except first (default) option
   while (sel.options.length > 1) sel.remove(1);
   sel.options[0].textContent = defaultLabel;
   devices.forEach(d => {
@@ -1933,10 +1830,9 @@ function fillDeviceSelect(sel, devices, defaultLabel) {
     opt.textContent = d.name || d.id;
     sel.appendChild(opt);
   });
-  if (current) sel.value = current; // restore selection if possible
+  if (current) sel.value = current;
 }
 
-// ---------- config modal (first-launch + change folder) ----------
 async function openConfigModal({ mode = "change" } = {}) {
   const cfg = await fetch("/api/config").then((r) => r.json());
   if (mode === "first") {
@@ -1980,8 +1876,6 @@ if (els.configBrowse) {
       const selectedPath = await window.pywebview.api.pick_folder();
       if (selectedPath) {
         els.configPath.value = selectedPath;
-        // Чтобы сделать UX еще круче: можно автоматически переводить фокус 
-        // на кнопку "Записать", когда папка успешно выбрана:
         els.configSave.focus();
       }
     } else {
@@ -2024,29 +1918,23 @@ els.configSave.addEventListener("click", async () => {
     els.configSave.textContent = els.configCancel.hidden ? t("config.saveFirst") : t("config.saveChange");
   }
 });
-// ---------- instant replay (rolling buffer + hotkey) ----------
-// Friendly labels for the encoder ffmpeg actually initialized with.
 const REPLAY_ENC_LABELS = {
   hevc_nvenc: "NVENC HEVC (GPU NVIDIA)",
   hevc_amf: "AMF HEVC (GPU AMD)",
   hevc_qsv: "QuickSync HEVC (GPU Intel)",
-  // H.264 names kept for older buffers / the CPU fallback.
   h264_nvenc: "NVENC (GPU NVIDIA)",
   h264_amf: "AMF (GPU AMD)",
   h264_qsv: "QuickSync (GPU Intel)",
   libx264: "x264 (CPU)",
 };
 
-let _replayPoll = null; // fast poll while the modal is open
+let _replayPoll = null;
 
 function renderReplayStatus(st) {
-  // sidebar dot: green = buffer actively recording
   if (els.replayNavDot) els.replayNavDot.hidden = !(st.enabled && st.running);
   if (!els.replayBox || els.replayOverlay.hidden) return;
 
-  // The tuning grid stays editable the whole time the modal is open — the 3 s status
-  // poll must NOT grey it based on server `enabled`, or it clobbers the user's just-
-  // toggled-but-not-yet-saved checkbox (settings flashed available, then greyed out).
+  // Odpytywanie statusu nie może nadpisywać niezapisanych zmian w otwartym formularzu.
   els.replaySaveNow.disabled = !st.running || st.saving;
 
   els.replayDot.className = "replay-dot" + (st.error ? " err" : st.running ? " on" : "");
@@ -2061,7 +1949,7 @@ function renderReplayStatus(st) {
 
   els.replayError.hidden = !st.error;
   els.replayError.textContent = st.error || "";
-  // enabled + running but Windows refused the combo → another app owns it
+  // Włączony bufor bez aktywnego skrótu oznacza zwykle konflikt z inną aplikacją.
   const hotkeyDead = st.enabled && st.running && !st.hotkey_active;
   els.replayHotkeyWarn.hidden = !hotkeyDead;
   els.replayHotkeyWarn.textContent = hotkeyDead ? t("replay.stHotkeyDead") : "";
@@ -2078,22 +1966,21 @@ async function refreshReplayStatus() {
 }
 
 async function openReplayModal() {
-  const st = await refreshReplayStatus();   // modal still hidden → only updates the sidebar dot
+  const st = await refreshReplayStatus();
   if (st) {
     els.replayEnabled.checked = !!st.enabled;
     if (els.replayBackground) els.replayBackground.checked = !!st.background;
     els.replayMic.checked = !!st.mic_enabled;
     els.replayDuration.value = String(st.duration_s);
-    if (!els.replayDuration.value) els.replayDuration.value = "120"; // non-preset value from settings.json
+  if (!els.replayDuration.value) els.replayDuration.value = "120";
     els.replayFps.value = String(st.fps);
     els.replayQuality.value = st.quality;
     els.replayHotkey.value = st.hotkey;
-    // Restore saved audio device selections after populating
     await populateAudioDevices();
     if (st.audio_output && els.replayAudioOutput) els.replayAudioOutput.value = st.audio_output;
     if (st.audio_input  && els.replayAudioInput)  els.replayAudioInput.value  = st.audio_input;
   }
-  els.replayOverlay.hidden = false;          // show BEFORE rendering, so the render isn't skipped
+  els.replayOverlay.hidden = false;
   if (st) renderReplayStatus(st);
   clearInterval(_replayPoll);
   _replayPoll = setInterval(refreshReplayStatus, 3000);
@@ -2111,9 +1998,7 @@ els.replayOverlay.addEventListener("click", (e) => {
   if (e.target === els.replayOverlay) closeReplayModal();
 });
 
-// (No live grey-out: the tuning grid is always editable while the modal is open.)
 
-// --- hotkey capture: click the field, press a combo, Esc cancels ---
 let _hotkeyPrev = null;
 
 function stopHotkeyCapture() {
@@ -2145,19 +2030,19 @@ els.replayHotkey.addEventListener("keydown", (e) => {
     stopHotkeyCapture();
     return;
   }
-  if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return; // wait for the real key
-  // Translate the DOM key to the WinForms Keys name the backend parses.
+  if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
+  // Tłumaczy nazwę klawisza DOM na format WinForms oczekiwany przez serwer.
   let key = e.key;
   if (/^[a-z]$/i.test(key)) key = key.toUpperCase();
   else if (/^[0-9]$/.test(key)) key = "D" + key;
   else if (key === " ") key = "Space";
-  else if (key.startsWith("Arrow")) key = key.slice(5); // ArrowUp → Up
+  else if (key.startsWith("Arrow")) key = key.slice(5);
   const mods = [];
   if (e.ctrlKey) mods.push("Ctrl");
   if (e.altKey) mods.push("Alt");
   if (e.shiftKey) mods.push("Shift");
   if (e.metaKey) mods.push("Win");
-  if (!mods.length) return; // a bare key would hijack normal typing system-wide
+  if (!mods.length) return; // Sam klawisz przechwytywałby zwykłe pisanie w całym systemie.
   els.replayHotkey.value = [...mods, key].join("+");
   _hotkeyPrev = null;
   els.replayHotkey.classList.remove("capturing");
@@ -2183,8 +2068,7 @@ els.replayApply.addEventListener("click", async () => {
         audio_input:  els.replayAudioInput  ? (els.replayAudioInput.value  || null) : null,
       }),
     });
-    // Empty/non-JSON body (e.g. 404 from an app running an older backend) must not
-    // explode into a JSON-parse error — surface the HTTP status instead.
+  // Starsza część serwerowa może zwrócić pustą odpowiedź; wtedy pokazuje stan HTTP.
     let st = null;
     try { st = await r.json(); } catch { }
     if (!r.ok) throw new Error((st && st.detail) || `${r.status} ${r.statusText}`.trim());
@@ -2218,7 +2102,6 @@ els.replaySaveNow.addEventListener("click", async () => {
   }
 });
 
-// Sidebar dot stays honest even with the modal closed (buffer dies, app restart…).
 refreshReplayStatus();
 setInterval(refreshReplayStatus, 15000);
 
@@ -2226,7 +2109,6 @@ els.cancel.addEventListener("click", async () => {
   await fetch("/api/transcribe/cancel", { method: "POST" });
 });
 
-// Dismiss the finished progress card (button is only shown once the run ends).
 els.progClose.addEventListener("click", () => {
   els.progress.hidden = true;
   els.progClose.hidden = true;
@@ -2238,7 +2120,7 @@ els.progClose.addEventListener("click", () => {
 function attachStream() {
   if (sse) sse.close();
   els.progress.hidden = false;
-  els.progClose.hidden = true;   // not dismissible while a run is in progress
+  els.progClose.hidden = true;
   els.cancel.hidden = false;
   els.trans.disabled = true;
   sse = new EventSource("/api/transcribe/stream");
@@ -2258,7 +2140,7 @@ function attachStream() {
         sse = null;
         els.cancel.hidden = true;
         els.trans.disabled = false;
-        els.progClose.hidden = false;   // run done → allow dismissing the progress card
+    els.progClose.hidden = false;
         loadStats();
         doSearch();
       }
@@ -2267,7 +2149,6 @@ function attachStream() {
     }
   };
   sse.onerror = () => {
-    // Try to recover via polling once
     if (sse) {
       sse.close();
       sse = null;
@@ -2286,17 +2167,15 @@ async function pollOnce() {
       els.trans.disabled = false;
       els.progClose.hidden = false;
       loadStats();
-      doSearch(); // odśwież siatkę także w trybie pollingu (gdy SSE padło), tak jak robi to happy-path SSE
+      doSearch();
     }
   } catch {
     setTimeout(pollOnce, 3000);
   }
 }
 
-// ---------- folders view ----------
 let _currentFolderId = null;
 
-// ---------- multi-select mode (for bulk-adding to a folder) ----------
 let _selectionMode = false;
 let _selectionTargetFolderId = null;
 let _selectionTargetFolderName = "";
@@ -2315,7 +2194,6 @@ async function startSelectionMode(folderId, folderName) {
   _selectionTargetFolderId = folderId;
   _selectionTargetFolderName = folderName;
   _selectedClipIds.clear();
-  // Pre-load which clips are already in the folder so we don't double-add
   try {
     const data = await fetch(`/api/folders/${folderId}/clips?limit=10000`).then((r) => r.json());
     _alreadyInFolder = new Set((data.clips || []).map((c) => c.id));
@@ -2325,11 +2203,9 @@ async function startSelectionMode(folderId, folderName) {
   els.selectionBar.hidden = false;
   els.selFolderName.textContent = folderName;
   _updateSelectionUI();
-  // Switch to clips view so the user can pick
   els.foldersIndex.hidden = true;
   els.folderDetail.hidden = true;
   setView("clips");
-  // Re-render so cards show checkboxes
   await doSearch();
 }
 
@@ -2358,7 +2234,6 @@ async function saveSelection() {
     toast(t("toast.folderAdded").replace("{n}", ids.length).replace("{word}", t("selection.selectedWord")).replace("{folder}", _selectionTargetFolderName));
     const fid = folderId;
     exitSelectionMode();
-    // Jump back into the folder detail view to show the result
     setView("folders");
     openFolder(fid);
   } catch (e) {
@@ -2369,7 +2244,6 @@ async function saveSelection() {
 
 els.selCancel.addEventListener("click", () => {
   exitSelectionMode();
-  // return to the folder we came from
   if (_selectionTargetFolderId) {
     setView("folders");
     openFolder(_selectionTargetFolderId);
@@ -2377,10 +2251,7 @@ els.selCancel.addEventListener("click", () => {
 });
 els.selAdd.addEventListener("click", saveSelection);
 
-// Toggle selection on card click (when selection mode is active).
-// Search results can show the same clip in multiple cards (one per matching
-// segment) — selection is per-CLIP, so we need to update every card with
-// that clip_id, not just the one the user clicked.
+// Jeden klip może wystąpić w wielu wynikach, więc zaznaczenie synchronizuje wszystkie karty.
 function _syncCardVisualState(cid, isSelected) {
   document.querySelectorAll(`.result[data-clip-id="${cid}"]`).forEach((c) => {
     c.classList.toggle("selected", isSelected);
@@ -2408,7 +2279,7 @@ els.results.addEventListener("click", (e) => {
   }
   _syncCardVisualState(cid, willBeSelected);
   _updateSelectionUI();
-}, true);  // capture phase so we run before the normal openPlayer handler
+}, true); // Faza przechwytywania wykonuje się przed zwykłym otwarciem odtwarzacza.
 
 function setView(view) {
   els.navItems.forEach((t) => t.classList.toggle("active", t.dataset.view === view));
@@ -2439,7 +2310,6 @@ els.navItems.forEach((t) =>
   })
 );
 
-// Mini-karta chmury na dole sidebara — klik otwiera zakładkę Chmura.
 const sidebarCloudCard = document.getElementById("sidebar-cloud-card");
 if (sidebarCloudCard) sidebarCloudCard.addEventListener("click", () => setView("cloud"));
 
@@ -2587,24 +2457,18 @@ els.btnDeleteFolder.addEventListener("click", async () => {
   }
 });
 
-// ---------- heartbeat ----------
-// Server auto-shuts down after 5 min of no heartbeat. We send one immediately and then
-// every 30 s while the page is alive. Closing the tab silently stops the heartbeats.
+// Serwer kończy pracę po pięciu minutach bez sygnału; aktywna strona wysyła go co 30 sekund.
 function sendHeartbeat() {
   fetch("/api/heartbeat", { method: "POST" }).catch(() => {});
 }
 sendHeartbeat();
 setInterval(sendHeartbeat, 30000);
 
-// Reattach SSE if a transcription is already running on page load.
-// Auto-scan the source folder on startup so new/removed clips show up immediately.
-// On the very first launch, prompt the user to pick a clips folder.
 (async function bootstrap() {
   try {
     const cfg = await fetch("/api/config").then((r) => r.json());
     if (!cfg.configured) {
       await openConfigModal({ mode: "first" });
-      // bail — bootstrap will resume after the user saves (modal triggers full reload via doSearch/loadStats)
       return;
     }
   } catch (e) {
@@ -2616,8 +2480,6 @@ setInterval(sendHeartbeat, 30000);
     console.warn("auto-scan failed:", e);
   }
   await loadStats();
-  // Reflect cloud connection app-wide (toggles the per-card upload chips) so the
-  // user doesn't have to open the Cloud tab first.
   fetch("/api/cloud/status")
     .then((r) => r.json())
     .then((st) => { setCloudConnected(!!st.connected); setCloudQuota(st); })
@@ -2626,10 +2488,8 @@ setInterval(sendHeartbeat, 30000);
   if (s.running) attachStream();
   await renderRecent("");
 
-  // Ожидаем готовности моста между Python и JS
 window.addEventListener('pywebviewready', function() {
   
-  // Кнопка свернуть
   const btnMinimize = document.getElementById('btn-minimize');
   if (btnMinimize) {
     btnMinimize.addEventListener('click', () => {
@@ -2637,7 +2497,6 @@ window.addEventListener('pywebviewready', function() {
     });
   }
 
-  // Кнопка закрыть
   const btnClose = document.getElementById('btn-close');
   if (btnClose) {
     btnClose.addEventListener('click', () => {
@@ -2646,7 +2505,6 @@ window.addEventListener('pywebviewready', function() {
   }
   
 });
-// Надежная инициализация кнопок управления окном
 function initTitlebar() {
   const btnMinimize = document.getElementById('btn-minimize');
   if (btnMinimize) {
@@ -2661,14 +2519,11 @@ function initTitlebar() {
   if (btnMaximize) {
     btnMaximize.addEventListener('click', () => {
       if (window.pywebview && window.pywebview.api) {
-        // Получаем размеры рабочей области без панели задач прямо из браузера
         const aw = window.screen.availWidth;
         const ah = window.screen.availHeight;
-        // Координаты отступа (если панель задач сбоку или сверху)
         const al = window.screen.availLeft || 0;
         const at = window.screen.availTop || 0;
         
-        // Отправляем эти безопасные цифры в Python
         window.pywebview.api.toggle_maximize_window(aw, ah, al, at);
       }
     });
@@ -2690,9 +2545,6 @@ if (window.pywebview && window.pywebview.api) {
   window.addEventListener('pywebviewready', initTitlebar);
 }
 })();
-// =========================================
-// ПОЛНАЯ ЛОГИКА КАСТОМНОГО ПЛЕЕРА
-// =========================================
 
 const playerIcons = {
   play: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`,
@@ -2702,7 +2554,6 @@ const playerIcons = {
 };
 
 if (els.video) {
-  // 1. Play / Pause
   const togglePlay = () => els.video.paused ? els.video.play() : els.video.pause();
   els.ctrlPlay.addEventListener("click", togglePlay);
   els.video.addEventListener("click", togglePlay);
@@ -2710,39 +2561,31 @@ if (els.video) {
   els.video.addEventListener("play", () => els.ctrlPlay.innerHTML = playerIcons.pause);
   els.video.addEventListener("pause", () => els.ctrlPlay.innerHTML = playerIcons.play);
 
-  // 2. Управление временем (Перемотка)
   els.ctrlStart.addEventListener("click", () => els.video.currentTime = 0);
   els.ctrlEnd.addEventListener("click", () => els.video.currentTime = els.video.duration);
   els.ctrlRewind.addEventListener("click", () => els.video.currentTime = Math.max(0, els.video.currentTime - 5));
   els.ctrlForward.addEventListener("click", () => els.video.currentTime = Math.min(els.video.duration, els.video.currentTime + 5));
 
-  // 3. Dźwięk — klik na głośnik otwiera suwak głośności.
-  // UWAGA: selektor musi być zakotwiczony przy TYM przycisku — okno „Wytnij” ma
-  // własny .volume-mixer-popover wcześniej w DOM i document.querySelector łapał
-  // tamten (ukryty) popover, przez co klik w głośnik "nic nie robił".
+// Selektory głośności są zakotwiczone przy odtwarzaczu, bo okno wycinania ma własny mikser.
   const volumePopover = els.ctrlMute?.closest(".volume-control-wrap")
     ?.querySelector(".volume-mixer-popover");
 
   if (els.ctrlMute && volumePopover && els.ctrlVolume) {
 
-    // Otwórz/zamknij suwak; przy otwarciu pokaż aktualną głośność.
     els.ctrlMute.addEventListener("click", (e) => {
-      e.stopPropagation(); // nie doklikuj do document (zamknąłby popover od razu)
+  e.stopPropagation();
       els.ctrlVolume.value = els.video.muted ? 0 : els.video.volume;
       volumePopover.classList.toggle("show");
     });
 
-    // Klik/przeciąganie samego suwaka nie może zamykać popovera.
     volumePopover.addEventListener("click", (e) => {
       e.stopPropagation();
     });
 
-    // Klik gdziekolwiek indziej zamyka popover.
     document.addEventListener("click", () => {
       volumePopover.classList.remove("show");
     });
 
-    // Zmiana głośności suwakiem; 0 = wyciszenie (ikona to odzwierciedla).
     els.ctrlVolume.addEventListener("input", (e) => {
       const vol = parseFloat(e.target.value);
       els.video.volume = vol;
@@ -2754,9 +2597,7 @@ if (els.video) {
     console.error("Brak elementów suwaka głośności w HTML!");
   }
 
-  // 4. Pełny ekran — celem jest CAŁY #player-box (nagłówek z ✕ + wideo + panel
-  // sterowania z paskiem przewijania), nie sam kontener wideo: fullscreen na
-  // kontenerze zostawiał użytkownika bez seeka, prędkości i widocznego wyjścia.
+// Tryb pełnoekranowy obejmuje cały element #player-box, aby zachować nagłówek i sterowanie.
   const fsIcons = {
     expand: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`,
     compress: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>`,
@@ -2770,9 +2611,7 @@ if (els.video) {
   };
   els.ctrlFullscreen.addEventListener("click", toggleFullscreen);
 
-  // 4a. Auto-chowanie pasków w fullscreen: po ~2,5 s bezruchu myszy nagłówek
-  // i panel sterowania znikają (są nakładkami — obraz cały czas zajmuje pełny
-  // ekran), wracają przy ruchu myszy/klawiszu. Przy pauzie zostają widoczne.
+// W pełnym ekranie sterowanie znika po bezczynności, ale pozostaje widoczne podczas pauzy.
   let _fsChromeTimer = null;
   function fsShowChrome() {
     els.playerBox.classList.remove("chrome-hidden");
@@ -2797,8 +2636,7 @@ if (els.video) {
     }
   });
 
-  // 4b. Prędkość odtwarzania — przycisk cyklicznie przełącza typowe wartości;
-  // nowy klip zawsze startuje od 1× (loadedmetadata niżej).
+// Nowy klip zawsze rozpoczyna odtwarzanie z prędkością 1×.
   const SPEEDS = [1, 1.25, 1.5, 2, 0.5, 0.75];
   const setSpeed = (v) => {
     els.video.playbackRate = v;
@@ -2809,7 +2647,7 @@ if (els.video) {
     setSpeed(SPEEDS[(i + 1) % SPEEDS.length] ?? 1);
   });
 
-  // 4c. Napisy z transkrypcji — przełącznik; wybór pamiętany między klipami.
+// Ustawienie napisów jest pamiętane między klipami.
   if (els.ctrlCc) {
     els.ctrlCc.addEventListener("click", () => {
       const on = !subsEnabled();
@@ -2820,13 +2658,12 @@ if (els.video) {
     });
   }
 
-  // 5. Длинный ползунок времени
   let isDragging = false;
   
   els.video.addEventListener("loadedmetadata", () => {
     els.ctrlProgress.max = els.video.duration;
     els.ctrlTimeTot.textContent = fmtTime(els.video.duration);
-    setSpeed(1); // każdy klip startuje w normalnym tempie
+  setSpeed(1);
   });
 
   els.video.addEventListener("timeupdate", () => {
@@ -2845,7 +2682,6 @@ if (els.video) {
     isDragging = false;
   });
 
-  // 6. ФИЧА: Кнопка создания скриншота
   els.ctrlSnap.addEventListener("click", () => {
     const canvas = document.createElement("canvas");
     canvas.width = els.video.videoWidth;
@@ -2853,23 +2689,20 @@ if (els.video) {
     const ctx = canvas.getContext("2d");
     ctx.drawImage(els.video, 0, 0, canvas.width, canvas.height);
     
-    // Скачиваем картинку
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/jpeg");
     a.download = `KeepClip_Screenshot_${fmtTime(els.video.currentTime).replace(':','-')}.jpg`;
     a.click();
-    toast(t("toast.screenshotSaved")); // Используем твою функцию toast
+  toast(t("toast.screenshotSaved"));
   });
 }
 
-// Управление пробелом для плеера
 document.addEventListener("keydown", (e) => {
   if (e.key === " " && !els.overlay.hidden && !["INPUT", "TEXTAREA"].includes(e.target.tagName)) {
     e.preventDefault();
     if(els.video) els.video.paused ? els.video.play() : els.video.pause();
   }
 });
-/* ── Кастомный плеер для окна "Wytnij fragment" ── */
 (function() {
   const video = document.getElementById('cut-video');
   const btnPlay    = document.getElementById('cut-ctrl-play');
@@ -2931,7 +2764,6 @@ document.addEventListener("keydown", (e) => {
   progress.addEventListener('input', () => { timeCur.textContent = fmt(progress.value); });
   progress.addEventListener('change', () => { video.currentTime = progress.value; dragging = false; });
 
-  // Пробел работает и в cut-overlay
   document.addEventListener('keydown', (e) => {
     if (e.key === ' ' && document.getElementById('cut-overlay') && !document.getElementById('cut-overlay').hidden
         && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
@@ -2941,20 +2773,18 @@ document.addEventListener("keydown", (e) => {
   });
 })();
 
-/* DEV:START — application log viewer; stripped from public CI releases (build.ps1 -PublicRelease) */
+/* DEV:START — panel logów usuwany z publicznego wydania przez build.ps1 -PublicRelease */
 (function initDevLogs() {
   const overlay = document.getElementById("logs-overlay");
   const btn = document.getElementById("btn-logs");
-  if (!overlay || !btn) return;   // HTML stripped (public release) → nothing to wire
+  if (!overlay || !btn) return; // W publicznym wydaniu odpowiadający HTML jest usunięty.
 
   const output = document.getElementById("logs-output");
   const autoscroll = document.getElementById("logs-autoscroll");
   let lastSeq = 0;
   let pollTimer = null;
 
-  // Reveal the tool only on developer builds. The backend reports `dev` from a
-  // compile-time flag, so a public release (where this block was stripped anyway)
-  // would also report dev:false — belt and suspenders.
+// Serwer potwierdza flagę kompilacji, zanim interfejs pokaże narzędzie deweloperskie.
   fetch("/api/config").then((r) => r.json()).then((cfg) => {
     if (cfg && cfg.dev) btn.hidden = false;
   }).catch(() => {});

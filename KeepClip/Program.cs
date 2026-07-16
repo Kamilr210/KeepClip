@@ -2,17 +2,12 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Run mode: default is the native desktop shell (a frameless WebView2 window with this
-// server hosted in-process) — the C# port of main_desktop.py. Passing "server-only" (or
-// KEEPCLIP_SERVER_ONLY=1) runs just the HTTP server, for API testing in a browser.
+// Tryb samego serwera uruchamia HTTP bez okna WebView2.
 bool serverOnly = args.Contains("server-only")
     || Environment.GetEnvironmentVariable("KEEPCLIP_SERVER_ONLY") == "1";
 
-// Single instance (desktop mode). Two copies are not a cosmetic problem: both run a
-// replay buffer, and two Desktop Duplication consumers on one output evict each other
-// in an endless restart loop — the ring never fills, hotkey saves fail, and each
-// re-acquisition can kick a fullscreen game out of flip (looks like a forced alt-tab).
-// The `using` keeps the mutex alive (and owned) for the whole app lifetime.
+// Dwie instancje walczyłyby o mechanizm powielania pulpitu, zrywając bufor powtórek i tryb
+// pełnoekranowy gry. using utrzymuje własność muteksu do końca procesu.
 bool isFirstInstance = true;
 using var singleInstance = serverOnly ? null : new Mutex(true, @"Local\KeepClip-SingleInstance", out isFirstInstance);
 if (!isFirstInstance)
@@ -21,23 +16,19 @@ if (!isFirstInstance)
     return;
 }
 
-DevLog.Install();   // real Console.Error tee in dev builds; a no-op in public releases
+DevLog.Install();   // W wydaniu publicznym ta metoda nie wykonuje żadnej operacji.
 
-// Quiet the per-request "Request starting/finished" info logs (heartbeat + UI status
-// polls fire every few seconds): useless in production (no console) and they would
-// drown the dev log panel. Warnings/errors from these categories still come through.
+// Częste odpytywanie statusu nie powinno zalewać logów komunikatami informacyjnymi.
 builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
 builder.Logging.AddFilter("Microsoft.AspNetCore.Routing.EndpointMiddleware", LogLevel.Warning);
 
-// Loopback only, like uvicorn. Server-only uses a fixed dev port (8770, clear of the old
-// Python app on 8765); the desktop shell grabs a free port, like pywebview's get_free_port.
+// Tryb okienkowy wybiera wolny port lokalny, a tryb samego serwera używa portu 8770.
 string baseUrl = serverOnly
     ? (builder.Configuration["urls"] ?? "http://127.0.0.1:8770")
     : $"http://127.0.0.1:{FreeLoopbackPort()}";
 builder.WebHost.UseUrls(baseUrl);
 
-// Serialize exactly the keys we name (snake_case), like FastAPI/Pydantic. No
-// camelCasing of object members or dictionary keys.
+// Interfejs programistyczny zachowuje jawnie podane nazwy z podkreśleniami.
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.PropertyNamingPolicy = null;
@@ -45,23 +36,19 @@ builder.Services.ConfigureHttpJsonOptions(o =>
     o.SerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.Never;
 });
 
-// Data layer — stateless repositories (each opens its own short-lived SQLite connection).
 builder.Services.AddSingleton<ClipRepository>();
 builder.Services.AddSingleton<SegmentRepository>();
 builder.Services.AddSingleton<FolderRepository>();
 builder.Services.AddSingleton<StatsRepository>();
 
-// Service layer — business logic on top of the repositories + infrastructure.
 builder.Services.AddSingleton<ClipService>();
 
 var app = builder.Build();
 
-// One-time startup: ensure the DB + data dirs exist.
 Db.InitDb();
 Directory.CreateDirectory(Config.ThumbsDir);
 Directory.CreateDirectory(Config.TmpDir);
 
-// Static frontend (served under /static; index.html with cache-busting is in ConfigEndpoints).
 var staticFiles = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Config.FrontendDir);
 app.UseStaticFiles(new StaticFileOptions
 {
@@ -70,7 +57,6 @@ app.UseStaticFiles(new StaticFileOptions
     ServeUnknownFileTypes = true,
 });
 
-// API endpoint groups — one file per area under Endpoints/.
 app.MapConfigEndpoints();
 app.MapStatsEndpoints();
 app.MapClipEndpoints();
@@ -82,23 +68,19 @@ app.MapReplayEndpoints();
 app.MapCloudEndpoints();
 app.MapMediaEndpoints();
 
-// Exit after the frontend has been gone past the idle timeout (backstop in desktop mode).
 StartIdleWatcher();
 
-// Instant replay: resume the buffer if the user left it enabled, and make sure the
-// capture ffmpeg never outlives us (ProcessExit also covers the idle-watcher exit).
+// ProcessExit gwarantuje, że ffmpeg bufora powtórek nie przeżyje aplikacji.
 ReplayService.ApplyConfig();
 AppDomain.CurrentDomain.ProcessExit += (_, _) => ReplayService.Shutdown();
 
 if (serverOnly)
 {
-    app.Run();   // blocks on the fixed dev URL until shutdown
+    app.Run();   // Czeka na stałym adresie deweloperskim do zamknięcia serwera.
     ReplayService.Shutdown();
     return;
 }
 
-// Desktop: start the server in the background, then open the native window on its own STA
-// thread. When the window closes the message loop ends, so we stop the host and exit.
 await app.StartAsync();
 var ui = new Thread(() => DesktopShell.Run(baseUrl)) { Name = "KeepClip-UI" };
 ui.SetApartmentState(ApartmentState.STA);
@@ -116,10 +98,8 @@ static int FreeLoopbackPort()
     return p;
 }
 
-// Exit once the frontend has been gone (no heartbeat) past the idle timeout, matching the
-// Python app. Guarded so an in-flight transcription is never interrupted — and so
-// background-mode replay (window hidden to the tray, heartbeats possibly throttled or
-// gone) never gets its recording killed by the idle backstop.
+// Brak sygnału aktywności zamyka proces tylko wtedy, gdy nie trwa transkrypcja ani nagrywanie
+// powtórek w tle.
 static void StartIdleWatcher()
 {
     var t = new Thread(() =>

@@ -5,23 +5,14 @@ using System.Text.Json;
 
 namespace KeepClip.Infrastructure;
 
-/// <summary>
-/// ffmpeg/ffprobe helpers: duration probing, thumbnails, broken-clip repair and
-/// cutting. 1:1 port of <c>media.py</c>. Every child process runs with no visible
-/// console window (mirrors the Python <c>CREATE_NO_WINDOW</c> flag) so the desktop
-/// shell never flashes a CMD window per subprocess.
-/// </summary>
 public static class Media
 {
     static Media()
     {
-        // media.py creates these at import time.
         Directory.CreateDirectory(Config.ThumbsDir);
         Directory.CreateDirectory(Config.TmpDir);
     }
 
-    /// <summary>Result of a child-process run. <see cref="Faulted"/> is true when the
-    /// process failed to start or timed out — the C# stand-in for a Python exception.</summary>
     private readonly record struct RunResult(bool Faulted, int ExitCode, string StdOut, string StdErr);
 
     private static RunResult Run(string exe, IReadOnlyList<string> args, int timeoutSeconds)
@@ -50,10 +41,10 @@ public static class Media
 
         if (!proc.WaitForExit(timeoutSeconds * 1000))
         {
-            try { proc.Kill(entireProcessTree: true); } catch { /* best effort */ }
+            try { proc.Kill(entireProcessTree: true); } catch { }
             return new RunResult(true, -1, so.ToString(), se.ToString());
         }
-        proc.WaitForExit(); // let the async stdout/stderr readers flush
+        proc.WaitForExit(); // Pozwala zakończyć asynchroniczny odczyt obu strumieni.
         return new RunResult(false, proc.ExitCode, so.ToString(), se.ToString());
     }
 
@@ -66,7 +57,6 @@ public static class Media
             "-of", "json",
             path,
         }, timeoutSeconds: 30);
-        // check=True in Python: a non-zero exit is an error → None.
         if (r.Faulted || r.ExitCode != 0) return null;
         try
         {
@@ -79,11 +69,8 @@ public static class Media
         catch { return null; }
     }
 
-    /// <summary>
-    /// Count H.264 decode errors in the first <paramref name="seconds"/> of the file.
-    /// NVIDIA ShadowPlay DVR clips often have broken NAL units at the start; browsers
-    /// refuse to play those even though VLC tolerates them.
-    /// </summary>
+    // Klipy DVR bywają uszkodzone na początku; przeglądarki odrzucają błędne jednostki
+    // NAL, choć odtwarzacze desktopowe często je tolerują.
     public static int ProbeDecodeErrors(string path, double seconds = 5.0)
     {
         var r = Run(Config.Ffprobe, new[]
@@ -96,11 +83,10 @@ public static class Media
         return string.IsNullOrWhiteSpace(r.StdErr) ? 0 : r.StdErr.Count(c => c == '\n');
     }
 
-    /// <summary>Stream-copy remux with optional input seek. Returns true on success.</summary>
     public static bool TryRemux(string src, string dst, double skipSeconds = 0.0)
     {
         try { if (File.Exists(dst)) File.Delete(dst); }
-        catch { /* `-y` will overwrite anyway; a locked tmp file fails the size check below */ }
+        catch { }
 
         var args = new List<string> { "-hide_banner", "-y", "-loglevel", "error" };
         if (skipSeconds > 0) { args.Add("-ss"); args.Add(skipSeconds.ToString("F2", CultureInfo.InvariantCulture)); }
@@ -121,12 +107,8 @@ public static class Media
         catch { return false; }
     }
 
-    /// <summary>
-    /// Produce a browser-playable copy of a possibly-corrupt clip. Tries a plain
-    /// remux first (handles moov-at-end / faststart), then progressively skips more
-    /// of the broken intro until ffprobe reports no decode errors. Returns
-    /// (success, outputPath, message, secondsTrimmed).
-    /// </summary>
+    // Najpierw wykonuje remuks, a potem stopniowo pomija uszkodzony początek,
+    // dopóki ffprobe nie przestanie zgłaszać błędów dekodowania.
     public static (bool Ok, string? Output, string Message, double Trimmed) FixBrokenClip(
         string src, string? tmpOut = null)
     {
@@ -151,15 +133,10 @@ public static class Media
                 return (true, tmpOut, $"OK ({label})", skip);
         }
 
-        try { if (File.Exists(tmpOut)) File.Delete(tmpOut); } catch { /* best effort */ }
+        try { if (File.Exists(tmpOut)) File.Delete(tmpOut); } catch { }
         return (false, null, "Nie udało się — nawet po pominięciu 60 s nadal są błędy dekodowania.", 0.0);
     }
 
-    /// <summary>
-    /// Cut a section of a video, optionally compressing to fit a target file size.
-    /// Always re-encodes with h264_nvenc so the cut is frame-accurate. Returns
-    /// (ok, message, stats) where stats has duration_s, size_bytes, size_mb.
-    /// </summary>
     public static (bool Ok, string Message, Dictionary<string, object?> Stats) CutClip(
         string src, string output, double start, double end, double? targetSizeMb = null)
     {
@@ -174,7 +151,7 @@ public static class Media
         var args = new List<string>
         {
             "-y", "-hide_banner", "-loglevel", "error",
-            // input seek BEFORE -i is fast and accurate when re-encoding
+    // Ustawienie pozycji przed parametrem -i jest szybkie i przy kodowaniu pozostaje dokładne.
             "-ss", start.ToString("F3", CultureInfo.InvariantCulture),
             "-to", end.ToString("F3", CultureInfo.InvariantCulture),
             "-i", src,
@@ -184,7 +161,7 @@ public static class Media
         if (targetSizeMb is > 0)
         {
             double targetBytes = targetSizeMb.Value * 1024 * 1024;
-            const double overheadBytes = 50_000; // container + index overhead estimate
+        const double overheadBytes = 50_000; // Szacowany narzut kontenera i indeksu.
             double audioBytes = (audioKbps * 1000.0 / 8) * duration;
             double videoBytesBudget = targetBytes - audioBytes - overheadBytes;
             if (videoBytesBudget <= 100_000)
@@ -203,7 +180,7 @@ public static class Media
         }
         else
         {
-            // Constant-quality: visually lossless on 1080p gaming, size depends on motion
+            // Stała jakość zachowuje obraz, ale rozmiar zależy od ilości ruchu.
             args.AddRange(new[] { "-rc", "vbr", "-cq", "19", "-b:v", "0" });
         }
 
@@ -241,19 +218,17 @@ public static class Media
         var r = Run(Config.Ffmpeg, new[]
         {
             "-y",
-            "-i", video,                                              // gomania: -i before -ss
+            "-i", video,
             "-ss", timestamp.ToString("F2", CultureInfo.InvariantCulture),
             "-frames:v", "1",
             "-vf", "scale=1280:-2",
             "-q:v", "2",
             outPath,
         }, timeoutSeconds: 30);
-        if (r.Faulted || r.ExitCode != 0) return false; // check=True in Python
+        if (r.Faulted || r.ExitCode != 0) return false;
         return File.Exists(outPath);
     }
 
-    /// <summary>Format a double the way Python's <c>str(float)</c> would for the values we
-    /// pass to ffmpeg/error strings (e.g. 5.0 → "5.0", 3.5 → "3.5", 12.34 → "12.34").</summary>
     private static string PyFloat(double v) =>
         v == Math.Floor(v) && !double.IsInfinity(v)
             ? v.ToString("0.0", CultureInfo.InvariantCulture)

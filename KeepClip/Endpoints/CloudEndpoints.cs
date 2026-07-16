@@ -1,7 +1,5 @@
 namespace KeepClip.Endpoints;
 
-/// <summary>Google Drive offload: connection lifecycle (<see cref="OAuthService"/>) +
-/// per-clip / per-folder upload/download (<see cref="CloudService"/>).</summary>
 public static class CloudEndpoints
 {
     public static void MapCloudEndpoints(this WebApplication app)

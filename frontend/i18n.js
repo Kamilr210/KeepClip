@@ -271,7 +271,7 @@ const i18n = {
     config: {
       titleFirst:   "Witaj w Klipy!",
       titleChange:  "Zmień folder z klipami",
-      introFirst:   "Aby zacząć, wskaż folder z klipami. Aplikacja przeszuka go wraz z pod-folderami (typowo każda gra ma osobny pod-folder). Najczęściej dla NVIDIA ShadowPlay jest to <code>C:\\Users\\&lt;ty&gt;\\Videos\\NVIDIA</code>.",
+      introFirst:   "Aby zacząć, wskaż folder z klipami. Aplikacja przeszuka go wraz z pod-folderami jeśli są",
       introChange:  "Po zmianie folderu klipy z poprzedniej lokalizacji znikną z listy (pliki na dysku zostają nienaruszone). Z nowego folderu zostaną wczytane od nowa.",
       saveFirst:    "Użyj tego folderu",
       saveChange:   "Zapisz i przeskanuj",
@@ -395,9 +395,6 @@ const i18n = {
     },
   },
 
-  // ===========================================================================
-  // РУССКИЙ
-  // ===========================================================================
   ru: {
     nav: {
       sectionMain:    "Главное",
@@ -670,7 +667,7 @@ const i18n = {
     config: {
       titleFirst:   "Добро пожаловать в KeepClip!",
       titleChange:  "Изменить папку с клипами",
-      introFirst:   "Чтобы начать, укажите папку с клипами. Приложение просканирует её вместе с подпапками (обычно каждая игра в отдельной подпапке). Для NVIDIA ShadowPlay это обычно <code>C:\\Users\\&lt;вы&gt;\\Videos\\NVIDIA</code>.",
+      introFirst:   "Чтобы начать, укажите папку с клипами. Приложение просканирует её вместе с подпапками, если они есть.",
       introChange:  "После смены папки клипы из прежнего расположения исчезнут из списка (файлы на диске останутся нетронутыми). Из новой папки они будут загружены заново.",
       saveFirst:    "Использовать эту папку",
       saveChange:   "Сохранить и просканировать",
@@ -794,9 +791,6 @@ const i18n = {
     },
   },
 
-  // ===========================================================================
-  // АНГЛИЙСКИЙ
-  // ===========================================================================
   en: {
     nav: {
       sectionMain:    "Main",
@@ -1069,7 +1063,7 @@ const i18n = {
     config: {
       titleFirst:   "Welcome to KeepClip!",
       titleChange:  "Change clips folder",
-      introFirst:   "To get started, point to your clips folder. The app will scan it along with subfolders (typically each game has its own subfolder). For NVIDIA ShadowPlay this is usually <code>C:\\Users\\&lt;you&gt;\\Videos\\NVIDIA</code>.",
+      introFirst:   "To get started, select your clips folder. The app will scan it and any subfolders.",
       introChange:  "After changing the folder, clips from the previous location will disappear from the list (files on disk are untouched). Clips from the new folder will be loaded fresh.",
       saveFirst:    "Use this folder",
       saveChange:   "Save and scan",
@@ -1193,9 +1187,6 @@ const i18n = {
     },
   },
 
-  // ===========================================================================
-  // УКРАИНСКИЙ
-  // ===========================================================================
   uk: {
     nav: {
       sectionMain:    "Головне",
@@ -1468,7 +1459,7 @@ const i18n = {
     config: {
       titleFirst:   "Ласкаво просимо в KeepClip!",
       titleChange:  "Змінити папку з кліпами",
-      introFirst:   "Щоб почати, вкажіть папку з кліпами. Додаток просканує її разом із підпапками (зазвичай кожна гра в окремій підпапці). Для NVIDIA ShadowPlay це зазвичай <code>C:\\Users\\&lt;ви&gt;\\Videos\\NVIDIA</code>.",
+      introFirst:   "Щоб почати, вкажіть папку з кліпами. Додаток просканує її разом із підпапками, якщо вони є.",
       introChange:  "Після зміни папки кліпи з колишнього розташування зникнуть зі списку (файли на диску залишаться недоторканими). З нової папки вони будуть завантажені заново.",
       saveFirst:    "Використовувати цю папку",
       saveChange:   "Зберегти і просканувати",
@@ -1593,8 +1584,5 @@ const i18n = {
   },
 };
 
-// ---------------------------------------------------------------------------
-// Экспорт (если используется как ES-модуль)
-// ---------------------------------------------------------------------------
 if (typeof module !== "undefined") module.exports = i18n;
 window.i18n = i18n;

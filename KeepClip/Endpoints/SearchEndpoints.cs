@@ -2,12 +2,10 @@ using System.Text.RegularExpressions;
 
 namespace KeepClip.Endpoints;
 
-/// <summary>Full-text transcript search (<c>/api/search</c>). Builds the FTS expression here;
-/// the actual query lives in <see cref="SegmentRepository"/>.</summary>
 public static class SearchEndpoints
 {
-    // Turn 'nie no co ty robisz' into '"nie"* AND "no"* AND ...' (AND'ed prefix tokens)
-    // so substring/inflection matches work with the diacritic-insensitive tokenizer.
+// Każde słowo staje się tokenem prefiksowym połączonym logiczną koniunkcją, dzięki czemu
+    // wyszukiwanie toleruje odmianę słów i znaki diakrytyczne.
     private static readonly Regex FtsSafe = new(@"[\wÀ-ſ]+", RegexOptions.Compiled);
 
     private static string ToFtsQuery(string q)

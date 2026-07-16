@@ -1,11 +1,5 @@
 namespace KeepClip.Data;
 
-/// <summary>
-/// Clips-table access. Each method opens its own short-lived connection (Db.Open),
-/// matching the per-request usage of the old endpoints. List/read methods return raw
-/// rows that serialize to the exact same JSON the frontend already consumes; single-clip
-/// lookups return a typed <see cref="Clip"/> for the service layer.
-/// </summary>
 public class ClipRepository
 {
     private static readonly Dictionary<string, string> ListSorts = new()
@@ -16,7 +10,6 @@ public class ClipRepository
         ["smallest"] = "size_bytes ASC",
     };
 
-    /// <summary>Library listing (raw rows, serialized verbatim to the existing JSON shape).</summary>
     public List<Dictionary<string, object?>> List(string? game, string? sort, int limit, bool favoritesOnly)
     {
         var order = ListSorts.GetValueOrDefault(sort ?? "newest", ListSorts["newest"]);
@@ -33,14 +26,12 @@ public class ClipRepository
         return con.Query(sql, ps.ToArray());
     }
 
-    /// <summary>The full <c>SELECT *</c> row for a clip (used by the segment view), or null.</summary>
     public Dictionary<string, object?>? GetRow(long id)
     {
         using var con = Db.Open();
         return con.QueryOne("SELECT * FROM clips WHERE id=$id", ("$id", id));
     }
 
-    /// <summary>Typed lookup for the service layer (fix/cut/delete/retranscribe).</summary>
     public Clip? GetById(long id)
     {
         using var con = Db.Open();
@@ -51,14 +42,12 @@ public class ClipRepository
         return row is null ? null : Map(row);
     }
 
-    /// <summary>Total number of clips (used for the "already configured" back-compat check).</summary>
     public long Count()
     {
         using var con = Db.Open();
         return con.ScalarLong("SELECT COUNT(*) FROM clips");
     }
 
-    /// <summary>Toggle favorite. Returns the new state, or null if the clip doesn't exist.</summary>
     public bool? ToggleFavorite(long id)
     {
         using var con = Db.Open();
@@ -69,7 +58,6 @@ public class ClipRepository
         return newState != 0;
     }
 
-    /// <summary>Register a freshly created file (cut output, etc.); returns its new id.</summary>
     public long Insert(string game, string filename, string filepath, long sizeBytes, double mtime)
     {
         using var con = Db.Open();
@@ -98,7 +86,6 @@ public class ClipRepository
         con.Exec("UPDATE clips SET has_thumb=$ht WHERE id=$id", ("$ht", hasThumb), ("$id", id));
     }
 
-    /// <summary>Delete the clip row (CASCADE removes its segments).</summary>
     public void Delete(long id)
     {
         using var con = Db.Open();

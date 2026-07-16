@@ -3,9 +3,6 @@ using System.Runtime.InteropServices;
 
 namespace KeepClip.Infrastructure;
 
-/// <summary>Win32 display/window helpers used by the replay capture: true-pixel primary
-/// display measurement (DPI-independent) and the foreground process name (which game is
-/// being played when a save fires). Moved 1:1 out of ReplayService.</summary>
 internal static class DisplayHelper
 {
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
@@ -28,13 +25,8 @@ internal static class DisplayHelper
         public uint dmPanningWidth, dmPanningHeight;
     }
 
-    /// <summary>
-    /// Read the primary display's CURRENT mode via EnumDisplaySettings — Screen.Bounds
-    /// lies under DPI scaling unless the process opted into per-monitor awareness
-    /// (which server-only mode never does). Falls back to 1920×1080 if the query fails.
-    /// Returns the raw grab region (gdigrab) and the encode target (even, ≤3840 wide
-    /// for NVENC's H.264 4096 limit).
-    /// </summary>
+    // EnumDisplaySettings zwraca fizyczne piksele niezależnie od skalowania DPI.
+    // Rozmiar kodowania musi być parzysty i mieścić się w limicie H.264 NVENC.
     public static (int grabW, int grabH, int capW, int capH) MeasurePrimary()
     {
         int w = 0, h = 0;
@@ -52,15 +44,13 @@ internal static class DisplayHelper
         if (w < 320 || h < 240) { w = 1920; h = 1080; }
         int grabW = w, grabH = h;
 
-        if (w > 3840) { h = (int)Math.Round(h * 3840.0 / w); w = 3840; } // NVENC H.264 cap
+        if (w > 3840) { h = (int)Math.Round(h * 3840.0 / w); w = 3840; }
         return (grabW, grabH, w & ~1, h & ~1);
     }
 
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
 
-    /// <summary>Foreground process name (the game, when saving via hotkey mid-game).
-    /// Null for the shell/our own window → caller falls back to "Pulpit".</summary>
     public static string? ForegroundGameName()
     {
         try
