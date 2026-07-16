@@ -536,23 +536,28 @@ internal sealed class ShellForm : Form
 
   // Thin invisible grips along the window border → native edge/corner resize.
   // HT codes: TOP 12, BOTTOM 15, LEFT 10, RIGHT 11, and the four corners 13/14/16/17.
+  // app-region:no-drag is LOAD-BEARING on the top edge/corners: the title bar is
+  // app-region:drag, which WebView2 turns into a native caption region — mouse
+  // events over it never reach the DOM, so without the no-drag punch-out the top
+  // grips could never fire and the window couldn't be resized from the top.
   function addGrips() {
     if (!document.body || document.querySelector('[data-keepclip-grips]')) return;
     var host = document.createElement('div');
     host.setAttribute('data-keepclip-grips', '');
     var defs = [
-      ['top:0;left:10px;right:10px;height:6px;cursor:ns-resize', 12],
-      ['bottom:0;left:10px;right:10px;height:6px;cursor:ns-resize', 15],
-      ['left:0;top:10px;bottom:10px;width:6px;cursor:ew-resize', 10],
-      ['right:0;top:10px;bottom:10px;width:6px;cursor:ew-resize', 11],
-      ['top:0;left:0;width:10px;height:10px;cursor:nwse-resize', 13],
-      ['top:0;right:0;width:10px;height:10px;cursor:nesw-resize', 14],
-      ['bottom:0;left:0;width:10px;height:10px;cursor:nesw-resize', 16],
-      ['bottom:0;right:0;width:10px;height:10px;cursor:nwse-resize', 17]
+      ['top:0;left:12px;right:12px;height:6px;cursor:ns-resize', 12],
+      ['bottom:0;left:12px;right:12px;height:6px;cursor:ns-resize', 15],
+      ['left:0;top:12px;bottom:12px;width:6px;cursor:ew-resize', 10],
+      ['right:0;top:12px;bottom:12px;width:6px;cursor:ew-resize', 11],
+      ['top:0;left:0;width:12px;height:12px;cursor:nwse-resize', 13],
+      ['top:0;right:0;width:12px;height:12px;cursor:nesw-resize', 14],
+      ['bottom:0;left:0;width:12px;height:12px;cursor:nesw-resize', 16],
+      ['bottom:0;right:0;width:12px;height:12px;cursor:nwse-resize', 17]
     ];
     defs.forEach(function (d) {
       var g = document.createElement('div');
-      g.style.cssText = 'position:fixed;z-index:2147483647;background:transparent;' + d[0];
+      g.style.cssText = 'position:fixed;z-index:2147483647;background:transparent;' +
+        'app-region:no-drag;-webkit-app-region:no-drag;' + d[0];
       g.addEventListener('mousedown', function (ev) {
         if (ev.button !== 0) return;
         ev.preventDefault();

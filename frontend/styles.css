@@ -997,6 +997,160 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 }
 .cloud-quota .subtle { margin-top: 6px; font-size: 13px; }
 
+/* ── Zakładka Chmura: panel łączenia (redesign wg makiety) ─────────────── */
+.cloudx-panel {
+  max-width: 1180px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 22px 26px 16px;
+}
+
+/* stepper */
+.cloudx-steps {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  margin: 2px 0 20px; flex-wrap: wrap;
+}
+.cloudx-step { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--muted); }
+.cloudx-step.current { color: var(--text); }
+.cloudx-step-n {
+  width: 26px; height: 26px; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12.5px; font-weight: 600;
+  background: var(--card-2); border: 1px solid var(--border); color: var(--muted);
+}
+.cloudx-step.current .cloudx-step-n {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2, #37a6ff));
+  border-color: transparent; color: #fff;
+}
+.cloudx-step-line { width: 90px; max-width: 12vw; height: 1px; background: var(--border); }
+
+/* hero */
+.cloudx-hero {
+  display: flex; align-items: center; gap: 28px;
+  background: linear-gradient(135deg, rgba(124, 92, 255, .16), rgba(55, 166, 255, .07) 60%, transparent);
+  border: 1px solid rgba(124, 92, 255, .35);
+  border-radius: 14px;
+  padding: 30px 34px;
+}
+.cloudx-hero-copy { flex: 1.1; min-width: 0; }
+.cloudx-hero-copy h3 { margin: 0 0 10px; font-size: 30px; line-height: 1.18; }
+.cloudx-hero-copy p { margin: 0 0 20px; max-width: 380px; font-size: 14.5px; line-height: 1.55; }
+.cloudx-google-btn {
+  display: inline-flex; align-items: center; gap: 11px;
+  padding: 11px 22px; border: none; border-radius: 10px; cursor: pointer;
+  background: linear-gradient(90deg, var(--accent), #3f8cff);
+  color: #fff; font-size: 15px; font-weight: 600;
+  transition: filter .15s, transform .1s;
+}
+.cloudx-google-btn:hover { filter: brightness(1.12); }
+.cloudx-google-btn:active { transform: scale(.985); }
+.cloudx-google-btn:disabled { opacity: .6; cursor: default; }
+.cloudx-g {
+  width: 26px; height: 26px; border-radius: 50%; flex: none;
+  background: #fff; display: flex; align-items: center; justify-content: center;
+}
+.cloudx-hero-lock { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 12.5px; }
+
+/* hero: ilustracja chmury z logo Drive i pływającymi kafelkami */
+.cloudx-hero-art { flex: 1; display: flex; justify-content: center; min-width: 260px; }
+.cloudx-cloud { position: relative; width: 300px; height: 200px; }
+.cloudx-cloud::before {
+  content: ""; position: absolute; inset: 10% 8%;
+  background: radial-gradient(closest-side, rgba(124, 92, 255, .45), transparent 75%);
+  filter: blur(6px);
+}
+.cloudx-cloud-svg { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 18px 30px rgba(60, 40, 160, .45)); }
+.cloudx-drive-logo {
+  position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%);
+  width: 84px; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, .5));
+}
+.cloudx-chip {
+  position: absolute; width: 38px; height: 38px; border-radius: 10px;
+  background: rgba(20, 24, 44, .85); border: 1px solid rgba(140, 120, 255, .4);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .4);
+  animation: cloudx-float 5s ease-in-out infinite;
+}
+.cloudx-chip.chip-1 { left: -4px;  top: 12px;  animation-delay: 0s; }
+.cloudx-chip.chip-2 { right: 2px;  top: 4px;   animation-delay: 1.2s; }
+.cloudx-chip.chip-3 { right: -8px; bottom: 18px; animation-delay: 2.4s; }
+.cloudx-chip.chip-4 { left: 6px;   bottom: 6px;  animation-delay: 3.4s; }
+@keyframes cloudx-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+/* feature cards */
+.cloudx-features {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px; margin-top: 14px;
+}
+.cloudx-feature {
+  display: flex; gap: 13px; align-items: flex-start;
+  background: var(--card-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px;
+}
+.cloudx-fic {
+  width: 42px; height: 42px; border-radius: 11px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.fic-files  { background: linear-gradient(135deg, #7c5cff, #b14bff); }
+.fic-lock   { background: linear-gradient(135deg, #3f8cff, #7c5cff); }
+.fic-play   { background: linear-gradient(135deg, #37a6ff, #3f8cff); }
+.fic-shield { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+.cloudx-feature-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.cloudx-feature-body { font-size: 12.8px; line-height: 1.5; }
+
+/* permissions */
+.cloudx-perms {
+  display: flex; gap: 26px; align-items: center;
+  background: var(--card-2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 18px 20px; margin-top: 14px; flex-wrap: wrap;
+}
+.cloudx-perms-main { display: flex; gap: 13px; align-items: flex-start; flex: 1.2; min-width: 280px; }
+.cloudx-checklist {
+  list-style: none; margin: 0; padding: 0 6px;
+  flex: 1; min-width: 250px;
+  display: grid; grid-template-columns: 1fr; gap: 8px;
+  font-size: 13px;
+}
+.cloudx-checklist li { display: flex; align-items: center; gap: 9px; }
+.cloudx-checklist li::before {
+  content: "✓"; color: var(--good, #35c26e); font-weight: 700; flex: none;
+}
+
+.cloudx-footer {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  margin-top: 14px; font-size: 12.5px;
+}
+
+@media (max-width: 1050px) {
+  .cloudx-hero { flex-direction: column-reverse; text-align: center; padding: 22px; }
+  .cloudx-hero-copy p { margin-inline: auto; }
+  .cloudx-features { grid-template-columns: 1fr; }
+}
+
+/* ── Mini-karta chmury w sidebarze ── */
+.sidebar-cloud-card {
+  margin: auto 10px 12px; padding: 11px 12px; text-align: left;
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  cursor: pointer; color: var(--text); font: inherit;
+  transition: border-color .15s, background .15s;
+}
+.sidebar-cloud-card:hover { border-color: var(--accent); background: var(--card-2); }
+.scc-head { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
+.scc-state { display: none; align-items: center; gap: 5px; margin-left: auto; font-size: 11.5px; font-weight: 500; color: var(--muted); }
+.scc-state i { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+.scc-state.on i { background: var(--good, #35c26e); }
+.scc-state.on { color: var(--good, #35c26e); }
+body:not(.cloud-connected) .scc-state.off { display: inline-flex; }
+body.cloud-connected .scc-state.on { display: inline-flex; }
+.scc-body { margin-top: 6px; font-size: 11.8px; line-height: 1.45; }
+.scc-body.on { display: none; }
+body.cloud-connected .scc-body.off { display: none; }
+body.cloud-connected .scc-body.on { display: block; }
+
 /* =========================================
    ПРОЗРАЧНАЯ ШАПКА ОКНА (TITLEBAR)
    ========================================= */

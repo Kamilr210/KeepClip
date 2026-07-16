@@ -2439,6 +2439,10 @@ els.navItems.forEach((t) =>
   })
 );
 
+// Mini-karta chmury na dole sidebara — klik otwiera zakładkę Chmura.
+const sidebarCloudCard = document.getElementById("sidebar-cloud-card");
+if (sidebarCloudCard) sidebarCloudCard.addEventListener("click", () => setView("cloud"));
+
 async function loadFoldersIndex() {
   const folders = await fetch("/api/folders").then((r) => r.json());
   if (!folders.length) {
