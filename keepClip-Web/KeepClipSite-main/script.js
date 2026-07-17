@@ -1,14 +1,64 @@
-// script.js
 document.addEventListener('DOMContentLoaded', () => {
-
-    // Autozmiana języka
+    const translations = window.keepClipTranslations ?? {};
+    const supportedLanguages = Object.keys(translations);
     const langSelect = document.getElementById('langSelect');
-    const langForm = document.getElementById('langForm');
 
-    if (langSelect && langForm) {
-        langSelect.addEventListener('change', () => {
-            langForm.submit();
+    const readSavedLanguage = () => {
+        try {
+            return window.localStorage.getItem('keepclip-language');
+        } catch {
+            return null;
+        }
+    };
+
+    const saveLanguage = (language) => {
+        try {
+            window.localStorage.setItem('keepclip-language', language);
+        } catch {
+            // Strona nadal działa, gdy przeglądarka blokuje pamięć lokalną.
+        }
+    };
+
+    const applyLanguage = (language, updateAddress = true) => {
+        const selectedLanguage = supportedLanguages.includes(language) ? language : 'en';
+        const selectedTranslations = translations[selectedLanguage] ?? translations.en;
+
+        document.documentElement.lang = selectedLanguage;
+        document.querySelectorAll('[data-i18n]').forEach((element) => {
+            const key = element.dataset.i18n;
+            if (Object.hasOwn(selectedTranslations, key)) {
+                element.innerHTML = selectedTranslations[key];
+            }
         });
+
+        document.title = selectedTranslations.title;
+        if (langSelect) langSelect.value = selectedLanguage;
+        saveLanguage(selectedLanguage);
+
+        if (updateAddress) {
+            try {
+                const url = new URL(window.location.href);
+                if (selectedLanguage === 'en') url.searchParams.delete('lang');
+                else url.searchParams.set('lang', selectedLanguage);
+                window.history.replaceState(null, '', url);
+            } catch {
+                // Zmiana adresu nie jest konieczna do działania tłumaczeń.
+            }
+        }
+    };
+
+    const languageFromAddress = new URLSearchParams(window.location.search).get('lang');
+    const savedLanguage = readSavedLanguage();
+    const initialLanguage = supportedLanguages.includes(languageFromAddress)
+        ? languageFromAddress
+        : supportedLanguages.includes(savedLanguage)
+            ? savedLanguage
+            : 'en';
+
+    applyLanguage(initialLanguage, supportedLanguages.includes(languageFromAddress));
+
+    if (langSelect) {
+        langSelect.addEventListener('change', () => applyLanguage(langSelect.value));
     }
 
     // Pobieranie instalatora — stały link GitHuba zawsze wskazuje najnowsze wydanie.

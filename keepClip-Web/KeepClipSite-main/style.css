@@ -23,7 +23,7 @@ body {
     overflow-x: hidden;
 }
 
-/* --- ЗАДНИЙ ФОН: СВЕТ --- */
+/* --- Tło: światło --- */
 .light-blob {
     position: fixed;
     border-radius: 50%;
@@ -57,7 +57,7 @@ body {
     100% { transform: translate(-40px, 120px) scale(0.9); }
 }
 
-/* --- СТЕКЛО --- */
+/* --- Efekt szkła --- */
 .glass-viewport {
     min-height: 100vh;
     background: radial-gradient(circle at 50% 30%, rgba(10, 10, 15, 0.1) 0%, rgba(4, 4, 6, 0.7) 100%);
@@ -68,7 +68,7 @@ body {
     z-index: 1;
 }
 
-/* --- НАВИГАЦИЯ --- */
+/* --- Nawigacja --- */
 .main-header {
     display: flex;
     justify-content: space-between;
@@ -107,22 +107,6 @@ body {
     gap: 25px;
 }
 
-.search-btn {
-    color: var(--text-gray);
-    text-decoration: none;
-    font-size: 14px;
-}
-
-.btn-login {
-    background: linear-gradient(135deg, var(--neon-purple), #791cd1);
-    color: var(--text-white);
-    text-decoration: none;
-    padding: 7px 20px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 700;
-}
-
 #langSelect {
     background: rgba(255, 255, 255, 0.05);
     color: var(--text-white);
@@ -134,7 +118,7 @@ body {
 }
 #langSelect option { background: var(--bg-dark); }
 
-/* --- ГЛАВНЫЙ ЭКРАН --- */
+/* --- Sekcja główna --- */
 .hero-section {
     display: flex;
     justify-content: space-between;
@@ -179,7 +163,7 @@ body {
     background: #e6e6e6;
 }
 
-/* Окно Windows Style */
+/* Okno w stylu Windows */
 .hero-visual {
     width: 45%;
     display: flex;
@@ -192,7 +176,7 @@ body {
     height: 320px;
     background: rgba(20, 20, 35, 0.6);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px; /* Чуть острее углы под Windows */
+    border-radius: 8px; /* Nieco ostrzejsze narożniki pasujące do Windows */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -270,7 +254,7 @@ body {
     background: rgba(0, 191, 255, 0.1);
 }
 
-/* --- СЕКЦИЯ ПРЕИМУЩЕСТВ (Новая) --- */
+/* --- Sekcja najważniejszych funkcji --- */
 .features-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -312,7 +296,7 @@ body {
     line-height: 1.5;
 }
 
-/* --- О ПРОГРАММЕ --- */
+/* --- Informacje o programie --- */
 .about-app-section {
     padding: 80px 8% 120px 8%;
 }
@@ -378,7 +362,73 @@ body {
     padding-top: 30px;
 }
 
-/* --- ПЛАВАЮЩИЙ НИЖНИЙ БАР --- */
+/* --- Otwarty kod źródłowy --- */
+.opensource-section {
+    padding: 80px 8%;
+    border-top: 1px solid var(--glass-border);
+}
+
+.opensource-card {
+    position: relative;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr);
+    gap: 55px;
+    align-items: center;
+    padding: 50px;
+    background: linear-gradient(135deg, rgba(161,34,255,0.12), rgba(0,191,255,0.07));
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 18px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+}
+
+.opensource-card::after {
+    content: "</>";
+    position: absolute;
+    right: -18px;
+    bottom: -55px;
+    color: rgba(255,255,255,0.025);
+    font-size: 190px;
+    font-weight: 900;
+    pointer-events: none;
+}
+
+.opensource-copy { position: relative; z-index: 1; }
+.opensource-title { font-size: 34px; line-height: 1.15; margin-bottom: 18px; }
+.opensource-desc { color: var(--text-gray); font-size: 16px; line-height: 1.7; max-width: 650px; }
+.btn-opensource {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 28px;
+    padding: 13px 22px;
+    color: #fff;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 7px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 700;
+    transition: transform 0.2s, background 0.2s, border-color 0.2s;
+}
+.btn-opensource:hover { transform: translateY(-2px); background: rgba(255,255,255,0.11); border-color: rgba(255,255,255,0.25); }
+
+.opensource-points { position: relative; z-index: 1; display: grid; gap: 12px; }
+.opensource-point {
+    display: grid;
+    grid-template-columns: 45px 1fr;
+    gap: 16px;
+    align-items: start;
+    padding: 17px 18px;
+    background: rgba(5,5,10,0.42);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+}
+.opensource-point-number { color: var(--neon-blue); font-size: 12px; font-weight: 800; letter-spacing: 1px; padding-top: 3px; }
+.opensource-point h3 { font-size: 15px; margin-bottom: 5px; }
+.opensource-point p { color: var(--text-gray); font-size: 12px; line-height: 1.5; }
+
+/* --- Pływający pasek dolny --- */
 .floating-bottom-bar {
     position: fixed;
     bottom: 20px;
@@ -408,37 +458,14 @@ body {
     font-weight: 500;
 }
 
-/* --- Размеры --- */
+/* --- Rozmiary --- */
 
 .front-svg{
     width: 50px;
     height: 50px;
 }
 
-/* --- НОВЫЕ БЛОКИ --- */
-
-/* REVIEWS */
-.reviews-section { padding: 80px 8%; background: rgba(0,0,0,0.15); border-top: 1px solid var(--glass-border); }
-.reviews-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 24px; }
-.review-card {
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 14px; padding: 28px;
-    display: flex; flex-direction: column; gap: 14px;
-    transition: background 0.3s;
-}
-.review-card:hover { background: rgba(255,255,255,0.04); }
-.review-stars { color: #f5c842; font-size: 14px; letter-spacing: 2px; }
-.review-text { font-size: 14px; color: var(--text-gray); line-height: 1.6; }
-.review-author { display: flex; align-items: center; gap: 10px; margin-top: auto; }
-.avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
-.av-purple { background: rgba(161,34,255,0.25); color: #c878ff; border: 1px solid rgba(161,34,255,0.3); }
-.av-blue { background: rgba(0,191,255,0.2); color: #00bfff; border: 1px solid rgba(0,191,255,0.3); }
-.av-green { background: rgba(0,220,130,0.2); color: #00dc82; border: 1px solid rgba(0,220,130,0.3); }
-.author-name { font-size: 13px; font-weight: 700; color: #fff; }
-.author-sub { font-size: 12px; color: var(--text-gray); }
-
-/* SCREENSHOTS */
+/* --- Zweryfikowane możliwości --- */
 .screenshots-section { padding: 80px 8%; border-top: 1px solid var(--glass-border); }
 .screenshots-row { display: flex; gap: 20px; align-items: stretch; }
 .shot-big {
@@ -456,14 +483,21 @@ body {
 .shot-tag { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--text-gray); text-transform: uppercase; }
 .shot-label { font-size: 15px; font-weight: 700; color: #fff; text-align: center; }
 .shot-sub { font-size: 12px; color: var(--text-gray); text-align: center; line-height: 1.5; }
-.bar-row { display: flex; align-items: center; gap: 8px; width: 100%; }
-.bar-track { flex: 1; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
-.bar-fill-p { height: 100%; background: var(--neon-purple); border-radius: 2px; }
-.bar-fill-b { height: 100%; background: var(--neon-blue); border-radius: 2px; }
-.bar-val { font-size: 11px; color: var(--text-gray); min-width: 28px; text-align: right; }
-.bar-label { font-size: 11px; color: var(--text-gray); min-width: 60px; }
+.spec-facts { width: 100%; display: grid; gap: 8px; margin-top: 8px; }
+.spec-fact {
+    display: grid;
+    grid-template-columns: minmax(90px, 0.4fr) minmax(180px, 1fr);
+    gap: 14px;
+    align-items: center;
+    padding: 9px 12px;
+    background: rgba(255,255,255,0.025);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 7px;
+}
+.spec-fact-label { font-size: 12px; color: var(--text-gray); }
+.spec-fact-value { font-size: 12px; color: #fff; text-align: right; font-weight: 600; }
 
-/* FAQ */
+/* --- Najczęstsze pytania --- */
 .faq-section { padding: 80px 8%; background: rgba(0,0,0,0.2); border-top: 1px solid var(--glass-border); }
 .faq-list { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 2px; }
 .faq-item { border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; overflow: hidden; }
@@ -481,7 +515,7 @@ body {
 .faq-item.open .faq-arrow { transform: rotate(180deg); }
 .faq-item.open .faq-q { color: var(--neon-blue); }
 
-/* CTA */
+/* --- Wezwanie do działania --- */
 .cta-section {
     padding: 100px 8%; text-align: center;
     border-top: 1px solid var(--glass-border);
@@ -493,22 +527,22 @@ body {
 .cta-btns { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
 .btn-cta-main { background: #fff; color: #000; border: none; padding: 15px 34px; font-size: 15px; font-weight: 800; border-radius: 4px; cursor: pointer; }
 .btn-cta-main:hover { background: #e6e6e6; }
-.btn-cta-ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.15); padding: 15px 34px; font-size: 15px; font-weight: 600; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+.btn-cta-ghost { display: inline-flex; align-items: center; background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.15); padding: 15px 34px; font-size: 15px; font-weight: 600; border-radius: 4px; cursor: pointer; transition: 0.2s; text-decoration: none; }
 .btn-cta-ghost:hover { border-color: rgba(255,255,255,0.35); }
 .cta-note { margin-top: 18px; font-size: 12px; color: var(--text-gray); }
 .cta-dot { display: inline-block; width: 6px; height: 6px; background: #27c93f; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
 
-/* Section badge */
+/* Etykieta sekcji */
 .section-badge { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--neon-blue); background: rgba(0,191,255,0.08); border: 1px solid rgba(0,191,255,0.2); padding: 4px 12px; border-radius: 4px; margin-bottom: 14px; }
 
-/* --- ВИДЕО НА ГЛАВНОМ ЭКРАНЕ --- */
+/* --- Film w sekcji głównej --- */
 .hero-video {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* Видео полностью заполнит блок, не искажая пропорции */
+    object-fit: cover; /* Wypełnia blok bez zniekształcania proporcji */
     border-bottom-left-radius: 8px;
     border-bottom-right-radius: 8px;
-    opacity: 0.85; /* Слегка приглушаем видео, чтобы оно не резало глаз */
+    opacity: 0.85; /* Delikatne przyciemnienie filmu */
 }
 
 .play-icon-overlay {
@@ -540,7 +574,7 @@ body {
     transform: translate(-50%, -50%) scale(1.1);
 }
 
-/* --- ВИТРИНА КЛИПОВ (SHOWCASE) --- */
+/* --- Podgląd przykładowych klipów --- */
 .showcase-section {
     padding: 80px 8%;
     border-top: 1px solid var(--glass-border);
@@ -559,7 +593,7 @@ body {
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: #000;
-    aspect-ratio: 16 / 9; /* Жестко задаем пропорции видео */
+    aspect-ratio: 16 / 9; /* Stałe proporcje filmu */
     cursor: pointer;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     transition: transform 0.3s, border-color 0.3s;
@@ -579,7 +613,7 @@ body {
 }
 
 .clip-card:hover .clip-video {
-    opacity: 1; /* При наведении видео становится ярче */
+    opacity: 1; /* Rozjaśnienie filmu po najechaniu */
 }
 
 .clip-info {
@@ -609,13 +643,19 @@ body {
     color: #ccc;
 }
 
-/* Адаптивность для витрины */
+/* Dopasowanie podglądu klipów do mniejszych ekranów */
 @media (max-width: 900px) {
+    .opensource-card { grid-template-columns: 1fr; gap: 35px; }
+
     .showcase-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 @media (max-width: 600px) {
+    .opensource-section { padding: 60px 5%; }
+    .opensource-card { padding: 30px 22px; }
+    .opensource-title { font-size: 28px; }
+
     .showcase-grid {
         grid-template-columns: 1fr;
     }

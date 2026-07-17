@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="title">KeepClip — Save. Search. Replay.</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Animowane źródła światła -->
+    <div class="light-blob blob-purple"></div>
+    <div class="light-blob blob-blue"></div>
+
+    <div class="glass-viewport">
+
+        <!-- Nagłówek strony -->
+        <header class="main-header">
+            <div class="brand-logo">
+                    <img src="icons/logo.png" width="26" height="26">
+                <span>KEEP<b>CLIP</b></span>
+            </div>
+            
+            <nav class="center-nav">
+                <a href="#features"><span data-i18n="nav_features">Features</span></a>
+                <a href="#software"><span data-i18n="nav_software">How it works</span></a>
+                <a href="#showcase"><span data-i18n="nav_discover">Clip preview</span></a>
+                <a href="#open-source"><span data-i18n="nav_opensource">Open source</span></a>
+                <a href="https://discord.gg/nZ3BK7BPKv" target="_blank" rel="noopener noreferrer"><span data-i18n="nav_support">Support</span></a>
+            </nav>
+
+            <div class="right-actions">
+                <div id="langForm">
+                    <select name="lang" id="langSelect" aria-label="Language / Język">
+                        <option value="en" selected>EN</option>
+                        <option value="pl">PL</option>
+                        <option value="ru">RU</option>
+                    </select>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sekcja główna -->
+        <section class="hero-section">
+            <div class="hero-info">
+                <h1 class="hero-title"><span data-i18n="hero_title">SAVE THE MOMENT. FIND IT AGAIN.</span></h1>
+                <p class="hero-description"><span data-i18n="hero_desc">Save configurable instant replays, organize clips from your recording folders, transcribe speech locally, and find moments by the words that were said.</span></p>
+                <button class="btn-cta-download" id="downloadBtn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="black" style="vertical-align: middle; margin-right: 8px;"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.951-1.801"/></svg>
+                    <span data-i18n="btn_download">Download for Windows</span>
+                </button>
+            </div>
+            
+            <div class="hero-visual">
+                <!-- Podgląd programu w stylu okna Windows -->
+                <div class="software-preview-window">
+                    <div class="window-header-win">
+                        <div class="window-title-win">KeepClip</div>
+                        <div class="win-controls">
+                            <span class="win-btn minimize">&#8211;</span>
+                            <span class="win-btn maximize">&#9723;</span>
+                            <span class="win-btn close">&#10005;</span>
+                        </div>
+                    </div>
+                    <div class="window-body-mock" style="padding: 0; overflow: hidden; position: relative;">
+                        <!-- Film wyświetlany w głównej sekcji -->
+                        <video autoplay loop muted playsinline class="hero-video">
+                            <source src="videos/hero-clip.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Najważniejsze funkcje -->
+        <section class="features-grid" id="features">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg class="front-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M15.2683 18.2287C13.2889 20.9067 12.2992 22.2458 11.3758 21.9628C10.4525 21.6798 10.4525 20.0375 10.4525 16.7528L10.4526 16.4433C10.4526 15.2585 10.4526 14.6662 10.074 14.2946L10.054 14.2754C9.6673 13.9117 9.05079 13.9117 7.81775 13.9117C5.59888 13.9117 4.48945 13.9117 4.1145 13.2387C4.10829 13.2276 4.10225 13.2164 4.09639 13.205C3.74244 12.5217 4.3848 11.6526 5.66953 9.91436L8.73167 5.77133C10.711 3.09327 11.7007 1.75425 12.6241 2.03721C13.5474 2.32018 13.5474 3.96249 13.5474 7.24712V7.55682C13.5474 8.74151 13.5474 9.33386 13.926 9.70541L13.946 9.72466C14.3327 10.0884 14.9492 10.0884 16.1822 10.0884C18.4011 10.0884 19.5106 10.0884 19.8855 10.7613C19.8917 10.7724 19.8977 10.7837 19.9036 10.795C20.2576 11.4784 19.6152 12.3475 18.3304 14.0857" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
+                </div>
+                <h3 class="feature-title"><span data-i18n="feat1_title">Hardware acceleration</span></h3>
+                <p class="feature-desc"><span data-i18n="feat1_desc">KeepClip uses H.264 NVENC, AMF, or Quick Sync when available and falls back to CPU encoding when needed.</span></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg class="front-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M17 2.5L17 21.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M7 2.5L7 21.5" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M2 12L7 12M22 12L17 12" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M2.5 7L7 7M21.5 7L17 7" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M21.5 17.75C21.9142 17.75 22.25 17.4142 22.25 17C22.25 16.5858 21.9142 16.25 21.5 16.25V17.75ZM17 16.25C16.5858 16.25 16.25 16.5858 16.25 17C16.25 17.4142 16.5858 17.75 17 17.75V16.25ZM7 17.75C7.41421 17.75 7.75 17.4142 7.75 17C7.75 16.5858 7.41421 16.25 7 16.25L7 17.75ZM17 17.75L21.5 17.75V16.25L17 16.25V17.75ZM2 17.75L7 17.75L7 16.25L2 16.25L2 17.75Z" fill="#ffffff"></path> <path d="M14 12C14 11.4722 13.4704 11.1162 12.4112 10.4043C11.3375 9.68271 10.8006 9.3219 10.4003 9.58682C10 9.85174 10 10.5678 10 12C10 13.4322 10 14.1483 10.4003 14.4132C10.8006 14.6781 11.3375 14.3173 12.4112 13.5957C13.4704 12.8838 14 12.5278 14 12Z" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M2 12C2 7.28595 2 4.92893 3.46447 3.46447C4.92893 2 7.28595 2 12 2C16.714 2 19.0711 2 20.5355 3.46447C21.352 4.28094 21.7133 5.37486 21.8731 7M22 12C22 16.714 22 19.0711 20.5355 20.5355C19.0711 22 16.714 22 12 22C7.28595 22 4.92893 22 3.46447 20.5355C2.64799 19.7191 2.28672 18.6251 2.12687 17" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
+                </div>
+                <h3 class="feature-title"><span data-i18n="feat2_title">Configurable instant replay</span></h3>
+                <p class="feature-desc"><span data-i18n="feat2_desc">Use your chosen hotkey to save the previous 30 seconds to 5 minutes, at 30, 60, or 90 FPS.</span></p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <svg class="front-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M14.1625 18.4876L13.4417 19.2084C11.053 21.5971 7.18019 21.5971 4.79151 19.2084C2.40283 16.8198 2.40283 12.9469 4.79151 10.5583L5.51236 9.8374" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M9.8374 14.1625L14.1625 9.8374" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> <path d="M9.8374 5.51236L10.5583 4.79151C12.9469 2.40283 16.8198 2.40283 19.2084 4.79151M18.4876 14.1625L19.2084 13.4417C20.4324 12.2177 21.0292 10.604 20.9988 9" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"></path> </g></svg>
+                </div>
+                <h3 class="feature-title"><span data-i18n="feat3_title">Search spoken words</span></h3>
+                <p class="feature-desc"><span data-i18n="feat3_desc">Local Whisper transcription makes clips searchable by what was said, without sending audio to a KeepClip server.</span></p>
+            </div>
+        </section>
+
+        <!-- Podgląd przykładowych klipów -->
+        <section class="showcase-section" id="showcase">
+            <div style="text-align:center; margin-bottom:40px;">
+                <div class="section-badge"><span data-i18n="showcase_badge">Clip preview</span></div>
+                <h2 class="section-heading" style="margin-bottom:0;"><span data-i18n="showcase_heading">Sample gaming clips</span></h2>
+            </div>
+            
+            <div class="showcase-grid">
+                <!-- Klip 1 -->
+                <div class="clip-card">
+                    <video autoplay loop muted playsinline class="clip-video">
+                        <source src="videos/clip1.mp4" type="video/mp4">
+                    </video>
+                    <div class="clip-info">
+                        <span class="clip-game">CS2</span>
+                    </div>
+                </div>
+                
+                <!-- Klip 2 -->
+                <div class="clip-card">
+                    <video autoplay loop muted playsinline class="clip-video">
+                        <source src="videos/clip2.mp4" type="video/mp4">
+                    </video>
+                    <div class="clip-info">
+                        <span class="clip-game">Valorant</span>
+                    </div>
+                </div>
+
+                <!-- Klip 3 -->
+                <div class="clip-card">
+                    <video autoplay loop muted playsinline class="clip-video">
+                        <source src="videos/clip3.mp4" type="video/mp4">
+                    </video>
+                    <div class="clip-info">
+                        <span class="clip-game">World of Tanks (Mir Tankov)</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sposób działania aplikacji -->
+        <section class="about-app-section" id="software">
+            <h2 class="section-heading"><span data-i18n="about_title">How KeepClip works</span></h2>
+            
+            <div class="steps-container">
+                <div class="step-card">
+                    <div class="step-number"><span data-i18n="step1_num">01</span></div>
+                    <h3 class="step-title"><span data-i18n="step1_title">Choose your clip folder</span></h3>
+                    <p class="step-desc"><span data-i18n="step1_desc">Point KeepClip at your recordings. It scans that folder and all of its subfolders.</span></p>
+                </div>
+                <div class="step-arrow">➔</div>
+                <div class="step-card">
+                    <div class="step-number"><span data-i18n="step2_num">02</span></div>
+                    <h3 class="step-title"><span data-i18n="step2_title">Save or import clips</span></h3>
+                    <p class="step-desc"><span data-i18n="step2_desc">Use Instant Replay with a configurable hotkey or browse clips created by your existing recorder.</span></p>
+                </div>
+                <div class="step-arrow">➔</div>
+                <div class="step-card">
+                    <div class="step-number text-glow-cyan"><span data-i18n="step3_num">03</span></div>
+                    <h3 class="step-title"><span data-i18n="step3_title">Transcribe, find, and trim</span></h3>
+                    <p class="step-desc"><span data-i18n="step3_desc">Search spoken words, organize favorites and folders, then cut or compress the part you want.</span></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Informacje o otwartym kodzie źródłowym -->
+        <section class="opensource-section" id="open-source">
+            <div class="opensource-card">
+                <div class="opensource-copy">
+                    <div class="section-badge"><span data-i18n="opensource_badge">100% open source</span></div>
+                    <h2 class="opensource-title"><span data-i18n="opensource_title">Fully open. Easy to verify.</span></h2>
+                    <p class="opensource-desc"><span data-i18n="opensource_desc">The complete KeepClip source code is public in the official GitHub repository. You can inspect how recording, transcription, clip management, and Google Drive integration work.</span></p>
+                    <a class="btn-opensource" href="https://github.com/Kamilr210/KeepClip" target="_blank" rel="noopener noreferrer">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .7a11.5 11.5 0 0 0-3.64 22.41c.58.11.79-.25.79-.56v-2.23c-3.22.7-3.9-1.37-3.9-1.37-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.71.08-.71 1.17.08 1.78 1.2 1.78 1.2 1.04 1.78 2.72 1.27 3.39.97.1-.75.41-1.27.74-1.56-2.57-.29-5.28-1.29-5.28-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.47.11-3.05 0 0 .97-.31 3.16 1.18a10.99 10.99 0 0 1 5.75 0c2.19-1.49 3.16-1.18 3.16-1.18.63 1.58.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.71 5.39-5.29 5.68.42.36.79 1.07.79 2.16v3.2c0 .31.21.68.8.56A11.5 11.5 0 0 0 12 .7Z"/></svg>
+                        <span data-i18n="opensource_btn">View source code on GitHub</span>
+                    </a>
+                </div>
+                <div class="opensource-points">
+                    <div class="opensource-point">
+                        <span class="opensource-point-number">01</span>
+                        <div>
+                            <h3><span data-i18n="opensource_point1_title">Public source code</span></h3>
+                            <p><span data-i18n="opensource_point1_desc">The application code is available for everyone to review.</span></p>
+                        </div>
+                    </div>
+                    <div class="opensource-point">
+                        <span class="opensource-point-number">02</span>
+                        <div>
+                            <h3><span data-i18n="opensource_point2_title">Transparent operation</span></h3>
+                            <p><span data-i18n="opensource_point2_desc">Check what KeepClip does with your recordings and connected services.</span></p>
+                        </div>
+                    </div>
+                    <div class="opensource-point">
+                        <span class="opensource-point-number">03</span>
+                        <div>
+                            <h3><span data-i18n="opensource_point3_title">Community feedback</span></h3>
+                            <p><span data-i18n="opensource_point3_desc">Report bugs and suggest improvements directly on GitHub.</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="screenshots-section">
+            <div style="text-align:center; margin-bottom:40px;">
+                <div class="section-badge"><span data-i18n="specs_badge">Verified capabilities</span></div>
+                <h2 class="section-heading" style="margin-bottom:0;"><span data-i18n="specs_heading">What the current app supports</span></h2>
+            </div>
+            <div class="screenshots-row">
+                <div class="shot-big">
+                    <div class="window-header-win">
+                        <div class="window-title-win">KeepClip — <span data-i18n="specs_window_title">Replay settings</span></div>
+                        <div class="win-controls">
+                            <span class="win-btn minimize">&#8211;</span>
+                            <span class="win-btn maximize">&#9723;</span>
+                            <span class="win-btn close">&#10005;</span>
+                        </div>
+                    </div>
+                    <div class="shot-body">
+                        <div class="shot-tag"><span data-i18n="specs_tag1">Instant Replay</span></div>
+                        <div class="shot-label"><span data-i18n="specs_label1">Configurable recording options</span></div>
+                        <div class="spec-facts">
+                            <div class="spec-fact">
+                                <span class="spec-fact-label"><span data-i18n="specs_encoder_label">Encoder</span></span>
+                                <span class="spec-fact-value"><span data-i18n="specs_encoder_value">H.264: NVENC / AMF / Quick Sync / CPU fallback</span></span>
+                            </div>
+                            <div class="spec-fact">
+                                <span class="spec-fact-label"><span data-i18n="specs_fps_label">Frame rate</span></span>
+                                <span class="spec-fact-value"><span data-i18n="specs_fps_value">30 / 60 / 90 FPS</span></span>
+                            </div>
+                            <div class="spec-fact">
+                                <span class="spec-fact-label"><span data-i18n="specs_replay_label">Replay length</span></span>
+                                <span class="spec-fact-value"><span data-i18n="specs_replay_value">30 seconds – 5 minutes</span></span>
+                            </div>
+                            <div class="spec-fact">
+                                <span class="spec-fact-label"><span data-i18n="specs_capture_label">Capture size</span></span>
+                                <span class="spec-fact-value"><span data-i18n="specs_capture_value">Primary display, up to 3840 px wide</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="shot-sm-col">
+                    <div class="shot-sm">
+                        <div class="window-header-win">
+                            <div class="window-title-win"></div>
+                            <div class="win-controls">
+                                <span class="win-btn minimize">&#8211;</span>
+                                <span class="win-btn maximize">&#9723;</span>
+                                <span class="win-btn close">&#10005;</span>
+                            </div>
+                        </div>
+                        <div class="shot-body">
+                            <div class="shot-tag"><span data-i18n="specs_tag2">Video encoding</span></div>
+                            <div class="shot-label"><span data-i18n="specs_label2">H.264</span></div>
+                            <div class="shot-sub"><span data-i18n="specs_sub2">Hardware encoder when available, with a software fallback.</span></div>
+                        </div>
+                    </div>
+                    <div class="shot-sm">
+                        <div class="window-header-win">
+                            <div class="window-title-win"></div>
+                            <div class="win-controls">
+                                <span class="win-btn minimize">&#8211;</span>
+                                <span class="win-btn maximize">&#9723;</span>
+                                <span class="win-btn close">&#10005;</span>
+                            </div>
+                        </div>
+                        <div class="shot-body">
+                            <div class="shot-tag"><span data-i18n="specs_tag3">Replay buffer</span></div>
+                            <div class="shot-label"><span data-i18n="specs_label3">Rotating local segments</span></div>
+                            <div class="shot-sub"><span data-i18n="specs_sub3">Two-second temporary files are automatically removed as they age.</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="faq-section">
+            <div style="text-align:center; margin-bottom:40px;">
+                <div class="section-badge"><span data-i18n="faq_badge">FAQ</span></div>
+                <h2 class="section-heading" style="margin-bottom:0;"><span data-i18n="faq_heading">Frequently asked questions</span></h2>
+            </div>
+            <div class="faq-list" id="faqList">
+                <div class="faq-item">
+                    <button class="faq-q">
+                        <span data-i18n="faq_q1">Does KeepClip require a specific graphics card?</span>
+                        <span class="faq-arrow">▾</span>
+                    </button>
+                    <div class="faq-a"><span data-i18n="faq_a1">No. KeepClip can use NVIDIA NVENC, AMD AMF, or Intel Quick Sync hardware encoding. If none is available, it falls back to CPU encoding. Performance depends on your hardware and recording settings, so KeepClip does not promise zero FPS impact.</span></div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-q">
+                        <span data-i18n="faq_q2">Why does Windows SmartScreen show a blue warning during installation?</span>
+                        <span class="faq-arrow">▾</span>
+                    </button>
+                    <div class="faq-a"><span data-i18n="faq_a2">SmartScreen may show this warning because KeepClip does not yet have a widely recognized code-signing certificate. The warning itself does not mean that the installer contains a virus. Continue only if you downloaded KeepClip-Setup.exe from this website or the official open-source KeepClip repository on GitHub. Select More info and then Run anyway. Do not launch an installer downloaded from another source.</span></div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-q">
+                        <span data-i18n="faq_q3">How can I share a clip?</span>
+                        <span class="faq-arrow">▾</span>
+                    </button>
+                    <div class="faq-a"><span data-i18n="faq_a3">You can trim and compress a clip to a selected size, then attach the saved file manually. Optional Google Drive integration uses your own Drive for storage and streaming; KeepClip does not generate public short links.</span></div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-q">
+                        <span data-i18n="faq_q4">Is KeepClip paid?</span>
+                        <span class="faq-arrow">▾</span>
+                    </button>
+                    <div class="faq-a"><span data-i18n="faq_a4">The current release is available as a free download and does not contain a Pro tier or artificial recording-quality limits.</span></div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-q">
+                        <span data-i18n="faq_q5">Do I need a KeepClip account for cloud storage?</span>
+                        <span class="faq-arrow">▾</span>
+                    </button>
+                    <div class="faq-a"><span data-i18n="faq_a5">No KeepClip account is required. Optional cloud storage uses Google OAuth to connect your own Google Drive and therefore uses the storage quota of that Google account.</span></div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-q">
+                        <span data-i18n="faq_q6">Do I have to use the built-in recording?</span>
+                        <span class="faq-arrow">▾</span>
+                    </button>
+                    <div class="faq-a"><span data-i18n="faq_a6">No. Instant Replay is optional. You can use clips recorded with NVIDIA ShadowPlay, SteelSeries GG, OBS, or another recorder. Point KeepClip at the folder where that program saves clips, and KeepClip will scan it together with its subfolders.</span></div>
+                </div>
+            </div>
+        </section>
+        
+
+        <section class="cta-section">
+            <div class="cta-tag"><span data-i18n="cta_tag">Ready to organize your clips?</span></div>
+            <h2 class="cta-title"><span data-i18n="cta_title">Your best moments,<br>easy to find.</span></h2>
+            <p class="cta-sub"><span data-i18n="cta_sub">Download the installer, choose your clips folder, then scan it or enable Instant Replay.</span></p>
+            <div class="cta-btns">
+                <button class="btn-cta-main" id="downloadBtn2">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="black" style="vertical-align:middle;margin-right:7px;"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.951-1.801"/></svg>
+                    <span data-i18n="btn_download">Download for Windows</span>
+                </button>
+                <a href="#showcase" class="btn-cta-ghost"><span data-i18n="cta_btn_ghost">See sample clips →</span></a>
+            </div>
+            <div class="cta-note"><span class="cta-dot"></span><span data-i18n="cta_note">Free download · Windows x64 · No ads</span></div>
+        </section>
+        <!-- Pływający pasek dostępności -->
+        <footer class="floating-bottom-bar">
+            <div class="status-indicator-dot"></div>
+            <span class="bottom-bar-text"><span data-i18n="bottom_bar">KeepClip — available for Windows x64</span></span>
+        </footer>
+
+    </div>
+
+    <script src="translations.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

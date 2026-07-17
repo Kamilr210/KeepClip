@@ -1,0 +1,40 @@
+name: Publikuj stronę
+
+on:
+  push:
+    branches: ["csharp"]
+    paths:
+      - "keepClip-Web/KeepClipSite-main/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pobierz repozytorium
+        uses: actions/checkout@v6
+
+      - name: Skonfiguruj GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Przygotuj pliki strony
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: keepClip-Web/KeepClipSite-main
+
+      - name: Opublikuj stronę
+        id: deployment
+        uses: actions/deploy-pages@v4
