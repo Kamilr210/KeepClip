@@ -2799,6 +2799,7 @@ setInterval(sendHeartbeat, 30000);
     .then((r) => r.json())
     .then((st) => { setCloudConnected(!!st.connected, st.email); setCloudQuota(st); })
     .catch(() => {});
+  checkForUpdate();
   const s = await fetch("/api/transcribe/status").then((r) => r.json());
   if (s.running) attachStream();
   await renderRecent("");
@@ -3150,3 +3151,64 @@ document.addEventListener("keydown", (e) => {
   });
 })();
 /* DEV:END */
+
+// ---------- aktualizacje aplikacji ----------
+// Cichy check przy starcie; baner pokazuje się tylko, gdy jest nowsze wydanie z plikiem
+// instalatora. „Pobierz i zainstaluj" pobiera setup po stronie backendu (bez SmartScreen,
+// bo plik nie ma znacznika przeglądarki) i uruchamia go — aplikacja wtedy sama się zamyka,
+// a instalator aktualizuje ją w miejscu, nie ruszając biblioteki ani ustawień.
+async function checkForUpdate() {
+  try {
+    const st = await fetch("/api/update/check").then((r) => r.json());
+    if (!st.available) return;
+    if (sessionStorage.getItem("kc_upd_dismiss") === st.latest) return;
+    const line = document.getElementById("update-version-line");
+    if (line) line.textContent = `KeepClip ${st.latest} — ${t("update.youHave").replace("{v}", st.current)}`;
+    const banner = document.getElementById("update-banner");
+    if (banner) banner.hidden = false;
+    window._kcLatest = st.latest;
+  } catch { /* brak sieci — bez banera */ }
+}
+
+(function wireUpdateBanner() {
+  const banner = document.getElementById("update-banner");
+  const btnLater = document.getElementById("update-later");
+  const btnGo = document.getElementById("update-install");
+  if (!banner || !btnLater || !btnGo) return;
+
+  btnLater.addEventListener("click", () => {
+    banner.hidden = true;
+    if (window._kcLatest) sessionStorage.setItem("kc_upd_dismiss", window._kcLatest);
+  });
+
+  btnGo.addEventListener("click", async () => {
+    btnGo.disabled = true;
+    btnLater.disabled = true;
+    try {
+      const r = await fetch("/api/update/install", { method: "POST" });
+      if (!r.ok) throw new Error((await r.json().catch(() => null))?.detail || r.statusText);
+      const poll = setInterval(async () => {
+        try {
+          const s = await fetch("/api/update/status").then((x) => x.json());
+          if (s.phase === "downloading") {
+            btnGo.textContent = t("update.downloading").replace("{p}", s.percent ?? 0);
+          } else if (s.phase === "starting") {
+            clearInterval(poll);
+            btnGo.textContent = t("update.starting");
+            toast(t("update.startingToast"));
+          } else if (s.phase === "error") {
+            clearInterval(poll);
+            toast(t("update.failed").replace("{error}", s.error || "?"), "error");
+            btnGo.disabled = false;
+            btnLater.disabled = false;
+            btnGo.textContent = t("update.installBtn");
+          }
+        } catch { /* backend znika przy starcie instalatora — to oczekiwane */ }
+      }, 500);
+    } catch (e) {
+      toast(t("update.failed").replace("{error}", e.message), "error");
+      btnGo.disabled = false;
+      btnLater.disabled = false;
+    }
+  });
+})();

@@ -1012,6 +1012,17 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 }
 .cloud-quota .subtle { margin-top: 6px; font-size: 13px; }
 
+/* Baner aktualizacji aplikacji */
+#update-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  flex-wrap: wrap; margin-bottom: 14px;
+  border-color: var(--accent);
+  background: linear-gradient(90deg, rgba(124, 92, 255, .14), var(--card) 55%);
+}
+#update-banner[hidden] { display: none; }
+.upd-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.upd-actions { display: flex; gap: 10px; flex-shrink: 0; }
+
 .cloudx-panel {
   width: 100%;
   min-height: calc(100vh - 190px);

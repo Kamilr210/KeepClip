@@ -31,6 +31,11 @@ UninstallDisplayName={#MyAppName}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+; Aktualizacja w miejscu: działający KeepClip (także schowany w zasobniku) jest
+; zamykany przez Menedżera ponownego uruchamiania, a nie blokuje kopiowania plików.
+CloseApplications=yes
+CloseApplicationsFilter=KeepClip.exe
+RestartApplications=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 

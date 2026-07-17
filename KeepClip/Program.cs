@@ -67,6 +67,7 @@ app.MapTranscribeEndpoints();
 app.MapReplayEndpoints();
 app.MapCloudEndpoints();
 app.MapMediaEndpoints();
+app.MapUpdateEndpoints();
 
 StartIdleWatcher();
 
