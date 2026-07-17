@@ -10,6 +10,9 @@ public static class ConfigEndpoints
     private const bool DevBuild = false;
 #endif
 
+    private static string AccentThemeOrDefault()
+        => Settings.GetString("accent_theme") == "green" ? "green" : "purple";
+
     public static void MapConfigEndpoints(this WebApplication app)
     {
         app.MapGet("/", () =>
@@ -18,6 +21,10 @@ public static class ConfigEndpoints
             if (!File.Exists(idx))
                 return Results.Content("<h1>frontend missing</h1>", "text/html", Encoding.UTF8, 500);
             var html = File.ReadAllText(idx, Encoding.UTF8);
+            var accentTheme = AccentThemeOrDefault();
+            html = html.Replace("<html lang=\"pl\">", $"<html lang=\"pl\" data-accent-theme=\"{accentTheme}\">");
+            if (accentTheme == "green")
+                html = html.Replace("/icons/favicon.svg", "/icons/favicon-green.svg");
             // Czas modyfikacji wymusza pobranie nowej wersji CSS/JS przez przeglądarkę.
             foreach (var name in new[] { "styles.css", "app.js" })
             {
@@ -50,6 +57,7 @@ public static class ConfigEndpoints
                 clips_root_exists = Directory.Exists(root),
                 configured,
                 dev = DevBuild,
+                accent_theme = AccentThemeOrDefault(),
             });
         });
 
@@ -73,6 +81,16 @@ public static class ConfigEndpoints
             {
                 ["ok"] = true, ["clips_root"] = newRoot, ["scan"] = scan,
             });
+        });
+
+        app.MapPost("/api/accent-theme", (AccentThemePayload body) =>
+        {
+            Heartbeat.Touch();
+            var theme = body.theme?.Trim().ToLowerInvariant();
+            if (theme is not ("purple" or "green"))
+                return Api.Detail(400, "Nieobsługiwany motyw kolorystyczny.");
+            Settings.SetString("accent_theme", theme);
+            return Results.Json(new { ok = true, theme });
         });
 
         app.MapPost("/api/heartbeat", () => { Heartbeat.Touch(); return Results.Json(new { ok = true }); });
@@ -109,3 +127,4 @@ public static class ConfigEndpoints
 }
 
 record ConfigPayload(string clips_root);
+record AccentThemePayload(string? theme);

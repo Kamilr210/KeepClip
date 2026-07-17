@@ -161,6 +161,7 @@ const els = {
   replayAudioInput: $("#replay-audio-input"),
   viewSettings: $("#view-settings"),
   settingsOpenReplay: $("#settings-open-replay"),
+  settingsTheme: $("#accent-theme-select"),
   ctrlSnap: $("#ctrl-snap"),
   ctrlMute: $("#ctrl-mute"),
   ctrlStart: $("#ctrl-start"),
@@ -2061,6 +2062,44 @@ document.querySelectorAll(".nav-tool[data-action]").forEach((btn) => {
 
 // Ustawienia to pełny widok (data-view="settings" w sidebarze), nie modal —
 // przycisk w nawigacji łapie standardowy handler navItems → setView("settings").
+
+function normalizeAccentTheme(theme) {
+  return theme === "green" ? "green" : "purple";
+}
+
+function applyAccentTheme(theme) {
+  const normalized = normalizeAccentTheme(theme);
+  document.documentElement.dataset.accentTheme = normalized;
+  if (els.settingsTheme) els.settingsTheme.value = normalized;
+  const favicon = document.querySelector('link[rel="icon"]');
+  if (favicon) favicon.href = normalized === "green" ? "/icons/favicon-green.svg" : "/icons/favicon.svg";
+  return normalized;
+}
+
+applyAccentTheme(document.documentElement.dataset.accentTheme);
+
+if (els.settingsTheme) {
+  els.settingsTheme.addEventListener("change", async () => {
+    const previous = normalizeAccentTheme(document.documentElement.dataset.accentTheme);
+    const selected = applyAccentTheme(els.settingsTheme.value);
+    els.settingsTheme.disabled = true;
+    try {
+      const response = await fetch("/api/accent-theme", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: selected }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || response.statusText);
+      applyAccentTheme(data.theme);
+    } catch (e) {
+      applyAccentTheme(previous);
+      toast(t("settings.themeSaveError").replace("{error}", e.message), "error");
+    } finally {
+      els.settingsTheme.disabled = false;
+    }
+  });
+}
 
 document.querySelectorAll(".settings-folder-btn[data-action='change-folder']").forEach((btn) => {
   btn.addEventListener("click", () => openConfigModal({ mode: "change" }));
