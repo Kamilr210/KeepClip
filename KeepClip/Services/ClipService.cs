@@ -65,8 +65,14 @@ public class ClipService
         });
     }
 
-    public Result<Dictionary<string, object?>> Cut(long clipId, double start, double end, double? targetSizeMb)
+    public Result<Dictionary<string, object?>> Cut(
+        long clipId,
+        double start,
+        double end,
+        double? targetSizeMb,
+        Action<double, string>? progress = null)
     {
+        progress?.Invoke(0, "preparing");
         var clip = _clips.GetById(clipId);
         if (clip is null) return Fail(404, "Klip nie istnieje.");
         var src = clip.Filepath ?? "";
@@ -86,7 +92,7 @@ public class ClipService
         for (int i = 2; File.Exists(output); i++)
             output = Path.Combine(cutsRoot, $"{baseName}_{i}.mp4");
 
-        var (ok, msg, stats) = Media.CutClip(src, output, start, end, targetSizeMb);
+        var (ok, msg, stats) = Media.CutClip(src, output, start, end, targetSizeMb, progress);
         if (!ok) return Fail(422, msg);
 
         long? newClipId = null;
@@ -123,6 +129,7 @@ public class ClipService
             ["in_library"] = newClipId is not null,
         };
         foreach (var kv in stats) resp[kv.Key] = kv.Value; // Dołącza pola statystyk do odpowiedzi.
+        progress?.Invoke(0.99, "saving");
         return Ok(resp);
     }
 
@@ -153,8 +160,11 @@ public class ClipService
         });
     }
 
-    public Result<Dictionary<string, object?>> Retranscribe(long clipId)
+    public Result<Dictionary<string, object?>> Retranscribe(
+        long clipId,
+        Action<double, string>? progress = null)
     {
+        progress?.Invoke(0, "preparing");
         if (TranscribeState.Snapshot().running)
             return Fail(409, "Trwa transkrypcja, spróbuj później.");
 
@@ -165,12 +175,13 @@ public class ClipService
 
         var sw = Stopwatch.StartNew();
         List<Transcriber.Segment> segs;
-        try { segs = Transcriber.Transcribe(fp); }
+        try { segs = Transcriber.Transcribe(fp, progress); }
         catch (Exception ex) { return Fail(500, $"Transkrypcja nie powiodła się: {ex.Message}"); }
         sw.Stop();
 
         _segments.ReplaceAll(clipId, segs.Select(s => (s.Start, s.End, s.Text)));
         _clips.SetTranscribed(clipId, TranscribeWorker.NowIso(), Config.WhisperLang);
+        progress?.Invoke(0.99, "saving");
 
         DevLog.Add($"Transkrypcja klipu #{clipId}: gotowe — {segs.Count} segmentów w {Math.Round(sw.Elapsed.TotalSeconds, 1)} s");
         return Ok(new()

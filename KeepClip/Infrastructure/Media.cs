@@ -15,7 +15,11 @@ public static class Media
 
     private readonly record struct RunResult(bool Faulted, int ExitCode, string StdOut, string StdErr);
 
-    private static RunResult Run(string exe, IReadOnlyList<string> args, int timeoutSeconds)
+    private static RunResult Run(
+        string exe,
+        IReadOnlyList<string> args,
+        int timeoutSeconds,
+        Action<string>? onOutputLine = null)
     {
         var psi = new ProcessStartInfo
         {
@@ -30,7 +34,12 @@ public static class Media
         using var proc = new Process { StartInfo = psi };
         var so = new StringBuilder();
         var se = new StringBuilder();
-        proc.OutputDataReceived += (_, e) => { if (e.Data is not null) so.AppendLine(e.Data); };
+        proc.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data is null) return;
+            so.AppendLine(e.Data);
+            onOutputLine?.Invoke(e.Data);
+        };
         proc.ErrorDataReceived  += (_, e) => { if (e.Data is not null) se.AppendLine(e.Data); };
 
         try { proc.Start(); }
@@ -138,7 +147,12 @@ public static class Media
     }
 
     public static (bool Ok, string Message, Dictionary<string, object?> Stats) CutClip(
-        string src, string output, double start, double end, double? targetSizeMb = null)
+        string src,
+        string output,
+        double start,
+        double end,
+        double? targetSizeMb = null,
+        Action<double, string>? progress = null)
     {
         var duration = end - start;
         if (duration <= 0.1) return (false, "Koniec musi być co najmniej 0.1s po początku.", new());
@@ -159,6 +173,7 @@ public static class Media
             var args = new List<string>
             {
                 "-y", "-hide_banner", "-loglevel", "error",
+                "-progress", "pipe:1", "-nostats",
                 // Ustawienie pozycji przed parametrem -i jest szybkie i przy kodowaniu pozostaje dokładne.
                 "-ss", start.ToString("F3", CultureInfo.InvariantCulture),
                 "-to", end.ToString("F3", CultureInfo.InvariantCulture),
@@ -214,7 +229,39 @@ public static class Media
         int attempts = hardLimitBytes.HasValue ? maximumAttempts : 1;
         for (int attempt = 1; attempt <= attempts; attempt++)
         {
-            var r = Run(Config.Ffmpeg, BuildArgs(targetVideoKbps), timeoutSeconds: 600);
+            var stage = attempt == 1 ? "cutting" : "cuttingRetry";
+            progress?.Invoke(0.02, stage);
+            double lastReported = 0;
+
+            void ReportFfmpegProgress(string line)
+            {
+                double encodedSeconds = -1;
+                const string microsecondsPrefix = "out_time_us=";
+                const string timestampPrefix = "out_time=";
+                if (line.StartsWith(microsecondsPrefix, StringComparison.Ordinal) &&
+                    long.TryParse(line.AsSpan(microsecondsPrefix.Length), NumberStyles.Integer,
+                        CultureInfo.InvariantCulture, out var microseconds))
+                {
+                    encodedSeconds = microseconds / 1_000_000.0;
+                }
+                else if (line.StartsWith(timestampPrefix, StringComparison.Ordinal) &&
+                    TimeSpan.TryParse(line[timestampPrefix.Length..], CultureInfo.InvariantCulture, out var timestamp))
+                {
+                    encodedSeconds = timestamp.TotalSeconds;
+                }
+
+                if (encodedSeconds < 0) return;
+                var current = 0.02 + Math.Clamp(encodedSeconds / duration, 0, 1) * 0.94;
+                if (current - lastReported < 0.005 && current < 0.96) return;
+                lastReported = current;
+                progress?.Invoke(current, stage);
+            }
+
+            var r = Run(
+                Config.Ffmpeg,
+                BuildArgs(targetVideoKbps),
+                timeoutSeconds: 600,
+                onOutputLine: ReportFfmpegProgress);
             if (r.Faulted)
             {
                 TryDelete(output);
@@ -231,6 +278,7 @@ public static class Media
             var fi = new FileInfo(output);
             if (!hardLimitBytes.HasValue || fi.Length <= hardLimitBytes.Value)
             {
+                progress?.Invoke(0.98, "saving");
                 return (true, "ok", new Dictionary<string, object?>
                 {
                     ["duration_s"] = duration,

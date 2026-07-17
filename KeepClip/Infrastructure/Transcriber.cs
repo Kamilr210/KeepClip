@@ -13,12 +13,16 @@ public static class Transcriber
 
     public readonly record struct Segment(double Start, double End, string Text);
 
-    public static List<Segment> Transcribe(string path)
+    public static List<Segment> Transcribe(
+        string path,
+        Action<double, string>? progress = null)
     {
+        progress?.Invoke(0.02, "audio");
         var samples = LoadAudioNormalized(path)
             ?? throw new InvalidOperationException($"Nie udało się zdekodować audio: {path}");
 
         var factory = GetFactory();
+        progress?.Invoke(0.15, "transcribing");
 
         // Znaczniki czasu tokenów są potrzebne do dzielenia wypowiedzi na fragmenty po ciszy.
         using var processor = factory.CreateBuilder()
@@ -30,8 +34,10 @@ public static class Transcriber
             .Build();
 
         var outSegs = new List<Segment>();
-        foreach (var seg in ProcessAll(processor, samples))
+        var audioDuration = samples.Length / 16000.0;
+        foreach (var seg in ProcessAll(processor, samples, audioDuration, progress))
             SplitOnInternalGaps(seg, Config.WhisperSplitGapSeconds, outSegs);
+        progress?.Invoke(0.97, "saving");
         return outSegs;
     }
 
@@ -99,12 +105,23 @@ public static class Transcriber
         _               => GgmlType.LargeV3Turbo,
     };
 
-    private static List<SegmentData> ProcessAll(WhisperProcessor processor, float[] samples)
+    private static List<SegmentData> ProcessAll(
+        WhisperProcessor processor,
+        float[] samples,
+        double audioDuration,
+        Action<double, string>? progress)
         => Task.Run(async () =>
         {
             var list = new List<SegmentData>();
             await foreach (var seg in processor.ProcessAsync(samples))
+            {
                 list.Add(seg);
+                if (audioDuration > 0)
+                {
+                    var ratio = Math.Clamp(seg.End.TotalSeconds / audioDuration, 0, 1);
+                    progress?.Invoke(0.15 + ratio * 0.8, "transcribing");
+                }
+            }
             return list;
         }).GetAwaiter().GetResult();
 

@@ -487,7 +487,19 @@
     </div>
   </main>
 </div>
-</div><div id="confirm-overlay" hidden>
+
+</div>
+
+<section id="single-progress" class="card" hidden aria-live="polite">
+  <button id="single-progress-close" class="progress-close" type="button" data-i18n-title="progress.close" data-i18n-aria="progress.close" title="Zamknij" aria-label="Zamknij" hidden>✕</button>
+  <div id="single-progress-current" class="single-progress-current"></div>
+  <div class="progress-row">
+    <div class="progress-bar"><div id="single-progress-fill"></div></div>
+    <div id="single-progress-text">0%</div>
+  </div>
+</section>
+
+<div id="confirm-overlay" hidden>
   <div id="confirm-box">
     <h3 id="confirm-title" data-i18n="confirmDefault.title">Na pewno?</h3>
     <p id="confirm-body" class="subtle"></p>

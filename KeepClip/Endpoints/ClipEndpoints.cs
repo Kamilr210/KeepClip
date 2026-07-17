@@ -7,6 +7,9 @@ public static class ClipEndpoints
         app.MapGet("/api/clips", (string? game, string? sort, int? limit, int? favorite, ClipRepository clips) =>
             Results.Json(clips.List(game, sort, limit ?? 200, favorite is not null && favorite != 0)));
 
+        app.MapGet("/api/single-operation/status", () =>
+            Results.Json(SingleOperationProgress.Snapshot()));
+
         app.MapPost("/api/clips/{clipId:long}/favorite", (long clipId, ClipRepository clips) =>
         {
             Heartbeat.Touch();
@@ -19,7 +22,19 @@ public static class ClipEndpoints
         app.MapPost("/api/clips/{clipId:long}/retranscribe", (long clipId, ClipService clips) =>
         {
             Heartbeat.Touch();
-            return Respond(clips.Retranscribe(clipId));
+            var operationId = SingleOperationProgress.Start("transcription", clipId);
+            try
+            {
+                var result = clips.Retranscribe(clipId,
+                    (progress, stage) => SingleOperationProgress.Report(operationId, progress, stage));
+                SingleOperationProgress.Finish(operationId, result.IsSuccess, result.Error);
+                return Respond(result);
+            }
+            catch (Exception ex)
+            {
+                SingleOperationProgress.Finish(operationId, false, ex.Message);
+                throw;
+            }
         });
 
         app.MapPost("/api/clips/{clipId:long}/fix", (long clipId, ClipService clips) =>
@@ -31,7 +46,19 @@ public static class ClipEndpoints
         app.MapPost("/api/clips/{clipId:long}/cut", (long clipId, CutPayload body, ClipService clips) =>
         {
             Heartbeat.Touch();
-            return Respond(clips.Cut(clipId, body.start, body.end, body.target_size_mb));
+            var operationId = SingleOperationProgress.Start("cut", clipId);
+            try
+            {
+                var result = clips.Cut(clipId, body.start, body.end, body.target_size_mb,
+                    (progress, stage) => SingleOperationProgress.Report(operationId, progress, stage));
+                SingleOperationProgress.Finish(operationId, result.IsSuccess, result.Error);
+                return Respond(result);
+            }
+            catch (Exception ex)
+            {
+                SingleOperationProgress.Finish(operationId, false, ex.Message);
+                throw;
+            }
         });
 
         app.MapDelete("/api/clips/{clipId:long}", async (long clipId, bool? delete_file, ClipService clips) =>

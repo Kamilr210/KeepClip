@@ -173,6 +173,28 @@ header {
 #progress-text { width: 90px; text-align: right; font-variant-numeric: tabular-nums; }
 #progress-current { margin-top: 6px; font-size: 13px; }
 #progress { position: relative; }
+#single-progress {
+  position: fixed; left: 280px; right: 28px; bottom: 18px; z-index: 2800;
+  margin: 0; box-sizing: border-box;
+  background: rgba(20, 23, 32, .96); backdrop-filter: blur(18px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .48), 0 0 0 1px rgba(124, 92, 255, .14);
+}
+#single-progress-fill {
+  height: 100%; width: 0%; min-width: 0;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width .25s ease;
+}
+#single-progress-text {
+  width: 54px; text-align: right; font-variant-numeric: tabular-nums;
+}
+.single-progress-current {
+  margin: 0 36px 9px 0; font-size: 13px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#single-progress.operation-error { border-color: #6b2635; }
+#single-progress.operation-error #single-progress-fill {
+  background: linear-gradient(90deg, #d34c65, #ff8a9d);
+}
 .progress-close {
   position: absolute; top: 8px; right: 10px;
   width: 26px; height: 26px; padding: 0;
@@ -864,6 +886,7 @@ header {
   .nav-item .nav-label, .nav-tool .nav-label { flex: none; }
   .stats-cards { grid-template-columns: repeat(2, 1fr); }
   .main { padding: 18px; }
+  #single-progress { left: 18px; right: 18px; bottom: 18px; }
 }
 
 .nav-dot {

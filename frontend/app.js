@@ -46,6 +46,11 @@ const els = {
   ptext: $("#progress-text"),
   pcurrent: $("#progress-current"),
   progClose: $("#progress-close"),
+  singleProgress: $("#single-progress"),
+  singleProgressFill: $("#single-progress-fill"),
+  singleProgressText: $("#single-progress-text"),
+  singleProgressCurrent: $("#single-progress-current"),
+  singleProgressClose: $("#single-progress-close"),
   q: $("#q"),
   gameFilter: $("#game-filter"),
   sort: $("#sort"),
@@ -252,6 +257,7 @@ async function loadStats() {
   els.gameFilter.innerHTML = '<option value="">' + t("search.allGames") + '</option>' +
     r.games.map((g) => `<option value="${escapeAttr(g.game)}">${escapeHtml(g.game)} (${g.done}/${g.clips})</option>`).join("");
   if (cur) els.gameFilter.value = cur;
+  return r;
 }
 
 function setCloudQuota(st) {
@@ -1476,6 +1482,106 @@ els.cutOverlay.addEventListener("click", (e) => {
   if (e.target === els.cutOverlay) closeCutModal();
 });
 
+let _singleProgressTimer = null;
+let _singleProgressHideTimer = null;
+let _singleProgressKind = "";
+let _singleProgressFilename = "";
+let _singleProgressSeenId = "";
+let _singleProgressActive = false;
+let _singleProgressFinished = false;
+
+function singleOperationTitle(kind) {
+  return t(kind === "transcription" ? "progress.singleTranscription" : "progress.singleCut");
+}
+
+function singleOperationStage(stage) {
+  const key = `progress.${stage || "preparing"}`;
+  const label = t(key);
+  return label === key ? t("progress.preparing") : label;
+}
+
+function renderSingleOperationProgress(progress, stage) {
+  const pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
+  els.singleProgressFill.style.width = `${_singleProgressActive ? Math.max(2, pct) : pct}%`;
+  els.singleProgressText.textContent = `${pct}%`;
+  const filename = _singleProgressFilename ? `: ${_singleProgressFilename}` : "";
+  els.singleProgressCurrent.textContent =
+    `${singleOperationTitle(_singleProgressKind)}${filename} — ${singleOperationStage(stage)}`;
+}
+
+async function pollSingleOperationProgress() {
+  if (!_singleProgressActive) return;
+  try {
+    const response = await fetch("/api/single-operation/status", { cache: "no-store" });
+    if (!response.ok) return;
+    const status = await response.json();
+    if (!_singleProgressActive || status.kind !== _singleProgressKind) return;
+    if (status.active) _singleProgressSeenId = status.id;
+    if (!_singleProgressSeenId || status.id !== _singleProgressSeenId) return;
+    renderSingleOperationProgress(status.progress || 0, status.stage);
+    if (!status.active && status.success !== null) {
+      finishSingleOperationProgress(!!status.success, status.error || "");
+    }
+  } catch {
+    // Następna próba odpytywania nastąpi automatycznie.
+  }
+}
+
+function startSingleOperationProgress(kind, filename = "") {
+  if (_singleProgressTimer) clearInterval(_singleProgressTimer);
+  if (_singleProgressHideTimer) clearTimeout(_singleProgressHideTimer);
+  if (els.singleProgress.parentElement !== document.body) {
+    document.body.appendChild(els.singleProgress);
+  }
+  _singleProgressKind = kind;
+  _singleProgressFilename = filename;
+  _singleProgressSeenId = "";
+  _singleProgressActive = true;
+  _singleProgressFinished = false;
+  els.singleProgress.hidden = false;
+  els.singleProgress.classList.remove("operation-error");
+  els.singleProgressClose.hidden = true;
+  renderSingleOperationProgress(0, "preparing");
+  setTimeout(pollSingleOperationProgress, 120);
+  _singleProgressTimer = setInterval(pollSingleOperationProgress, 300);
+}
+
+function finishSingleOperationProgress(success, error = "") {
+  if (_singleProgressFinished) return;
+  _singleProgressFinished = true;
+  _singleProgressActive = false;
+  if (_singleProgressTimer) {
+    clearInterval(_singleProgressTimer);
+    _singleProgressTimer = null;
+  }
+  els.singleProgress.classList.toggle("operation-error", !success);
+  if (success) {
+    els.singleProgressFill.style.width = "100%";
+    els.singleProgressText.textContent = "100%";
+    els.singleProgressCurrent.textContent =
+      `${singleOperationTitle(_singleProgressKind)} — ${t("progress.done")}`;
+    _singleProgressHideTimer = setTimeout(() => {
+      if (!_singleProgressActive) els.singleProgress.hidden = true;
+      _singleProgressHideTimer = null;
+    }, 1600);
+  } else {
+    els.singleProgressText.textContent = "!";
+    els.singleProgressCurrent.textContent = t("progress.error").replace("{error}", error);
+  }
+  els.singleProgressClose.hidden = false;
+}
+
+els.singleProgressClose.addEventListener("click", () => {
+  _singleProgressActive = false;
+  if (_singleProgressTimer) clearInterval(_singleProgressTimer);
+  if (_singleProgressHideTimer) clearTimeout(_singleProgressHideTimer);
+  _singleProgressTimer = null;
+  _singleProgressHideTimer = null;
+  els.singleProgress.hidden = true;
+  els.singleProgress.classList.remove("operation-error");
+  els.singleProgressFill.style.width = "0%";
+});
+
 els.cutGo.addEventListener("click", async () => {
   const { start, end, duration } = _currentCutTimes();
   if (!isFinite(start) || !isFinite(end) || duration <= 0) {
@@ -1486,6 +1592,7 @@ els.cutGo.addEventListener("click", async () => {
   els.cutError.hidden = true;
   els.cutGo.disabled = true;
   els.cutGo.textContent = t("toast.cutting");
+  startSingleOperationProgress("cut", els.cutSourceName.textContent);
   try {
     const r = await fetch(`/api/clips/${currentClipId}/cut`, {
       method: "POST",
@@ -1497,13 +1604,14 @@ els.cutGo.addEventListener("click", async () => {
     });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
+    finishSingleOperationProgress(true);
     closeCutModal();
     showCutSuccess(data);
     if (data.in_library) {
-      await loadStats();
-      await doSearch();
+      await refreshLibraryViews();
     }
   } catch (e) {
+    finishSingleOperationProgress(false, e.message);
     els.cutError.textContent = e.message;
     els.cutError.hidden = false;
   } finally {
@@ -1615,6 +1723,7 @@ async function openFoldersDropdown() {
           const error = await r.json().catch(() => ({}));
           throw new Error(error.detail || r.statusText);
         }
+        await refreshLibraryViews();
       } catch (e) {
         cb.checked = !shouldBeChecked;
         toast(e.message, "error");
@@ -1644,6 +1753,7 @@ async function openFoldersDropdown() {
         throw new Error(error.detail || addResponse.statusText);
       }
       toast(t("toast.folderCreated").replace("{name}", data.name));
+      await refreshLibraryViews();
       await openFoldersDropdown();
     } catch (e) {
       toast(e.message, "error");
@@ -1695,10 +1805,12 @@ els.pretrans.addEventListener("click", async () => {
   if (!currentClipId) return;
   els.pretrans.disabled = true;
   setSideActionLabel(els.pretrans, "toast.retranscribeBtn");
+  startSingleOperationProgress("transcription", els.pfile.textContent);
   try {
     const r = await fetch(`/api/clips/${currentClipId}/retranscribe`, { method: "POST" });
     const data = await r.json();
     if (!r.ok) throw new Error(data.detail || r.statusText);
+    finishSingleOperationProgress(true);
     toast(t("toast.transcribeRetranscribed").replace("{segments}", data.segments).replace("{seconds}", data.seconds));
     const cid = currentClipId;
     closePlayer();
@@ -1706,6 +1818,7 @@ els.pretrans.addEventListener("click", async () => {
     await loadStats();
     doSearch();
   } catch (e) {
+    finishSingleOperationProgress(false, e.message);
     toast(t("toast.transcribeError").replace("{error}", e.message), "error");
   } finally {
     els.pretrans.disabled = false;
@@ -1773,8 +1886,7 @@ els.pdelete.addEventListener("click", async () => {
     } else {
       toast(t("toast.deleteSuccessOnly").replace("{filename}", data.filename));
     }
-    await loadStats();
-    await doSearch();
+    await refreshLibraryViews();
   } catch (e) {
     toast(t("toast.deleteError").replace("{error}", e.message), "error");
   } finally {
@@ -1790,19 +1902,102 @@ els.q.addEventListener("input", () => {
 els.gameFilter.addEventListener("change", doSearch);
 els.sort.addEventListener("change", doSearch);
 
-async function runScan({ showToastAlways = false } = {}) {
-  const r = await fetch("/api/scan", { method: "POST" }).then((r) => r.json());
+async function runScan({ showToastAlways = false, announceChanges = true } = {}) {
+  const response = await fetch("/api/scan", { method: "POST" });
+  const r = await response.json();
+  if (!response.ok) throw new Error(r.detail || response.statusText);
   const parts = [];
   if (r.added) parts.push(t("toast.scanParts.added").replace("{n}", r.added));
   if (r.removed) parts.push(t("toast.scanParts.removed").replace("{n}", r.removed));
+  if (r.updated) parts.push(t("toast.scanParts.updated").replace("{n}", r.updated));
   if (!parts.length) parts.push(t("toast.scanParts.noChanges"));
-  if (r.added || r.removed) {
+  if (announceChanges && (r.added || r.removed || r.updated)) {
     toast(`Skan: ${parts.join(", ")}`);
   } else if (showToastAlways) {
     toast(t("toast.scanNoChanges"));
   }
   return r;
 }
+
+function libraryStatsSignature(stats) {
+  if (!stats) return "";
+  const games = (stats.games || []).map((g) => [g.game, g.clips, g.done]);
+  return JSON.stringify([
+    stats.clips,
+    stats.transcribed,
+    stats.segments,
+    stats.local_bytes,
+    stats.cloud_bytes,
+    stats.favorites,
+    games,
+  ]);
+}
+
+let _libraryRefreshPromise = null;
+let _libraryRefreshQueued = false;
+
+async function refreshLibraryViews({ skipStats = false } = {}) {
+  if (_libraryRefreshPromise) {
+    _libraryRefreshQueued = true;
+    return _libraryRefreshPromise;
+  }
+
+  const refresh = (async () => {
+    let omitStats = skipStats;
+    do {
+      _libraryRefreshQueued = false;
+      const jobs = [];
+      if (!omitStats) jobs.push(loadStats());
+      if (!els.viewClips.hidden) jobs.push(doSearch());
+      if (!els.viewFavorites.hidden) jobs.push(loadFavorites());
+      if (!els.viewCloud.hidden) jobs.push(loadCloud());
+      if (!els.viewFolders.hidden) {
+        jobs.push(_currentFolderId == null ? loadFoldersIndex() : openFolder(_currentFolderId));
+      }
+      await Promise.all(jobs);
+      omitStats = false;
+    } while (_libraryRefreshQueued);
+  })();
+
+  _libraryRefreshPromise = refresh;
+  try {
+    await refresh;
+  } finally {
+    if (_libraryRefreshPromise === refresh) _libraryRefreshPromise = null;
+  }
+}
+
+let _autoLibrarySyncTimer = null;
+let _autoLibrarySyncBusy = false;
+
+async function autoSyncLibrary() {
+  if (_autoLibrarySyncBusy || document.hidden || !els.configOverlay.hidden) return;
+  _autoLibrarySyncBusy = true;
+  try {
+    const previousSignature = libraryStatsSignature(_lastStats);
+    const scan = await runScan({ announceChanges: false });
+    const stats = await loadStats();
+    const libraryChanged = scan.added || scan.removed || scan.updated ||
+      libraryStatsSignature(stats) !== previousSignature;
+    if (libraryChanged) await refreshLibraryViews({ skipStats: true });
+  } catch (e) {
+    console.warn("Automatyczne odświeżanie biblioteki nie powiodło się:", e);
+  } finally {
+    _autoLibrarySyncBusy = false;
+  }
+}
+
+function startAutoLibrarySync() {
+  if (_autoLibrarySyncTimer) return;
+  _autoLibrarySyncTimer = setInterval(autoSyncLibrary, 2500);
+}
+
+window.addEventListener("focus", () => {
+  if (_autoLibrarySyncTimer) autoSyncLibrary();
+});
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && _autoLibrarySyncTimer) autoSyncLibrary();
+});
 
 els.scan.addEventListener("click", async () => {
   els.scan.disabled = true;
@@ -1812,10 +2007,10 @@ els.scan.addEventListener("click", async () => {
     const parts = [];
     if (r.added) parts.push(`+${r.added} nowych`);
     if (r.removed) parts.push(`-${r.removed} usuniętych`);
+    if (r.updated) parts.push(`${r.updated} odświeżonych`);
     if (!parts.length) parts.push("bez zmian");
     els.scanLabel.textContent = parts.join(", ");
-    await loadStats();
-    await doSearch();
+    await refreshLibraryViews();
   } finally {
     setTimeout(() => {
       els.scan.disabled = false;
@@ -1985,10 +2180,11 @@ els.configSave.addEventListener("click", async () => {
     const parts = [];
     if (scan.added) parts.push(`+${scan.added} nowych`);
     if (scan.removed) parts.push(`-${scan.removed} starych usuniętych`);
+    if (scan.updated) parts.push(`${scan.updated} odświeżonych`);
     if (!parts.length && scan.found) parts.push(`${scan.found} klipów`);
     toast(`Folder ustawiony: ${data.clips_root}${parts.length ? " — " + parts.join(", ") : ""}`);
-    await loadStats();
-    await doSearch();
+    await refreshLibraryViews();
+    startAutoLibrarySync();
   } catch (e) {
     els.configError.textContent = e.message;
     els.configError.hidden = false;
@@ -2567,6 +2763,7 @@ setInterval(sendHeartbeat, 30000);
   const s = await fetch("/api/transcribe/status").then((r) => r.json());
   if (s.running) attachStream();
   await renderRecent("");
+  startAutoLibrarySync();
 
 window.addEventListener('pywebviewready', function() {
   
