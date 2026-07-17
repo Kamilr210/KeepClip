@@ -154,6 +154,8 @@ public static class ReplayService
         if (Interlocked.CompareExchange(ref _saving, 1, 0) != 0)
             throw new InvalidOperationException("Poprzedni zapis powtórki jeszcze trwa.");
 
+        var game = DisplayHelper.ForegroundGameName() ?? "Pulpit";
+
         // Potwierdza skrót natychmiast, zanim zakończy się składanie dużego pliku.
         PlayCue(ok: true);
         try { Notifier?.Invoke(true, "Zapisywanie powtórki…", "przetwarzanie, chwila…"); } catch { }
@@ -195,13 +197,12 @@ public static class ReplayService
                 sb.Append("file '").Append(f.Replace('\\', '/').Replace("'", "'\\''")).Append("'\n");
             await File.WriteAllTextAsync(listPath, sb.ToString());
 
-            var game = DisplayHelper.ForegroundGameName() ?? "Pulpit";
-            var outDir = Path.Combine(Settings.GetClipsRoot(), Config.ReplaySubdir);
+            var outDir = Path.Combine(Settings.GetClipsRoot(), game);
             Directory.CreateDirectory(outDir);
             foreach (var stale in Directory.GetFiles(outDir, "replay_out_*.part"))
                 try { File.Delete(stale); } catch { }
-            var outName = $"{game} {DateTime.Now:yyyy-MM-dd HH-mm-ss}.mp4";
-            var outPath = Path.Combine(outDir, outName);
+            var outPath = AvailableReplayPath(outDir, $"{game} {DateTime.Now:yyyy-MM-dd HH-mm-ss}");
+            var outName = Path.GetFileName(outPath);
 
             // Obraz jest kopiowany bez utraty jakości, a audio kodowane ponownie, aby naprawić
             // szczeliny między segmentami. Plik tymczasowy leży w folderze docelowym, dzięki
@@ -533,6 +534,14 @@ public static class ReplayService
     {
         TierGpu => "ddagrab-gpu", TierGdi => "gdigrab", _ => "ddagrab",
     };
+
+    private static string AvailableReplayPath(string directory, string stem)
+    {
+        var path = Path.Combine(directory, stem + ".mp4");
+        for (int copy = 2; File.Exists(path); copy++)
+            path = Path.Combine(directory, $"{stem} ({copy}).mp4");
+        return path;
+    }
 
     // Krótki test kodowania sprawdza faktyczne uruchomienie sterownika, nie tylko obecność enkodera.
     private static string ProbeEncoder()

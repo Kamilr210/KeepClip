@@ -488,6 +488,9 @@ header {
   background: #2a1820; border: 1px solid #5a2030; color: #ffb1bc;
   border-radius: 8px; padding: 10px 12px; font-size: 13px; margin: 12px 0 18px;
 }
+#confirm-box .confirm-warn.success {
+  background: #12281d; border-color: #246b45; color: #8ce8b5;
+}
 #confirm-body { word-break: break-all; }
 .confirm-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
@@ -1547,6 +1550,12 @@ body.cloud-connected .scc-body.on { display: block; }
   right: calc(100% + 8px);
   top: 0;
   left: auto;
+}
+
+#player-folders-dropdown.player-folders-portal {
+  position: fixed;
+  right: auto;
+  z-index: 2100;
 }
 
 .player-file-link {

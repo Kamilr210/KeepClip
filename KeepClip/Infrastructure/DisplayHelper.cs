@@ -5,6 +5,20 @@ namespace KeepClip.Infrastructure;
 
 internal static class DisplayHelper
 {
+    private static readonly Dictionary<string, string> KnownGameNames =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["cs2"] = "Counter-Strike 2",
+        };
+
+    private static readonly HashSet<string> ReservedFolderNames =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+        };
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern bool EnumDisplaySettingsW(string? deviceName, int modeNum, ref DEVMODE devMode);
     private const int ENUM_CURRENT_SETTINGS = -1;
@@ -58,14 +72,47 @@ internal static class DisplayHelper
             GetWindowThreadProcessId(GetForegroundWindow(), out var pid);
             if (pid == 0) return null;
             using var p = Process.GetProcessById((int)pid);
-            var name = p.ProcessName;
-            if (string.IsNullOrWhiteSpace(name)) return null;
+            var processName = p.ProcessName;
+            if (string.IsNullOrWhiteSpace(processName)) return null;
             if (p.Id == Environment.ProcessId) return null;
-            if (name.Equals("explorer", StringComparison.OrdinalIgnoreCase)) return null;
-            if (name.Equals("KeepClip", StringComparison.OrdinalIgnoreCase)) return null;
-            foreach (var c in Path.GetInvalidFileNameChars()) name = name.Replace(c, '_');
-            return name;
+            if (processName.Equals("explorer", StringComparison.OrdinalIgnoreCase)) return null;
+            if (processName.Equals("KeepClip", StringComparison.OrdinalIgnoreCase)) return null;
+
+            var name = KnownGameNames.GetValueOrDefault(processName)
+                       ?? ProductName(p)
+                       ?? processName;
+            return SafeFolderName(name);
         }
         catch { return null; }
+    }
+
+    private static string? ProductName(Process process)
+    {
+        try
+        {
+            var info = process.MainModule?.FileVersionInfo;
+            foreach (var value in new[] { info?.ProductName, info?.FileDescription })
+            {
+                var name = value?.Trim();
+                if (string.IsNullOrWhiteSpace(name)) continue;
+                if (name.Contains("Microsoft Windows", StringComparison.OrdinalIgnoreCase)) continue;
+                return name;
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    public static string SafeFolderName(string name)
+    {
+        var cleaned = name.Trim();
+        foreach (var c in Path.GetInvalidFileNameChars())
+            cleaned = cleaned.Replace(c, '_');
+
+        cleaned = cleaned.TrimEnd('.', ' ');
+        if (cleaned.Length > 80) cleaned = cleaned[..80].TrimEnd('.', ' ');
+        if (string.IsNullOrWhiteSpace(cleaned) || cleaned is "." or "..") return "Pulpit";
+        if (ReservedFolderNames.Contains(cleaned.Split('.')[0])) cleaned = "_" + cleaned;
+        return cleaned;
     }
 }

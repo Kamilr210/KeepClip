@@ -116,6 +116,7 @@ public class ClipService
         {
             ["ok"] = true,
             ["output_path"] = output,
+            ["output_directory"] = Path.GetDirectoryName(output),
             ["output_name"] = Path.GetFileName(output),
             ["cuts_root"] = cutsRoot,
             ["clip_id"] = newClipId,

@@ -490,7 +490,21 @@ function renderResults(rows) {
 }
 
 function favStar(clipId, isFav) {
-  return `<button class="fav-btn ${isFav ? "is-fav" : ""}" data-fav-id="${clipId}" title="Ulubione" aria-label="Przełącz ulubione">${isFav ? "★" : "☆"}</button>`;
+  return `<button class="fav-btn ${isFav ? "is-fav" : ""}" data-fav-id="${clipId}" title="Ulubione" aria-label="Przełącz ulubione"><span class="fav-star">${isFav ? "★" : "☆"}</span></button>`;
+}
+
+function setFavoriteIcon(button, isFavorite) {
+  if (!button) return;
+  let star = button.querySelector(".fav-star");
+  if (!star) {
+    Array.from(button.childNodes)
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .forEach((node) => node.remove());
+    star = document.createElement("span");
+    star.className = "fav-star";
+    button.prepend(star);
+  }
+  star.textContent = isFavorite ? "★" : "☆";
 }
 
 async function toggleFavorite(clipId) {
@@ -499,12 +513,10 @@ async function toggleFavorite(clipId) {
     if (!res.ok) throw new Error();
     const data = await res.json();
     const isFav = !!data.favorite;
-  // Synchronizuje wszystkie wystąpienia klipu bez usuwania etykiety przycisku odtwarzacza.
+    // Synchronizuje wszystkie wystąpienia klipu bez usuwania etykiety przycisku odtwarzacza.
     document.querySelectorAll(`.fav-btn[data-fav-id="${clipId}"]`).forEach((b) => {
       b.classList.toggle("is-fav", isFav);
-      const star = b.querySelector(".fav-star");
-      if (star) star.textContent = isFav ? "★" : "☆";
-      else b.textContent = isFav ? "★" : "☆";
+      setFavoriteIcon(b, isFav);
     });
     loadStats();
     if (!els.viewFavorites.hidden) loadFavorites();
@@ -593,11 +605,33 @@ function markClipLocalInDom(clipId) {
   });
 }
 
-function setPlayerCloudBusy(srcBtn, label) {
+function setSideActionLabel(button, translationKey) {
+  if (!button) return;
+  let label = button.querySelector(".side-action-label");
+  if (!label) {
+    label = document.createElement("span");
+    label.className = "side-action-label";
+    button.appendChild(label);
+  }
+  label.dataset.i18n = translationKey;
+  label.textContent = t(translationKey);
+}
+
+function setSideActionIcon(button, svgMarkup) {
+  if (!button) return;
+  const icon = button.querySelector("svg");
+  if (icon) {
+    icon.outerHTML = svgMarkup;
+  } else {
+    button.insertAdjacentHTML("afterbegin", svgMarkup);
+  }
+}
+
+function setPlayerCloudBusy(srcBtn, translationKey) {
   if (!srcBtn || srcBtn.id !== "player-cloud") return;
   srcBtn.disabled = true;
   srcBtn.classList.add("busy");
-  srcBtn.textContent = label;
+  setSideActionLabel(srcBtn, translationKey);
 }
 
 async function uploadClipToCloud(clipId, srcBtn) {
@@ -608,7 +642,7 @@ async function uploadClipToCloud(clipId, srcBtn) {
   if (_busyClipIds.has(clipId)) return;
   _busyClipIds.add(clipId);
   setClipChipsBusy(clipId, true);
-  setPlayerCloudBusy(srcBtn, "☁ Wysyłam…");
+  setPlayerCloudBusy(srcBtn, "cloud.uploadingBtn");
   toast(t("toast.cloudUploading"));
   try {
     const r = await fetch(`/api/clips/${clipId}/upload`, { method: "POST" });
@@ -637,7 +671,7 @@ async function downloadClipFromCloud(clipId, srcBtn) {
   if (_busyClipIds.has(clipId)) return;
   _busyClipIds.add(clipId);
   setClipChipsBusy(clipId, true);
-  setPlayerCloudBusy(srcBtn, "☁ Pobieram…");
+  setPlayerCloudBusy(srcBtn, "cloud.downloadingBtn");
   toast(t("toast.cloudDownloading"));
   try {
     const r = await fetch(`/api/clips/${clipId}/download`, { method: "POST" });
@@ -689,16 +723,18 @@ function updatePlayerCloudBtn(storage) {
   if (storage === "cloud") {
     b.hidden = false;
     b.classList.add("in-cloud");
-    b.innerHTML = svgDownload; 
-      b.title = "Pobierz klip z chmury z powrotem na dysk";
+    setSideActionIcon(b, svgDownload);
+    b.title = t("cloud.downloadTooltip");
   } else if (_cloudConnected) {
     b.hidden = false;
     b.classList.remove("in-cloud");
-    b.innerHTML = svgUpload;
-      b.title = "Wyślij klip do chmury (Google Drive)";
+    setSideActionIcon(b, svgUpload);
+    b.title = t("cloud.uploadTooltip");
   } else {
     b.hidden = true;
   }
+  b.setAttribute("aria-label", b.title);
+  setSideActionLabel(b, "playerActions.cloud");
 }
 
 if (els.pcloud) {
@@ -950,8 +986,7 @@ async function openPlayer(clipId, startAt) {
   const isFav = !!data.clip.favorite;
   els.pfav.dataset.favId = String(clipId);
   els.pfav.classList.toggle("is-fav", isFav);
-  const pfavStar = els.pfav.querySelector(".fav-star");
-  if (pfavStar) pfavStar.textContent = isFav ? "★" : "☆";
+  setFavoriteIcon(els.pfav, isFav);
   updatePlayerCloudBtn(data.clip.storage);
   // Miniatura zapobiega czarnemu ekranowi podczas rozpoczęcia buforowania.
   els.video.poster = `/thumb/${clipId}?v=${data.clip.size_bytes}`;
@@ -1191,6 +1226,7 @@ function showConfirm({
   title = t("confirm.retranscribeAll.title"),
   body = "",
   warning = null,
+  warningClass = "",
   yesLabel = t("confirm.deleteClip.yes"),
   yesClass = "danger",
 } = {}) {
@@ -1198,6 +1234,7 @@ function showConfirm({
   els.confirmBody.textContent = body;
   if (_confirmWarnEl) {
     _confirmWarnEl.innerHTML = warning !== null ? warning : _defaultWarn;
+    _confirmWarnEl.className = `confirm-warn${warningClass ? ` ${warningClass}` : ""}`;
   }
   els.confirmYes.textContent = yesLabel;
   els.confirmYes.className = `btn ${yesClass}`;
@@ -1239,11 +1276,13 @@ function openCutModal() {
   if (!currentClipId) return;
   els.cutSourceName.textContent = els.pfile.textContent;
 
+  const ct = els.video.currentTime || 0;
+  els.video.pause();
+
   const mainSrc = els.video.src;
   els.cutVideo.src = mainSrc;
   els.cutVideo.currentTime = 0;
 
-  const ct = els.video.currentTime || 0;
   const dur = els.video.duration || ct + 10;
   _cutMaxS = dur;
   _cutStartS = Math.max(0, ct - 5);
@@ -1393,11 +1432,11 @@ function updateCutEstimate() {
     return;
   }
 
-    // Dla kompresji odtwarza obliczenie docelowej przepływności używane przez serwer.
-  const targetBytes = _cutTargetMb * 1024 * 1024;
+  // Dla kompresji odtwarza obliczenie docelowej przepływności używane przez serwer.
+  const targetBytes = _cutTargetMb * 1000000;
   const audioKbps = 128;
   const audioBytes = (audioKbps * 1000 / 8) * duration;
-  const videoBytes = targetBytes - audioBytes - 50000;
+  const videoBytes = targetBytes - 100000 - audioBytes - 50000;
   if (videoBytes < 100_000) {
     els.cutEstimate.innerHTML = t("cutEstimate.tooSmall").replace("{mb}", _cutTargetMb).replace("{sec}", duration.toFixed(1));
     els.cutEstimate.classList.add("warn");
@@ -1474,10 +1513,12 @@ els.cutGo.addEventListener("click", async () => {
 });
 
 function showCutSuccess(data) {
+  const outputDirectory = data.output_directory || data.cuts_root;
   const ok = showConfirm({
     title: t("cutSuccess.title"),
     body: `${data.output_name} — ${data.size_mb} MB`,
-    warning: `Plik zapisano w folderze:<br><code>${escapeHtml(data.cuts_root)}</code>`,
+    warning: `Plik zapisano w folderze:<br><code>${escapeHtml(outputDirectory)}</code>`,
+    warningClass: "success",
     yesLabel: t("cutSuccess.showInFolder"),
     yesClass: "primary",
   });
@@ -1486,11 +1527,15 @@ function showCutSuccess(data) {
     els.confirmNo.textContent = t("confirm.cancelBtn");
     if (clicked) {
       try {
-        await fetch("/api/show-in-explorer", {
+        const r = await fetch("/api/show-in-explorer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path: data.output_path }),
+          body: JSON.stringify({ path: outputDirectory }),
         });
+        if (!r.ok) {
+          const error = await r.json().catch(() => ({}));
+          throw new Error(error.detail || r.statusText);
+        }
       } catch (e) {
         toast(t("toast.showFolderFail").replace("{error}", e.message), "error");
       }
@@ -1505,10 +1550,33 @@ document.addEventListener("keydown", (e) => {
 
 async function openFoldersDropdown() {
   if (!currentClipId) return;
-  const [allFolders, membership] = await Promise.all([
-    fetch("/api/folders").then((r) => r.json()),
-    fetch(`/api/clips/${currentClipId}/folders`).then((r) => r.json()),
-  ]);
+  const clipId = currentClipId;
+  els.pfolders.disabled = true;
+
+  let allFolders;
+  let membership;
+  try {
+    const [foldersResponse, membershipResponse] = await Promise.all([
+      fetch("/api/folders"),
+      fetch(`/api/clips/${clipId}/folders`),
+    ]);
+    if (!foldersResponse.ok || !membershipResponse.ok) {
+      const failed = !foldersResponse.ok ? foldersResponse : membershipResponse;
+      const error = await failed.json().catch(() => ({}));
+      throw new Error(error.detail || failed.statusText);
+    }
+    [allFolders, membership] = await Promise.all([
+      foldersResponse.json(),
+      membershipResponse.json(),
+    ]);
+  } catch (e) {
+    closeFoldersDropdown();
+    toast(e.message, "error");
+    return;
+  } finally {
+    els.pfolders.disabled = false;
+  }
+
   const memberSet = new Set(membership.folder_ids);
 
   let html = "";
@@ -1524,21 +1592,32 @@ async function openFoldersDropdown() {
   html += `
     <div class="folders-dropdown-new">
       <input id="player-new-folder-name" type="text" placeholder="${t('folders.newFolderPlaceholder')}" autocomplete="off" />
-      <button id="player-new-folder-btn" class="btn primary" style="padding: 6px 12px; font-size: 13px;">Dodaj</button>
+      <button id="player-new-folder-btn" class="btn primary" style="padding: 6px 12px; font-size: 13px;">${t('folders.addBtn')}</button>
     </div>`;
   els.pfoldersDropdown.innerHTML = html;
+  if (els.pfoldersDropdown.parentElement !== document.body) {
+    document.body.appendChild(els.pfoldersDropdown);
+  }
+  els.pfoldersDropdown.classList.add("player-folders-portal");
   els.pfoldersDropdown.hidden = false;
+  positionFoldersDropdown();
 
   els.pfoldersDropdown.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
     cb.addEventListener("change", async () => {
       const fid = parseInt(cb.dataset.folderId, 10);
+      const shouldBeChecked = cb.checked;
       cb.disabled = true;
       try {
-        if (cb.checked) {
-          await fetch(`/api/folders/${fid}/clips/${currentClipId}`, { method: "POST" });
-        } else {
-          await fetch(`/api/folders/${fid}/clips/${currentClipId}`, { method: "DELETE" });
+        const r = await fetch(`/api/folders/${fid}/clips/${clipId}`, {
+          method: shouldBeChecked ? "POST" : "DELETE",
+        });
+        if (!r.ok) {
+          const error = await r.json().catch(() => ({}));
+          throw new Error(error.detail || r.statusText);
         }
+      } catch (e) {
+        cb.checked = !shouldBeChecked;
+        toast(e.message, "error");
       } finally {
         cb.disabled = false;
       }
@@ -1559,7 +1638,11 @@ async function openFoldersDropdown() {
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.detail || r.statusText);
-      await fetch(`/api/folders/${data.id}/clips/${currentClipId}`, { method: "POST" });
+      const addResponse = await fetch(`/api/folders/${data.id}/clips/${clipId}`, { method: "POST" });
+      if (!addResponse.ok) {
+        const error = await addResponse.json().catch(() => ({}));
+        throw new Error(error.detail || addResponse.statusText);
+      }
       toast(t("toast.folderCreated").replace("{name}", data.name));
       await openFoldersDropdown();
     } catch (e) {
@@ -1571,6 +1654,19 @@ async function openFoldersDropdown() {
   newBtn.addEventListener("click", createInline);
   newInput.addEventListener("keydown", (e) => { if (e.key === "Enter") createInline(); });
   setTimeout(() => newInput.focus(), 50);
+}
+
+function positionFoldersDropdown() {
+  if (els.pfoldersDropdown.hidden) return;
+  const buttonRect = els.pfolders.getBoundingClientRect();
+  const menuRect = els.pfoldersDropdown.getBoundingClientRect();
+  const margin = 8;
+  let left = buttonRect.left - menuRect.width - margin;
+  if (left < margin) left = buttonRect.right + margin;
+  left = Math.max(margin, Math.min(left, window.innerWidth - menuRect.width - margin));
+  const top = Math.max(margin, Math.min(buttonRect.top, window.innerHeight - menuRect.height - margin));
+  els.pfoldersDropdown.style.left = `${left}px`;
+  els.pfoldersDropdown.style.top = `${top}px`;
 }
 
 function closeFoldersDropdown() {
@@ -1593,12 +1689,12 @@ document.addEventListener("click", (e) => {
     closeFoldersDropdown();
   }
 });
+window.addEventListener("resize", closeFoldersDropdown);
 
 els.pretrans.addEventListener("click", async () => {
   if (!currentClipId) return;
   els.pretrans.disabled = true;
-  const orig = els.pretrans.textContent;
-  els.pretrans.textContent = t("toast.retranscribeBtn");
+  setSideActionLabel(els.pretrans, "toast.retranscribeBtn");
   try {
     const r = await fetch(`/api/clips/${currentClipId}/retranscribe`, { method: "POST" });
     const data = await r.json();
@@ -1613,7 +1709,7 @@ els.pretrans.addEventListener("click", async () => {
     toast(t("toast.transcribeError").replace("{error}", e.message), "error");
   } finally {
     els.pretrans.disabled = false;
-    els.pretrans.textContent = orig;
+    setSideActionLabel(els.pretrans, "playerActions.retranscribe");
   }
 });
 
@@ -1629,7 +1725,7 @@ els.pfix.addEventListener("click", async () => {
   });
   if (!ok) return;
   els.pfix.disabled = true;
-  els.pfix.textContent = t("playerActions.fixing");
+  setSideActionLabel(els.pfix, "playerActions.fixing");
   try {
     const r = await fetch(`/api/clips/${currentClipId}/fix`, { method: "POST" });
     const data = await r.json();
@@ -1646,7 +1742,7 @@ els.pfix.addEventListener("click", async () => {
     toast(t("toast.fixFail").replace("{error}", e.message), "error");
   } finally {
     els.pfix.disabled = false;
-    els.pfix.textContent = "🔧 " + t("playerActions.fix");
+    setSideActionLabel(els.pfix, "playerActions.fix");
   }
 });
 

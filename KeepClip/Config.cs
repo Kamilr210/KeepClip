@@ -22,8 +22,6 @@ public static class Config
 
     public const string CutsSubdir = "Wycinki";
 
-    public const string ReplaySubdir = "Powtórki";
-
     public static readonly HashSet<string> VideoExts =
         new(StringComparer.OrdinalIgnoreCase) { ".mp4", ".mkv", ".mov", ".avi", ".webm" };
 
