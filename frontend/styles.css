@@ -789,16 +789,26 @@ header {
 
 .main { flex: 1 1 auto; min-width: 0; padding: 22px 28px 90px; padding-top: 54px; }
 
-.brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 16px; }
-.brand-logo { display: inline-flex; }
-.kc-logo { width: 38px; height: 38px; display: block; filter: drop-shadow(0 4px 10px rgba(var(--accent-rgb), .35)); }
-.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
-.brand-name {
-  font-size: 19px; font-weight: 700; letter-spacing: .3px;
-  background: linear-gradient(135deg, var(--accent-pale), #8ad6ff);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px 16px;
 }
-.brand-tag { font-size: 11px; color: var(--muted); }
+.kc-logo { width: 26px; height: 26px; display: block; flex: 0 0 26px; }
+.kc-logo-gradient-start { stop-color: var(--accent-vivid); }
+.kc-logo-gradient-middle { stop-color: var(--accent-primary); }
+.kc-logo-gradient-end { stop-color: var(--accent-2); }
+.kc-logo stop { transition: stop-color .2s ease; }
+.brand-name {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+.brand-name b { color: #00bfff; }
 
 .side-nav { display: flex; flex-direction: column; gap: 3px; }
 .nav-section {

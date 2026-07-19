@@ -27,30 +27,24 @@
 
 <div class="app-shell">
   <aside class="sidebar">
-    <div class="brand">
-      <span class="brand-logo" aria-hidden="true">
-        <svg class="kc-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="kcGrad" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
-              <stop style="stop-color:var(--accent-vivid)"/>
-              <stop offset=".5" style="stop-color:var(--accent-primary)"/>
-              <stop offset="1" stop-color="#37a6ff"/>
-            </linearGradient>
-          </defs>
-          <g stroke="url(#kcGrad)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 6H10a4 4 0 0 0-4 4v6"/>
-            <path d="M32 6h6a4 4 0 0 1 4 4v6"/>
-            <path d="M16 42h-6a4 4 0 0 1-4-4v-6"/>
-            <path d="M32 42h6a4 4 0 0 0 4-4v-6"/>
-          </g>
-          <path d="M19 18.5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v15l-5-3-5 3z" fill="url(#kcGrad)" opacity=".4"/>
-          <path d="M18 17.6c0-1.5 1.6-2.4 2.9-1.7l8.4 4.9c1.3.8 1.3 2.6 0 3.4l-8.4 4.9c-1.3.8-2.9-.2-2.9-1.7z" fill="url(#kcGrad)"/>
-        </svg>
-      </span>
-      <span class="brand-text">
-        <span class="brand-name">KeepClip</span>
-        <span class="brand-tag">Your best actions</span>
-      </span>
+    <div class="brand" aria-label="KeepClip">
+      <svg class="kc-logo" viewBox="0 0 100 100" width="26" height="26" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="kcBrandGradient" x1="8" y1="8" x2="92" y2="92" gradientUnits="userSpaceOnUse">
+            <stop class="kc-logo-gradient-start"/>
+            <stop class="kc-logo-gradient-middle" offset=".55"/>
+            <stop class="kc-logo-gradient-end" offset="1"/>
+          </linearGradient>
+        </defs>
+        <g fill="none" stroke="url(#kcBrandGradient)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M42 8H18C12.5 8 8 12.5 8 18v24"/>
+          <path d="M58 8h24c5.5 0 10 4.5 10 10v24"/>
+          <path d="M8 58v24c0 5.5 4.5 10 10 10h24"/>
+          <path d="M92 58v24c0 5.5-4.5 10-10 10H58"/>
+        </g>
+        <path d="M39 31.5 71 50 39 68.5Z" fill="url(#kcBrandGradient)" stroke="url(#kcBrandGradient)" stroke-width="4" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name">KEEP<b>CLIP</b></span>
     </div>
 
     <nav class="side-nav">

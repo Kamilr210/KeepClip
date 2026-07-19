@@ -23,6 +23,16 @@ const t = (key) => {
   for (const k of keys) node = node?.[k];
   return (typeof node === 'string') ? node : key;
 };
+
+function localizeBackendError(error) {
+  const message = String(error || "");
+  const decodeAudioPrefix = "Nie udało się zdekodować audio:";
+  if (message.startsWith(decodeAudioPrefix)) {
+    return t("progress.decodeAudioError")
+      .replace("{path}", message.slice(decodeAudioPrefix.length).trim());
+  }
+  return message;
+}
 const els = {
   scan: $("#btn-scan"),
   scanLabel: $("#btn-scan .nav-label"),
@@ -208,15 +218,12 @@ function fmtDate(mtime) {
   return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function pluralPl(n, one, few, many) {
-  if (n === 1) return one;
-  const lastTwo = n % 100;
-  if (lastTwo >= 12 && lastTwo <= 14) return many;
-  const lastOne = n % 10;
-  if (lastOne >= 2 && lastOne <= 4) return few;
-  return many;
+function clipsWord(n) {
+  const category = new Intl.PluralRules(LANG).select(Number(n));
+  const key = `clipCount.${category}`;
+  const translated = t(key);
+  return translated === key ? t("clipCount.other") : translated;
 }
-const clipsWord = (n) => pluralPl(n, "klip", "klipy", "klipów");
 
 function parseTime(s) {
 // Przyjmuje M:SS, H:MM:SS albo liczbę sekund.
@@ -502,7 +509,7 @@ function renderResults(rows) {
 }
 
 function favStar(clipId, isFav) {
-  return `<button class="fav-btn ${isFav ? "is-fav" : ""}" data-fav-id="${clipId}" title="Ulubione" aria-label="Przełącz ulubione"><span class="fav-star">${isFav ? "★" : "☆"}</span></button>`;
+  return `<button class="fav-btn ${isFav ? "is-fav" : ""}" data-fav-id="${clipId}" title="${t("playerActions.favorite")}" aria-label="${t("ui.addToFav")}"><span class="fav-star">${isFav ? "★" : "☆"}</span></button>`;
 }
 
 function setFavoriteIcon(button, isFavorite) {
@@ -1079,7 +1086,7 @@ async function openPlayer(clipId, startAt) {
              </div>`
         )
         .join("")
-    : `<div class="empty">Ten klip nie był jeszcze transkrybowany.</div>`;
+    : `<div class="empty">${t("player.notTranscribed")}</div>`;
 
   els.segments.querySelectorAll(".seg").forEach((el) => {
     el.addEventListener("click", (e) => {
@@ -1639,7 +1646,8 @@ function finishSingleOperationProgress(success, error = "") {
     }, 1600);
   } else {
     els.singleProgressText.textContent = "!";
-    els.singleProgressCurrent.textContent = t("progress.error").replace("{error}", error);
+    els.singleProgressCurrent.textContent = t("progress.error")
+      .replace("{error}", localizeBackendError(error));
   }
   els.singleProgressClose.hidden = false;
 }
@@ -1985,7 +1993,7 @@ async function runScan({ showToastAlways = false, announceChanges = true } = {})
   if (r.updated) parts.push(t("toast.scanParts.updated").replace("{n}", r.updated));
   if (!parts.length) parts.push(t("toast.scanParts.noChanges"));
   if (announceChanges && (r.added || r.removed || r.updated)) {
-    toast(`Skan: ${parts.join(", ")}`);
+    toast(t("toast.scanResult").replace("{parts}", parts.join(", ")));
   } else if (showToastAlways) {
     toast(t("toast.scanNoChanges"));
   }
@@ -2078,10 +2086,10 @@ els.scan.addEventListener("click", async () => {
   try {
     const r = await runScan({ showToastAlways: true });
     const parts = [];
-    if (r.added) parts.push(`+${r.added} nowych`);
-    if (r.removed) parts.push(`-${r.removed} usuniętych`);
-    if (r.updated) parts.push(`${r.updated} odświeżonych`);
-    if (!parts.length) parts.push("bez zmian");
+    if (r.added) parts.push(t("toast.scanParts.added").replace("{n}", r.added));
+    if (r.removed) parts.push(t("toast.scanParts.removed").replace("{n}", r.removed));
+    if (r.updated) parts.push(t("toast.scanParts.updated").replace("{n}", r.updated));
+    if (!parts.length) parts.push(t("toast.scanParts.noChanges"));
     els.scanLabel.textContent = parts.join(", ");
     await refreshLibraryViews();
   } finally {
@@ -2289,11 +2297,15 @@ els.configSave.addEventListener("click", async () => {
     closeConfigModal();
     const scan = data.scan || {};
     const parts = [];
-    if (scan.added) parts.push(`+${scan.added} nowych`);
-    if (scan.removed) parts.push(`-${scan.removed} starych usuniętych`);
-    if (scan.updated) parts.push(`${scan.updated} odświeżonych`);
-    if (!parts.length && scan.found) parts.push(`${scan.found} klipów`);
-    toast(`Folder ustawiony: ${data.clips_root}${parts.length ? " — " + parts.join(", ") : ""}`);
+    if (scan.added) parts.push(t("toast.scanParts.added").replace("{n}", scan.added));
+    if (scan.removed) parts.push(t("toast.scanParts.removed").replace("{n}", scan.removed));
+    if (scan.updated) parts.push(t("toast.scanParts.updated").replace("{n}", scan.updated));
+    if (!parts.length && scan.found) {
+      parts.push(t("toast.scanParts.found").replace("{n}", scan.found));
+    }
+    toast(t("toast.folderSet")
+      .replace("{path}", data.clips_root)
+      .replace("{details}", parts.length ? ` — ${parts.join(", ")}` : ""));
     await refreshLibraryViews();
     startAutoLibrarySync();
   } catch (e) {
@@ -2519,7 +2531,9 @@ function attachStream() {
       if (s.current) {
         els.pcurrent.textContent = `▶ ${s.current.game} / ${s.current.filename}`;
       } else if (!s.running) {
-        els.pcurrent.textContent = s.error ? `Błąd: ${s.error}` : "Zakończono.";
+        els.pcurrent.textContent = s.error
+          ? t("progress.error").replace("{error}", localizeBackendError(s.error))
+          : t("progress.done");
       }
       if (!s.running && s.finished_at) {
         sse.close();
@@ -2572,7 +2586,9 @@ function _updateSelectionUI() {
   const n = _selectedClipIds.size;
   els.selCount.textContent = String(n);
   els.selAdd.disabled = n === 0;
-  els.selAdd.textContent = n === 0 ? "Dodaj zaznaczone" : `Dodaj ${n} ${clipsWord(n)}`;
+  els.selAdd.textContent = n === 0
+    ? t("selection.addSelected")
+    : t("selection.addN").replace("{n}", n).replace("{word}", clipsWord(n));
 }
 
 async function startSelectionMode(folderId, folderName) {
@@ -2707,7 +2723,7 @@ async function loadFoldersIndex() {
       <div class="folder-new-card" id="empty-new-folder">
         <div class="folder-new-card-inner">
           <div class="icon">+</div>
-          <div>Utwórz pierwszy folder</div>
+          <div>${t("folders.createFirst")}</div>
         </div>
       </div>`;
     document.getElementById("empty-new-folder")?.addEventListener("click", promptNewFolder);
@@ -2717,7 +2733,7 @@ async function loadFoldersIndex() {
     <div class="folder-new-card" id="grid-new-folder">
       <div class="folder-new-card-inner">
         <div class="icon">+</div>
-        <div>Nowy folder</div>
+        <div>${t("folders.newFolderLabel")}</div>
       </div>
     </div>`;
   document.getElementById("grid-new-folder")?.addEventListener("click", promptNewFolder);
