@@ -61,6 +61,30 @@ document.addEventListener('DOMContentLoaded', () => {
         langSelect.addEventListener('change', () => applyLanguage(langSelect.value));
     }
 
+    const header = document.querySelector('.main-header');
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const closeMobileMenu = () => {
+        if (!header || !mobileMenuToggle) return;
+        header.classList.remove('menu-open');
+        mobileMenuToggle.setAttribute('aria-expanded', 'false');
+    };
+
+    if (header && mobileMenuToggle) {
+        mobileMenuToggle.addEventListener('click', () => {
+            const open = header.classList.toggle('menu-open');
+            mobileMenuToggle.setAttribute('aria-expanded', String(open));
+        });
+        document.querySelectorAll('.center-nav a').forEach((link) => {
+            link.addEventListener('click', closeMobileMenu);
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeMobileMenu();
+        });
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 900) closeMobileMenu();
+        });
+    }
+
     // Pobieranie instalatora — stały link GitHuba zawsze wskazuje najnowsze wydanie.
     const DOWNLOAD_URL = 'https://github.com/Kamilr210/KeepClip/releases/latest/download/KeepClip-Setup.exe';
     ['downloadBtn', 'downloadBtn2'].forEach((id) => {

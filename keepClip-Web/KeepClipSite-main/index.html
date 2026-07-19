@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="title">KeepClip — Save. Search. Replay.</title>
+    <link rel="icon" type="image/x-icon" href="icons/icon.ico?v=1">
+    <link rel="shortcut icon" type="image/x-icon" href="icons/icon.ico?v=1">
+    <link rel="apple-touch-icon" href="icons/logo.png?v=1">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,11 +20,11 @@
         <!-- Nagłówek strony -->
         <header class="main-header">
             <div class="brand-logo">
-                    <img src="icons/logo.png" width="26" height="26">
+                    <img src="icons/logo.png" width="26" height="26" alt="KeepClip">
                 <span>KEEP<b>CLIP</b></span>
             </div>
             
-            <nav class="center-nav">
+            <nav class="center-nav" id="mainNav" aria-label="Main navigation">
                 <a href="#features"><span data-i18n="nav_features">Features</span></a>
                 <a href="#software"><span data-i18n="nav_software">How it works</span></a>
                 <a href="#showcase"><span data-i18n="nav_discover">Clip preview</span></a>
@@ -37,6 +40,10 @@
                         <option value="ru">RU</option>
                     </select>
                 </div>
+                <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button"
+                        aria-controls="mainNav" aria-expanded="false" aria-label="Open menu">
+                    <span></span><span></span><span></span>
+                </button>
             </div>
         </header>
 
