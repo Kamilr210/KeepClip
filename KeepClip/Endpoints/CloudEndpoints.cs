@@ -32,6 +32,31 @@ public static class CloudEndpoints
             return Results.Json(new { ok = true });
         });
 
+        app.MapPost("/api/cloud/sync", async () =>
+        {
+            Heartbeat.Touch();
+            if (!OAuthService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            try
+            {
+                var result = await CloudService.SyncFromCloudAsync();
+                DevLog.Add(
+                    $"Chmura: synchronizacja — znaleziono {result.Found}, " +
+                    $"przywrócono {result.Imported}, zaktualizowano {result.Updated}, pominięto {result.Skipped}");
+                return Results.Json(new
+                {
+                    imported = result.Imported,
+                    updated = result.Updated,
+                    found = result.Found,
+                    skipped = result.Skipped,
+                });
+            }
+            catch (GoogleDrive.GoogleApiException ex) when (ex.IsInvalidGrant)
+            {
+                return Api.Detail(401, "Wygasło połączenie z Google Drive — połącz ponownie.");
+            }
+            catch (Exception ex) { return Api.Detail(500, ex.Message); }
+        });
+
         app.MapPost("/api/clips/{clipId:long}/upload", async (long clipId) =>
         {
             Heartbeat.Touch();

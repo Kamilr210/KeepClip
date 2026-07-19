@@ -282,7 +282,10 @@ function setCloudQuota(st) {
 
 function refreshCloudQuota() {
   if (!_cloudConnected) return;
-  fetch("/api/cloud/status").then((r) => r.json()).then(setCloudQuota).catch(() => {});
+  fetch("/api/cloud/status").then((r) => r.json()).then((status) => {
+    setCloudConnected(!!status.connected, status.email, !status.error);
+    setCloudQuota(status);
+  }).catch(() => { _cloudAvailable = false; });
 }
 
 function renderStorage() {
@@ -568,6 +571,7 @@ document.addEventListener("click", (e) => {
 }, true);
 
 let _cloudConnected = false;
+let _cloudAvailable = false;
 // Blokuje powtórne kliknięcie, dopóki operacja chmurowa danego klipu trwa.
 const _busyClipIds = new Set();
 const CLOUD_UP_GLYPH =
@@ -588,8 +592,9 @@ function setClipChipsBusy(clipId, on) {
     .forEach((b) => { b.classList.toggle("busy", on); b.disabled = on; });
 }
 
-function setCloudConnected(on, email) {
+function setCloudConnected(on, email, available = on) {
   _cloudConnected = !!on;
+  _cloudAvailable = _cloudConnected && !!available;
   document.body.classList.toggle("cloud-connected", _cloudConnected);
   if (els.cloudNavDot) els.cloudNavDot.hidden = !_cloudConnected;
   // Mini-karta w sidebarze pokazuje konto po połączeniu.
@@ -806,6 +811,35 @@ if (els.btnUploadFolder) {
 }
 
 let _cloudPollTimer = null;
+let _cloudSyncPromise = null;
+
+async function syncCloudLibrary({ notify = true } = {}) {
+  if (!_cloudConnected) return null;
+  if (_cloudSyncPromise) return _cloudSyncPromise;
+
+  _cloudSyncPromise = (async () => {
+    try {
+      const response = await fetch("/api/cloud/sync", { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.detail || response.statusText);
+
+      if (data.imported || data.updated) await refreshLibraryViews();
+      if (notify && data.imported) {
+        toast(t("toast.cloudSynced").replace("{n}", data.imported));
+      }
+      return data;
+    } catch (error) {
+      if (notify) {
+        toast(t("toast.cloudSyncFail").replace("{error}", error.message), "error");
+      }
+      return null;
+    } finally {
+      _cloudSyncPromise = null;
+    }
+  })();
+
+  return _cloudSyncPromise;
+}
 
 function _showCloudPanel(which) {
   els.cloudLoading.hidden = which !== "loading";
@@ -823,7 +857,7 @@ async function loadCloud() {
     _showCloudPanel("setup");
     return;
   }
-  setCloudConnected(!!st.connected, st.email);
+  setCloudConnected(!!st.connected, st.email, !st.error);
   setCloudQuota(st);
   if (!st.configured) { _showCloudPanel("setup"); return; }
   if (!st.connected) { _showCloudPanel("connect"); return; }
@@ -871,8 +905,9 @@ async function startCloudConnect() {
         _stopCloudPoll();
         setCloudConnected(true, st.email);
         setCloudQuota(st);
-        loadCloud();
         toast(t("toast.cloudConnected"));
+        await syncCloudLibrary({ notify: true });
+        await loadCloud();
       } else if (tries > 150) {
   _stopCloudPoll();
       }
@@ -1001,6 +1036,8 @@ window.addEventListener("scroll", _stopActivePreview, { passive: true });
 
 let currentSegments = [];
 let currentClipId = null;
+let currentClipStorage = "local";
+let _cloudPlaybackErrorClipId = null;
 let segmentTickerInterval = null;
 let editingSegId = null;
 let _playbackRequestToken = 0;
@@ -1057,9 +1094,16 @@ async function resolvePlaybackSource(clipId) {
 
 async function openPlayer(clipId, startAt) {
   _stopActivePreview();
+  _cloudPlaybackErrorClipId = null;
   currentClipId = clipId;
   const data = await fetch(`/api/segments/${clipId}`).then((r) => r.json());
   if (currentClipId !== clipId) return;
+  currentClipStorage = data.clip.storage || "local";
+  if (currentClipStorage === "cloud" && (!_cloudConnected || !_cloudAvailable)) {
+    currentClipId = null;
+    toast(t("toast.cloudPlaybackDisconnected"), "error");
+    return;
+  }
   els.pgame.textContent = data.clip.game;
   els.pfile.textContent = data.clip.filename;
   const isFav = !!data.clip.favorite;
@@ -1278,6 +1322,8 @@ function enterSegEdit(segEl) {
 function closePlayer() {
   _playbackRequestToken++;
   currentClipId = null;
+  currentClipStorage = "local";
+  _cloudPlaybackErrorClipId = null;
   hidePlaybackPreparation();
 // Zamknięcie odtwarzacza musi najpierw opuścić tryb pełnoekranowy.
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -1290,6 +1336,14 @@ function closePlayer() {
   closeFoldersDropdown();
   editingSegId = null;
 }
+
+els.video.addEventListener("error", () => {
+  if (currentClipStorage !== "cloud" || currentClipId == null) return;
+  if (_cloudPlaybackErrorClipId === currentClipId) return;
+  _cloudPlaybackErrorClipId = currentClipId;
+  _cloudAvailable = false;
+  toast(t("toast.cloudPlaybackDisconnected"), "error");
+});
 
 els.pclose.addEventListener("click", closePlayer);
 els.overlay.addEventListener("click", (e) => {
@@ -1946,6 +2000,8 @@ els.pdelete.addEventListener("click", async () => {
   const ok = await showConfirm({
     title: t("confirm.deleteClip.title"),
     body: filename,
+    warning: currentClipStorage === "cloud" ? t("confirm.deleteClip.cloudWarning") : null,
+    yesLabel: currentClipStorage === "cloud" ? t("confirm.deleteClip.cloudYes") : t("confirm.deleteClip.yes"),
   });
   if (!ok) return;
   const clipId = currentClipId;
@@ -1956,11 +2012,13 @@ els.pdelete.addEventListener("click", async () => {
   try {
     const r = await fetch(`/api/clips/${clipId}?delete_file=true`, { method: "DELETE" });
     if (!r.ok) {
-      const err = await r.text();
-      throw new Error(err || r.statusText);
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || r.statusText);
     }
     const data = await r.json();
-    if (data.file_sent_to_trash) {
+    if (data.cloud_deleted) {
+      toast(t("toast.deleteCloudSuccess").replace("{filename}", data.filename));
+    } else if (data.file_sent_to_trash) {
       toast(t("toast.deleteSuccess").replace("{filename}", data.filename));
     } else if (data.trash_error) {
       toast(t("toast.deleteTrashFail").replace("{error}", data.trash_error), "error");
@@ -2883,10 +2941,12 @@ setInterval(sendHeartbeat, 30000);
     console.warn("auto-scan failed:", e);
   }
   await loadStats();
-  fetch("/api/cloud/status")
-    .then((r) => r.json())
-    .then((st) => { setCloudConnected(!!st.connected, st.email); setCloudQuota(st); })
-    .catch(() => {});
+  try {
+    const cloudStatus = await fetch("/api/cloud/status").then((r) => r.json());
+    setCloudConnected(!!cloudStatus.connected, cloudStatus.email, !cloudStatus.error);
+    setCloudQuota(cloudStatus);
+    if (cloudStatus.connected) await syncCloudLibrary({ notify: false });
+  } catch { }
   checkForUpdate();
   const s = await fetch("/api/transcribe/status").then((r) => r.json());
   if (s.running) attachStream();

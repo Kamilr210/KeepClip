@@ -19,6 +19,14 @@ public static class GoogleDrive
 
     public readonly record struct TokenResult(string AccessToken, string? RefreshToken, int ExpiresInSeconds);
     public readonly record struct AboutInfo(string? Name, string? Email, string? Photo, long? Usage, long? Limit);
+    public sealed record DriveFile(
+        string Id,
+        string Name,
+        string MimeType,
+        long Size,
+        DateTimeOffset? CreatedTime,
+        DateTimeOffset? ModifiedTime,
+        IReadOnlyDictionary<string, string> AppProperties);
 
     public static async Task<TokenResult> ExchangeCodeAsync(
         string clientId, string clientSecret, string code, string codeVerifier, string redirectUri)
@@ -126,7 +134,8 @@ public static class GoogleDrive
 
     // Dane są strumieniowane, aby duży klip nie był buforowany w pamięci.
     public static async Task<string> UploadResumableAsync(
-        string accessToken, string name, string parentId, string filePath, string mimeType)
+        string accessToken, string name, string parentId, string filePath, string mimeType,
+        IReadOnlyDictionary<string, string>? appProperties = null)
     {
         long length = new FileInfo(filePath).Length;
 
@@ -134,7 +143,13 @@ public static class GoogleDrive
             "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id", accessToken);
         init.Headers.Add("X-Upload-Content-Type", mimeType);
         init.Headers.Add("X-Upload-Content-Length", length.ToString());
-        var meta = JsonSerializer.Serialize(new { name, parents = new[] { parentId } });
+        var metadata = new Dictionary<string, object?>
+        {
+            ["name"] = name,
+            ["parents"] = new[] { parentId },
+        };
+        if (appProperties is { Count: > 0 }) metadata["appProperties"] = appProperties;
+        var meta = JsonSerializer.Serialize(metadata);
         init.Content = new StringContent(meta, Encoding.UTF8, "application/json");
         using var initResp = await Api.SendAsync(init);
         if (!initResp.IsSuccessStatusCode) await ThrowFrom(initResp);
@@ -151,6 +166,60 @@ public static class GoogleDrive
         using var putResp = await Transfer.SendAsync(put);
         var pj = await ReadJsonOrThrow(putResp);
         return pj.GetProperty("id").GetString()!;
+    }
+
+    public static async Task<List<DriveFile>> ListFolderFilesAsync(
+        string accessToken, string folderId)
+    {
+        var result = new List<DriveFile>();
+        string? pageToken = null;
+        do
+        {
+            string query = Uri.EscapeDataString($"'{folderId}' in parents and trashed = false");
+            string url = "https://www.googleapis.com/drive/v3/files" +
+                         $"?q={query}&spaces=drive&pageSize=1000" +
+                         "&fields=nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,appProperties)";
+            if (!string.IsNullOrEmpty(pageToken))
+                url += "&pageToken=" + Uri.EscapeDataString(pageToken);
+
+            using var req = Authorized(HttpMethod.Get, url, accessToken);
+            using var resp = await Api.SendAsync(req);
+            var json = await ReadJsonOrThrow(resp);
+
+            if (json.TryGetProperty("files", out var files))
+            {
+                foreach (var file in files.EnumerateArray())
+                {
+                    string? id = file.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+                    string? name = file.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name)) continue;
+
+                    var properties = new Dictionary<string, string>(StringComparer.Ordinal);
+                    if (file.TryGetProperty("appProperties", out var props) && props.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var prop in props.EnumerateObject())
+                            if (prop.Value.ValueKind == JsonValueKind.String)
+                                properties[prop.Name] = prop.Value.GetString() ?? "";
+                    }
+
+                    result.Add(new DriveFile(
+                        id,
+                        name,
+                        file.TryGetProperty("mimeType", out var mimeEl) ? mimeEl.GetString() ?? "" : "",
+                        ReadLong(file, "size"),
+                        ReadDate(file, "createdTime"),
+                        ReadDate(file, "modifiedTime"),
+                        properties));
+                }
+            }
+
+            pageToken = json.TryGetProperty("nextPageToken", out var next)
+                ? next.GetString()
+                : null;
+        }
+        while (!string.IsNullOrEmpty(pageToken));
+
+        return result;
     }
 
     public static async Task DownloadAsync(string accessToken, string fileId, string destPath)
@@ -190,6 +259,22 @@ public static class GoogleDrive
         var req = new HttpRequestMessage(method, url);
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return req;
+    }
+
+    private static long ReadLong(JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var value)) return 0;
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number)) return number;
+        return value.ValueKind == JsonValueKind.String && long.TryParse(value.GetString(), out number)
+            ? number
+            : 0;
+    }
+
+    private static DateTimeOffset? ReadDate(JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.String)
+            return null;
+        return DateTimeOffset.TryParse(value.GetString(), out var parsed) ? parsed : null;
     }
 
     private static async Task<JsonElement> ReadJsonOrThrow(HttpResponseMessage resp)

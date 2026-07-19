@@ -141,9 +141,29 @@ public class ClipService
         var clip = _clips.GetById(clipId);
         if (clip is null) return Fail(404, "clip not found");
 
+        bool cloudDeleted = false;
+        if (clip.Storage == "cloud" && deleteFile)
+        {
+            if (string.IsNullOrEmpty(clip.RemoteId))
+                return Fail(409, "Klip chmurowy nie ma identyfikatora Google Drive. Najpierw zsynchronizuj chmurę.");
+            try
+            {
+                await CloudService.TrashRemoteAsync(clip.RemoteId);
+                cloudDeleted = true;
+            }
+            catch (Exception ex)
+            {
+                return Fail(502, $"Nie udało się usunąć klipu z Google Drive: {ex.Message}");
+            }
+        }
+
         string? trashError = null;
-        if (deleteFile && !string.IsNullOrEmpty(clip.Filepath) && File.Exists(clip.Filepath))
+        bool fileSentToTrash = false;
+        if (clip.Storage != "cloud" && deleteFile && !string.IsNullOrEmpty(clip.Filepath) && File.Exists(clip.Filepath))
+        {
             trashError = Trash.SendWithRetry(clip.Filepath);
+            fileSentToTrash = trashError is null;
+        }
 
         var tp = Config.ThumbPath(clipId);
         if (File.Exists(tp)) { try { File.Delete(tp); } catch (IOException) { } }
@@ -151,15 +171,16 @@ public class ClipService
         _playback.Invalidate(clipId);
         _clips.Delete(clipId); // Usunięcie kaskadowe obejmuje również segmenty.
 
-        if (clip.Storage == "cloud" && clip.RemoteId is { Length: > 0 } rid)
-            await CloudService.TryTrashRemoteAsync(rid);
-
-        DevLog.Add($"Usunięto klip #{clipId} ({clip.Filename}){(deleteFile && trashError is null ? " — plik do Kosza" : "")}");
+        string deleteTarget = cloudDeleted
+            ? " — usunięty z Google Drive"
+            : fileSentToTrash ? " — plik do Kosza" : "";
+        DevLog.Add($"Usunięto klip #{clipId} ({clip.Filename}){deleteTarget}");
         return Ok(new()
         {
             ["deleted_clip_id"] = clipId,
             ["filename"] = clip.Filename,
-            ["file_sent_to_trash"] = deleteFile && trashError is null,
+            ["file_sent_to_trash"] = fileSentToTrash,
+            ["cloud_deleted"] = cloudDeleted,
             ["trash_error"] = trashError,
         });
     }
