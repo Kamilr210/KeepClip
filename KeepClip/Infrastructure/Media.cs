@@ -7,6 +7,8 @@ namespace KeepClip.Infrastructure;
 
 public static class Media
 {
+    public readonly record struct PlaybackVideoInfo(string Codec, double Fps, int Width, int Height);
+
     static Media()
     {
         Directory.CreateDirectory(Config.ThumbsDir);
@@ -76,6 +78,140 @@ public static class Media
                 : prop.GetDouble();
         }
         catch { return null; }
+    }
+
+    public static PlaybackVideoInfo? ProbePlaybackVideo(string path)
+    {
+        var r = Run(Config.Ffprobe, new[]
+        {
+            "-v", "error",
+            "-select_streams", "v:0",
+            "-show_entries", "stream=codec_name,width,height,avg_frame_rate,r_frame_rate",
+            "-of", "json",
+            path,
+        }, timeoutSeconds: 30);
+        if (r.Faulted || r.ExitCode != 0) return null;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(r.StdOut);
+            var stream = doc.RootElement.GetProperty("streams")[0];
+            var codec = stream.TryGetProperty("codec_name", out var codecProp)
+                ? codecProp.GetString() ?? ""
+                : "";
+            var width = stream.TryGetProperty("width", out var widthProp) ? widthProp.GetInt32() : 0;
+            var height = stream.TryGetProperty("height", out var heightProp) ? heightProp.GetInt32() : 0;
+            var fpsText = stream.TryGetProperty("avg_frame_rate", out var avgProp)
+                ? avgProp.GetString()
+                : null;
+            var fps = ParseRate(fpsText);
+            if (fps <= 0 && stream.TryGetProperty("r_frame_rate", out var rawProp))
+                fps = ParseRate(rawProp.GetString());
+            return new PlaybackVideoInfo(codec, fps, width, height);
+        }
+        catch { return null; }
+    }
+
+    public static (bool Ok, string Message) CreatePlaybackProxy(
+        string source,
+        string output,
+        double duration,
+        Action<double>? progress = null)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(output)!);
+        var videoInfo = ProbePlaybackVideo(source);
+        var targetWidth = videoInfo is { Width: > 0 and <= 1920 } ? videoInfo.Value.Width : 1920;
+        if (targetWidth % 2 != 0) targetWidth--;
+        var temp = Path.Combine(
+            Path.GetDirectoryName(output)!,
+            $".{Path.GetFileNameWithoutExtension(output)}_{Guid.NewGuid():N}.tmp.mp4");
+
+        List<string> BuildArgs(bool hardware)
+        {
+            var args = new List<string>
+            {
+                "-y", "-hide_banner", "-loglevel", "error",
+                "-progress", "pipe:1", "-nostats",
+            };
+
+            if (hardware)
+                args.AddRange(new[] { "-hwaccel", "cuda", "-hwaccel_output_format", "cuda" });
+
+            args.AddRange(new[] { "-i", source, "-map", "0:v:0", "-map", "0:a?" });
+
+            if (hardware)
+                args.AddRange(new[] { "-vf", $"scale_cuda={targetWidth}:-2", "-r", "60", "-fps_mode", "cfr" });
+            else
+                args.AddRange(new[] { "-vf", "scale='min(1920,iw)':-2,fps=60" });
+
+            args.AddRange(new[] { "-pix_fmt", "yuv420p" });
+
+            if (hardware)
+            {
+                args.AddRange(new[]
+                {
+                    "-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr",
+                    "-cq", "23", "-b:v", "8M", "-maxrate", "14M", "-bufsize", "28M",
+                });
+            }
+            else
+            {
+                args.AddRange(new[]
+                {
+                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                    "-maxrate", "14M", "-bufsize", "28M",
+                });
+            }
+
+            args.AddRange(new[]
+            {
+                "-c:a", "aac", "-b:a", "160k",
+                "-sn", "-dn", "-movflags", "+faststart",
+                temp,
+            });
+            return args;
+        }
+
+        string lastError = "nieznany błąd ffmpeg";
+        foreach (var hardware in new[] { true, false })
+        {
+            TryDelete(temp);
+            double lastReported = 0;
+            void Report(string line)
+            {
+                double seconds = -1;
+                const string usPrefix = "out_time_us=";
+                const string timePrefix = "out_time=";
+                if (line.StartsWith(usPrefix, StringComparison.Ordinal) &&
+                    long.TryParse(line.AsSpan(usPrefix.Length), NumberStyles.Integer,
+                        CultureInfo.InvariantCulture, out var microseconds))
+                    seconds = microseconds / 1_000_000.0;
+                else if (line.StartsWith(timePrefix, StringComparison.Ordinal) &&
+                    TimeSpan.TryParse(line[timePrefix.Length..], CultureInfo.InvariantCulture, out var timestamp))
+                    seconds = timestamp.TotalSeconds;
+
+                if (seconds < 0 || duration <= 0) return;
+                var current = Math.Clamp(seconds / duration, 0, 0.99);
+                if (current - lastReported < 0.005 && current < 0.99) return;
+                lastReported = current;
+                progress?.Invoke(current);
+            }
+
+            var r = Run(Config.Ffmpeg, BuildArgs(hardware), timeoutSeconds: 3600, onOutputLine: Report);
+            if (!r.Faulted && r.ExitCode == 0 && File.Exists(temp) && new FileInfo(temp).Length > 1024)
+            {
+                File.Move(temp, output, overwrite: true);
+                progress?.Invoke(1);
+                return (true, "ok");
+            }
+
+            var lines = r.StdErr.Replace("\r\n", "\n")
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length > 0) lastError = lines[^1];
+        }
+
+        TryDelete(temp);
+        return (false, $"Nie udało się przygotować podglądu: {lastError}");
     }
 
     // Klipy DVR bywają uszkodzone na początku; przeglądarki odrzucają błędne jednostki
@@ -332,4 +468,17 @@ public static class Media
         v == Math.Floor(v) && !double.IsInfinity(v)
             ? v.ToString("0.0", CultureInfo.InvariantCulture)
             : v.ToString("R", CultureInfo.InvariantCulture);
+
+    private static double ParseRate(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return 0;
+        var parts = value.Split('/', 2);
+        if (!double.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var numerator))
+            return 0;
+        if (parts.Length == 1) return numerator;
+        if (!double.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var denominator) ||
+            denominator == 0)
+            return 0;
+        return numerator / denominator;
+    }
 }

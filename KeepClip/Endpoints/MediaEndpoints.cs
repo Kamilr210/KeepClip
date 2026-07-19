@@ -6,6 +6,23 @@ public static class MediaEndpoints
 {
     public static void MapMediaEndpoints(this WebApplication app)
     {
+        app.MapGet("/api/playback/{clipId:long}", (long clipId, bool? start, ClipRepository clips, PlaybackProxyService playback) =>
+        {
+            var clip = clips.GetById(clipId);
+            return clip is null
+                ? Api.Detail(404, "clip not found")
+                : Results.Json(playback.GetOrStart(clip, start ?? true));
+        });
+
+        app.MapGet("/playback/{clipId:long}", (long clipId, ClipRepository clips, PlaybackProxyService playback) =>
+        {
+            var clip = clips.GetById(clipId);
+            if (clip is null) return Api.Detail(404, "clip not found");
+            if (!playback.TryGetReadyPath(clip, out var path))
+                return Api.Detail(404, "playback preview not ready");
+            return Results.File(path, "video/mp4", enableRangeProcessing: true);
+        });
+
         app.MapGet("/video/{clipId:long}", async (long clipId, HttpContext http, ClipRepository clips) =>
         {
             var clip = clips.GetById(clipId);

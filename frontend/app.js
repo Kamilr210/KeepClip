@@ -60,6 +60,11 @@ const els = {
   pgame: $("#player-game"),
   pfile: $("#player-file"),
   video: $("#player"),
+  playerPreparing: $("#player-preparing"),
+  playerPreparingTitle: $("#player-preparing-title"),
+  playerPreparingFill: $("#player-preparing-fill"),
+  playerPreparingText: $("#player-preparing-text"),
+  playerPreparingDetail: $("#player-preparing-detail"),
   segments: $("#player-segments"),
   pclose: $("#player-close"),
   pfav: $("#player-fav"),
@@ -910,8 +915,10 @@ applyLayout((() => { try { return localStorage.getItem("keepclip_layout"); } cat
 const HOVER_DELAY_MS = 250;
 let _hoverTimer = null;
 let _activePreview = null;
+let _previewToken = 0;
 
 function _stopActivePreview() {
+  _previewToken++;
   if (!_activePreview) return;
   const { card, video } = _activePreview;
   card.classList.remove("previewing");
@@ -924,11 +931,11 @@ function _stopActivePreview() {
   _activePreview = null;
 }
 
-function _startPreview(card) {
+async function _startPreview(card) {
   _stopActivePreview();
+  const token = _previewToken;
   const cid = parseInt(card.dataset.clipId, 10);
   if (!cid) return;
-  const size = card.dataset.size || "0";
   const duration = parseFloat(card.dataset.duration || "0");
   // Wynik wyszukiwania startuje w trafieniu, a zwykły podgląd omija początek klipu.
   const matchStart = parseFloat(card.dataset.start || "NaN");
@@ -943,6 +950,11 @@ function _startPreview(card) {
 
   const thumb = card.querySelector(".thumb");
   if (!thumb) return;
+  let playback;
+  try {
+    playback = await fetch(`/api/playback/${cid}?start=false`).then((r) => r.ok ? r.json() : null);
+  } catch { return; }
+  if (token !== _previewToken || !card.matches(":hover") || !playback?.ready || !playback.url) return;
   const video = document.createElement("video");
   video.className = "preview-video";
   video.muted = true;
@@ -951,7 +963,7 @@ function _startPreview(card) {
   video.preload = "auto";
 // Fragment adresu jest stabilniejszy niż właściwość currentTime przy strumieniowaniu w Chrome.
   const fragment = startAt > 0 ? `#t=${startAt.toFixed(2)}` : "";
-  video.src = `/video/${cid}?v=${size}${fragment}`;
+  video.src = `${playback.url}${fragment}`;
   video.addEventListener("loadedmetadata", () => {
     video.play().catch(() => {});
   }, { once: true });
@@ -984,10 +996,63 @@ let currentSegments = [];
 let currentClipId = null;
 let segmentTickerInterval = null;
 let editingSegId = null;
+let _playbackRequestToken = 0;
+
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+function hidePlaybackPreparation() {
+  els.playerPreparing.hidden = true;
+}
+
+function showPlaybackPreparation(status) {
+  const percent = Math.max(0, Math.min(100, Math.round((status.progress || 0) * 100)));
+  els.playerPreparing.hidden = false;
+  els.playerPreparingTitle.textContent = t("player.preparingPreview");
+  els.playerPreparingFill.style.width = `${percent}%`;
+  els.playerPreparingText.textContent = `${percent}%`;
+  els.playerPreparingDetail.textContent = t("player.preparingNotice")
+    .replace("{fps}", String(Math.round(status.source_fps || 0)));
+}
+
+async function resolvePlaybackSource(clipId) {
+  const token = ++_playbackRequestToken;
+  while (token === _playbackRequestToken && currentClipId === clipId && !els.overlay.hidden) {
+    let status;
+    try {
+      const response = await fetch(`/api/playback/${clipId}`);
+      if (!response.ok) throw new Error(`${response.status}`);
+      status = await response.json();
+    } catch {
+      els.playerPreparing.hidden = false;
+      els.playerPreparingTitle.textContent = t("player.previewError");
+      els.playerPreparingDetail.textContent = t("player.previewErrorDetail");
+      return null;
+    }
+
+    if (status.ready && status.url) {
+      hidePlaybackPreparation();
+      return status.url;
+    }
+    if (status.error) {
+      els.playerPreparing.hidden = false;
+      els.playerPreparingTitle.textContent = t("player.previewError");
+      els.playerPreparingFill.style.width = "0%";
+      els.playerPreparingText.textContent = "";
+      els.playerPreparingDetail.textContent = status.error;
+      return null;
+    }
+
+    showPlaybackPreparation(status);
+    await wait(500);
+  }
+  return null;
+}
 
 async function openPlayer(clipId, startAt) {
+  _stopActivePreview();
   currentClipId = clipId;
   const data = await fetch(`/api/segments/${clipId}`).then((r) => r.json());
+  if (currentClipId !== clipId) return;
   els.pgame.textContent = data.clip.game;
   els.pfile.textContent = data.clip.filename;
   const isFav = !!data.clip.favorite;
@@ -997,9 +1062,9 @@ async function openPlayer(clipId, startAt) {
   updatePlayerCloudBtn(data.clip.storage);
   // Miniatura zapobiega czarnemu ekranowi podczas rozpoczęcia buforowania.
   els.video.poster = `/thumb/${clipId}?v=${data.clip.size_bytes}`;
-// Rozmiar w adresie unieważnia pamięć podręczną po naprawieniu zawartości klipu.
-  els.video.src = `/video/${clipId}?v=${data.clip.size_bytes}`;
-  els.video.currentTime = 0;
+  els.video.pause();
+  els.video.removeAttribute("src");
+  els.video.load();
   currentSegments = data.segments;
   rebuildSubtitles();
 
@@ -1034,6 +1099,10 @@ async function openPlayer(clipId, startAt) {
   });
 
   els.overlay.hidden = false;
+  const playbackUrl = await resolvePlaybackSource(clipId);
+  if (!playbackUrl || currentClipId !== clipId || els.overlay.hidden) return;
+  els.video.src = playbackUrl;
+  els.video.currentTime = 0;
   els.video.addEventListener(
     "loadedmetadata",
     () => {
@@ -1200,6 +1269,9 @@ function enterSegEdit(segEl) {
 }
 
 function closePlayer() {
+  _playbackRequestToken++;
+  currentClipId = null;
+  hidePlaybackPreparation();
 // Zamknięcie odtwarzacza musi najpierw opuścić tryb pełnoekranowy.
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   els.overlay.hidden = true;

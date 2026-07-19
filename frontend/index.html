@@ -773,6 +773,13 @@
     <div id="custom-player-container">
       <div class="video-center-wrapper">
         <video id="player" preload="auto" playsinline></video>
+        <div id="player-preparing" class="player-preparing" hidden aria-live="polite">
+          <div class="player-preparing-spinner" aria-hidden="true"></div>
+          <strong id="player-preparing-title"></strong>
+          <div class="player-preparing-progress"><div id="player-preparing-fill"></div></div>
+          <span id="player-preparing-text">0%</span>
+          <small id="player-preparing-detail"></small>
+        </div>
       </div>
 
       <aside class="player-side-actions">

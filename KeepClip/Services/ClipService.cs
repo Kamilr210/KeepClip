@@ -8,11 +8,13 @@ public class ClipService
 {
     private readonly ClipRepository _clips;
     private readonly SegmentRepository _segments;
+    private readonly PlaybackProxyService _playback;
 
-    public ClipService(ClipRepository clips, SegmentRepository segments)
+    public ClipService(ClipRepository clips, SegmentRepository segments, PlaybackProxyService playback)
     {
         _clips = clips;
         _segments = segments;
+        _playback = playback;
     }
 
     public Result<Dictionary<string, object?>> Fix(long clipId)
@@ -51,6 +53,7 @@ public class ClipService
 
         var stat = new FileInfo(src);
         _clips.UpdateAfterFix(clipId, stat.Length, originalMtime, newDuration, hasThumb ? 1 : 0);
+        _playback.Invalidate(clipId);
 
         DevLog.Add($"Naprawa klipu #{clipId}: {message} (przycięto {trimmed:0.#}s; segmenty: przesunięto {shifted}, usunięto {dropped})");
         return Ok(new()
@@ -145,6 +148,7 @@ public class ClipService
         var tp = Config.ThumbPath(clipId);
         if (File.Exists(tp)) { try { File.Delete(tp); } catch (IOException) { } }
 
+        _playback.Invalidate(clipId);
         _clips.Delete(clipId); // Usunięcie kaskadowe obejmuje również segmenty.
 
         if (clip.Storage == "cloud" && clip.RemoteId is { Length: > 0 } rid)

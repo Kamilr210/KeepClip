@@ -9,6 +9,7 @@ public static class Config
     public static readonly string DataDir     = Path.Combine(AppRoot, "data");
     public static readonly string ThumbsDir   = Path.Combine(DataDir, "thumbs");
     public static readonly string TmpDir      = Path.Combine(DataDir, "tmp");
+    public static readonly string PlaybackDir = Path.Combine(DataDir, "playback");
     public static readonly string ToolsBin    = Path.Combine(AppRoot, "tools", "bin");
     public static readonly string Ffmpeg      = Path.Combine(ToolsBin, "ffmpeg.exe");
     public static readonly string Ffprobe     = Path.Combine(ToolsBin, "ffprobe.exe");

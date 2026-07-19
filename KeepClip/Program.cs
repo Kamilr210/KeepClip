@@ -41,6 +41,7 @@ builder.Services.AddSingleton<SegmentRepository>();
 builder.Services.AddSingleton<FolderRepository>();
 builder.Services.AddSingleton<StatsRepository>();
 
+builder.Services.AddSingleton<PlaybackProxyService>();
 builder.Services.AddSingleton<ClipService>();
 
 var app = builder.Build();
@@ -48,6 +49,7 @@ var app = builder.Build();
 Db.InitDb();
 Directory.CreateDirectory(Config.ThumbsDir);
 Directory.CreateDirectory(Config.TmpDir);
+Directory.CreateDirectory(Config.PlaybackDir);
 
 var staticFiles = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(Config.FrontendDir);
 app.UseStaticFiles(new StaticFileOptions

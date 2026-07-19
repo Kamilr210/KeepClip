@@ -1317,6 +1317,7 @@ body.cloud-connected .scc-body.on { display: block; }
 }
 
 .video-center-wrapper {
+  position: relative;
   width: 100%;
   flex: 1;
   min-height: 0; /* Wymagane, aby zagnieżdżony flex mógł się prawidłowo kurczyć. */
@@ -1326,6 +1327,53 @@ body.cloud-connected .scc-body.on { display: block; }
   justify-content: center;
   align-items: center;
 }
+
+.player-preparing {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px;
+  text-align: center;
+  background: rgba(5, 7, 12, 0.86);
+  color: var(--text);
+}
+
+.player-preparing[hidden] { display: none; }
+
+.player-preparing-spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid rgba(255, 255, 255, 0.16);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: player-preparing-spin .8s linear infinite;
+}
+
+.player-preparing-progress {
+  width: min(360px, 80%);
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.13);
+}
+
+#player-preparing-fill {
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #4cc9ff);
+  transition: width .25s ease;
+}
+
+#player-preparing-text { color: var(--text); font-weight: 700; }
+#player-preparing-detail { max-width: 520px; color: var(--muted); }
+
+@keyframes player-preparing-spin { to { transform: rotate(360deg); } }
 
 #custom-player-container #player {
   width: auto;
