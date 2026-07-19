@@ -359,19 +359,22 @@ public static class ReplayService
         if (tier == TierGdi)
         {
             Add("-f", "gdigrab", "-framerate", Fps.ToString(), "-thread_queue_size", "128",
+                "-draw_mouse", "0",
                 "-offset_x", "0", "-offset_y", "0", "-video_size", $"{_grabW}x{_grabH}",
                 "-i", "desktop");
             Add("-filter_complex", $"[{(_audioOn ? 1 : 0)}:v]{normCpu}");
         }
         else if (tier == TierCpu)
         {
+            // Kopiowanie sprzętowego kursora przez mechanizmy przechwytywania Windows może
+            // powodować jego migotanie na pulpicie. Kursory renderowane przez gry nadal są widoczne.
             Add("-filter_complex",
-                $"ddagrab=framerate={Fps}:draw_mouse=1,hwdownload,format=bgra,{normCpu}");
+                $"ddagrab=framerate={Fps}:draw_mouse=0,hwdownload,format=bgra,{normCpu}");
         }
         else
         {
             Add("-filter_complex",
-                $"ddagrab=framerate={Fps}:draw_mouse=1,null[v]");
+                $"ddagrab=framerate={Fps}:draw_mouse=0,null[v]");
         }
         Add("-map", "[v]");
         if (_audioOn)

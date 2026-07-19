@@ -236,11 +236,11 @@ internal sealed class ShellForm : Form
         var userData = Path.Combine(Config.DataDir, "webview2");
         Directory.CreateDirectory(userData);
 
-        // Wymusza wydajny GPU dla materiałów o wysokim FPS i włącza sprzętowe dekodowanie HEVC.
+        // WebView2 domyślnie korzysta z akceleracji. Wymuszanie konkretnego GPU potrafi powodować
+        // migotanie sprzętowego kursora na komputerach z kilkoma układami graficznymi.
         var opts = new CoreWebView2EnvironmentOptions
         {
-            AdditionalBrowserArguments =
-                "--force_high_performance_gpu --enable-features=PlatformHEVCDecoderSupport",
+            AdditionalBrowserArguments = "--enable-features=PlatformHEVCDecoderSupport",
         };
         var env = await CoreWebView2Environment.CreateAsync(null, userData, opts);
         await _web.EnsureCoreWebView2Async(env);
