@@ -2,7 +2,7 @@
 ; Model Whisper pobiera się dopiero przy pierwszej transkrypcji.
 
 #define MyAppName "KeepClip"
-#define MyAppVersion "2.2.0"
+#define MyAppVersion "2.2.1"
 #define MyAppPublisher "Kamil"
 #define MyAppURL "https://github.com/Kamilr210/KeepClip"
 #define MyAppExe "KeepClip.exe"
