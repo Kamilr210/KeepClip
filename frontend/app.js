@@ -2142,13 +2142,27 @@ els.scan.addEventListener("click", async () => {
   els.scan.disabled = true;
   els.scanLabel.textContent = t("toast.scanning");
   try {
-    const r = await runScan({ showToastAlways: true });
+    const r = await runScan({ announceChanges: false });
+    const cloudWasConnected = _cloudConnected;
+    const cloud = cloudWasConnected
+      ? await syncCloudLibrary({ notify: false })
+      : null;
     const parts = [];
     if (r.added) parts.push(t("toast.scanParts.added").replace("{n}", r.added));
     if (r.removed) parts.push(t("toast.scanParts.removed").replace("{n}", r.removed));
     if (r.updated) parts.push(t("toast.scanParts.updated").replace("{n}", r.updated));
+    if (cloud) {
+      if (cloud.imported) parts.push(t("toast.scanParts.cloudAdded").replace("{n}", cloud.imported));
+      if (cloud.updated) parts.push(t("toast.scanParts.cloudUpdated").replace("{n}", cloud.updated));
+      if (!cloud.imported && !cloud.updated) {
+        parts.push(t("toast.scanParts.cloudChecked").replace("{n}", cloud.found || 0));
+      }
+    } else if (cloudWasConnected) {
+      parts.push(t("toast.scanParts.cloudFailed"));
+    }
     if (!parts.length) parts.push(t("toast.scanParts.noChanges"));
     els.scanLabel.textContent = parts.join(", ");
+    toast(t("toast.scanResult").replace("{parts}", parts.join(", ")), cloudWasConnected && !cloud ? "error" : "ok");
     await refreshLibraryViews();
   } finally {
     setTimeout(() => {
