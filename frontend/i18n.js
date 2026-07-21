@@ -1247,7 +1247,7 @@ const i18n = {
       connectBody:      "OAuth client is ready. Click below and sign in to your Google account so KeepClip can save clips to the <b>KeepClip</b> folder.",
       connectBtn:       "Connect to Google Drive",
       connectNote:      "KeepClip only requests access to files it creates itself — it cannot see other files on your Drive. The auth token is stored locally on Windows.",
-      connectedBadge:   "&#9679; Connected",
+      connectedBadge:   "Connected",
       disconnectBtn:    "Disconnect",
       accountNote:      "Upload a clip via the &ldquo;&#8943;&rdquo; menu on the clip card or from the player. Upload a whole folder with the button in its header. Cloud clips stream directly.",
     },
