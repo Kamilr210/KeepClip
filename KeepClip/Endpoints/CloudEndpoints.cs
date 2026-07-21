@@ -10,6 +10,22 @@ public static class CloudEndpoints
             return Results.Json(await OAuthService.StatusAsync());
         });
 
+        app.MapGet("/api/cloud/avatar", async (HttpContext http) =>
+        {
+            Heartbeat.Touch();
+            try
+            {
+                var photo = await OAuthService.GetProfilePhotoAsync();
+                if (photo is null) return Results.NotFound();
+                http.Response.Headers.CacheControl = "private, max-age=300";
+                return Results.File(photo.Value.Data, photo.Value.ContentType);
+            }
+            catch
+            {
+                return Results.NotFound();
+            }
+        });
+
         app.MapPost("/api/cloud/connect", () =>
         {
             Heartbeat.Touch();

@@ -273,8 +273,11 @@ public static class ReplayService
 
             (_grabW, _grabH, _capW, _capH) = DisplayHelper.MeasurePrimary();
             _encoder ??= ProbeEncoder();
-            // Ścieżka całkowicie GPU nie domyka segmentów przy statycznym obrazie, więc startuje od CPU.
-            if (_captureTier < 0) _captureTier = TierCpu;
+            // Windows Sandbox i sesje zdalne używają wirtualnego obrazu. Desktop Duplication może
+            // wtedy zakłócać kursor nawet bez dodawania go do nagrania, dlatego startują od GDI.
+            // Zwykły pulpit nadal używa szybszego przechwytywania DXGI z transferem przez CPU.
+            if (_captureTier < 0)
+                _captureTier = DisplayHelper.PreferGdiCapture() ? TierGdi : TierCpu;
 
             // Brak działającego urządzenia audio nie powinien blokować nagrywania obrazu.
             _audio = AudioPump.TryCreate(MicEnabled, AudioOutputId, AudioInputId);

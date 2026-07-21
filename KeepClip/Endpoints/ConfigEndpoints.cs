@@ -45,6 +45,7 @@ public static class ConfigEndpoints
             Heartbeat.Touch();
             var root = Settings.GetClipsRoot();
             var configured = Settings.IsConfigured();
+            var currentVersion = UpdateService.Current;
         // Starsze instalacje mogą nie mieć pliku ustawień, mimo że baza zawiera klipy.
             if (!configured && clips.Count() > 0)
             {
@@ -58,6 +59,7 @@ public static class ConfigEndpoints
                 configured,
                 dev = DevBuild,
                 accent_theme = AccentThemeOrDefault(),
+                version = $"{currentVersion.Major}.{currentVersion.Minor}.{Math.Max(currentVersion.Build, 0)}",
             });
         });
 

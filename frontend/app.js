@@ -24,6 +24,56 @@ const t = (key) => {
   return (typeof node === 'string') ? node : key;
 };
 
+(function initSidebarToggle() {
+  const toggle = document.getElementById("sidebar-toggle");
+  if (!toggle) return;
+
+  const storageKey = "keepclip_sidebar_collapsed";
+  const navButtons = Array.from(document.querySelectorAll(".side-nav button"));
+
+  function setNavigationHints(collapsed) {
+    navButtons.forEach((button) => {
+      const label = button.querySelector(".nav-label");
+      if (!label) return;
+
+      if (collapsed) {
+        if (!button.hasAttribute("data-sidebar-original-title")) {
+          button.setAttribute("data-sidebar-original-title", button.getAttribute("title") || "");
+        }
+        const text = label.textContent.trim();
+        button.title = text;
+        button.setAttribute("aria-label", text);
+      } else if (button.hasAttribute("data-sidebar-original-title")) {
+        const originalTitle = button.getAttribute("data-sidebar-original-title");
+        if (originalTitle) button.title = originalTitle;
+        else button.removeAttribute("title");
+        button.removeAttribute("aria-label");
+        button.removeAttribute("data-sidebar-original-title");
+      }
+    });
+  }
+
+  function applyState(collapsed, persist) {
+    document.body.classList.toggle("sidebar-collapsed", collapsed);
+    toggle.setAttribute("aria-expanded", String(!collapsed));
+    const description = t(collapsed ? "nav.expandSidebar" : "nav.collapseSidebar");
+    toggle.title = description;
+    toggle.setAttribute("aria-label", description);
+    setNavigationHints(collapsed);
+    if (persist) {
+      try { localStorage.setItem(storageKey, collapsed ? "1" : "0"); } catch {}
+    }
+  }
+
+  let collapsed = false;
+  try { collapsed = localStorage.getItem(storageKey) === "1"; } catch {}
+  applyState(collapsed, false);
+
+  toggle.addEventListener("click", () => {
+    applyState(!document.body.classList.contains("sidebar-collapsed"), true);
+  });
+})();
+
 function localizeBackendError(error) {
   const message = String(error || "");
   const decodeAudioPrefix = "Nie udało się zdekodować audio:";
@@ -149,6 +199,7 @@ const els = {
   cloudAccName: $("#cloud-acc-name"),
   cloudAccEmail: $("#cloud-acc-email"),
   cloudAccPhoto: $("#cloud-acc-photo"),
+  cloudAccAvatarFallback: $("#cloud-acc-avatar-fallback"),
   cloudAccError: $("#cloud-acc-error"),
   cloudQuotaFill: $("#cloud-quota-fill"),
   cloudQuotaText: $("#cloud-quota-text"),
@@ -175,8 +226,8 @@ const els = {
   replayAudioOutput: $("#replay-audio-output"),
   replayAudioInput: $("#replay-audio-input"),
   viewSettings: $("#view-settings"),
-  settingsOpenReplay: $("#settings-open-replay"),
   settingsTheme: $("#accent-theme-select"),
+  settingsVersion: $("#settings-version"),
   ctrlSnap: $("#ctrl-snap"),
   ctrlMute: $("#ctrl-mute"),
   ctrlStart: $("#ctrl-start"),
@@ -878,6 +929,36 @@ function _showCloudPanel(which) {
   els.cloudAccount.hidden = which !== "account";
 }
 
+function setCloudAccountAvatar(name, email, photoUrl) {
+  const words = String(name || "").trim().split(/\s+/).filter(Boolean);
+  const initials = words.length > 1
+    ? `${words[0][0]}${words[words.length - 1][0]}`
+    : (words[0]?.[0] || String(email || "G")[0] || "G");
+  els.cloudAccAvatarFallback.textContent = initials.toUpperCase();
+
+  const photo = els.cloudAccPhoto;
+  photo.onload = () => { photo.hidden = false; };
+  photo.onerror = () => {
+    photo.hidden = true;
+    photo.removeAttribute("src");
+  };
+
+  if (!photoUrl) {
+    photo.hidden = true;
+    photo.removeAttribute("src");
+    return;
+  }
+
+  const localUrl = `/api/cloud/avatar?v=${encodeURIComponent(photoUrl)}`;
+  if (photo.getAttribute("src") === localUrl && photo.complete && photo.naturalWidth > 0) {
+    photo.hidden = false;
+    return;
+  }
+
+  photo.hidden = true;
+  photo.src = localUrl;
+}
+
 async function loadCloud() {
   _showCloudPanel("loading");
   let st;
@@ -894,8 +975,7 @@ async function loadCloud() {
 
   els.cloudAccName.textContent = st.name || t("cloud.accountGoogle");
   els.cloudAccEmail.textContent = st.email || "";
-  if (st.photo) { els.cloudAccPhoto.src = st.photo; els.cloudAccPhoto.hidden = false; }
-  else { els.cloudAccPhoto.hidden = true; }
+  setCloudAccountAvatar(st.name, st.email, st.photo);
   if (st.error) { els.cloudAccError.hidden = false; els.cloudAccError.textContent = st.error; }
   else { els.cloudAccError.hidden = true; }
 
@@ -2287,10 +2367,6 @@ document.querySelectorAll(".settings-folder-btn[data-action='change-folder']").f
   btn.addEventListener("click", () => openConfigModal({ mode: "change" }));
 });
 
-if (els.settingsOpenReplay) {
-  els.settingsOpenReplay.addEventListener("click", openReplayModal);
-}
-
 async function populateAudioDevices() {
   if (!els.replayAudioOutput || !els.replayAudioInput) return;
   try {
@@ -2972,6 +3048,9 @@ setInterval(sendHeartbeat, 30000);
 (async function bootstrap() {
   try {
     const cfg = await fetch("/api/config").then((r) => r.json());
+    if (els.settingsVersion && cfg.version) {
+      els.settingsVersion.textContent = `KeepClip • v${cfg.version}`;
+    }
     if (!cfg.configured) {
       await openConfigModal({ mode: "first" });
       return;

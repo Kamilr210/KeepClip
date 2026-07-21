@@ -133,6 +133,17 @@ public static class OAuthService
         return about;
     }
 
+    public static async Task<GoogleDrive.ProfilePhoto?> GetProfilePhotoAsync()
+    {
+        if (!IsConfigured() || !IsConnected()) return null;
+
+        var token = await GetAccessTokenAsync();
+        var about = await GetAboutAsync(token);
+        if (string.IsNullOrWhiteSpace(about.Photo)) return null;
+
+        return await GoogleDrive.DownloadProfilePhotoAsync(about.Photo);
+    }
+
     internal static void InvalidateAbout() { lock (AboutGate) { _aboutAt = DateTimeOffset.MinValue; } }
 
     public static string BeginConnect()

@@ -19,6 +19,7 @@ public static class GoogleDrive
 
     public readonly record struct TokenResult(string AccessToken, string? RefreshToken, int ExpiresInSeconds);
     public readonly record struct AboutInfo(string? Name, string? Email, string? Photo, long? Usage, long? Limit);
+    public readonly record struct ProfilePhoto(byte[] Data, string ContentType);
     public sealed record DriveFile(
         string Id,
         string Name,
@@ -95,6 +96,34 @@ public static class GoogleDrive
             if (q.TryGetProperty("limit", out var li) && long.TryParse(li.GetString(), out var lv)) limit = lv;
         }
         return new AboutInfo(name, email, photo, usage, limit);
+    }
+
+    public static async Task<ProfilePhoto> DownloadProfilePhotoAsync(string photoUrl)
+    {
+        if (!Uri.TryCreate(photoUrl, UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps
+            || !(uri.Host.Equals("googleusercontent.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.Equals("ggpht.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".ggpht.com", StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException("Nieprawidłowy adres zdjęcia profilowego Google.");
+
+        using var response = await Api.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+
+        const int maxPhotoBytes = 1024 * 1024;
+        if (response.Content.Headers.ContentLength is > maxPhotoBytes)
+            throw new InvalidOperationException("Zdjęcie profilowe Google jest zbyt duże.");
+
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
+        if (!contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Google nie zwrócił prawidłowego zdjęcia profilowego.");
+
+        var data = await response.Content.ReadAsByteArrayAsync();
+        if (data.Length == 0 || data.Length > maxPhotoBytes)
+            throw new InvalidOperationException("Nieprawidłowy rozmiar zdjęcia profilowego Google.");
+
+        return new ProfilePhoto(data, contentType);
     }
 
     public static async Task<string> EnsureFolderAsync(string accessToken, string folderName, string? knownId)

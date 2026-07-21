@@ -14,6 +14,8 @@ const i18n = {
       retranscribeAll: "Transkrybuj ponownie",
       replay:         "Natychmiastowa powtórka",
       settings:       "Ustawienia",
+      collapseSidebar: "Zwiń panel boczny",
+      expandSidebar:   "Rozwiń panel boczny",
     },
     replay: {
       title:        "Natychmiastowa powtórka",
@@ -460,6 +462,8 @@ const i18n = {
       retranscribeAll: "Перетранскрибировать",
       replay:         "Мгновенный повтор",
       settings:       "Настройки",
+      collapseSidebar: "Свернуть боковую панель",
+      expandSidebar:   "Развернуть боковую панель",
     },
     replay: {
       title:        "Мгновенный повтор",
@@ -906,6 +910,8 @@ const i18n = {
       retranscribeAll: "Re-transcribe all",
       replay:         "Instant replay",
       settings:       "Settings",
+      collapseSidebar: "Collapse sidebar",
+      expandSidebar:   "Expand sidebar",
     },
     replay: {
       title:        "Instant replay",
@@ -1352,6 +1358,8 @@ const i18n = {
       retranscribeAll: "Перетранскрибувати",
       replay:         "Миттєвий повтор",
       settings:       "Налаштування",
+      collapseSidebar: "Згорнути бічну панель",
+      expandSidebar:   "Розгорнути бічну панель",
     },
     replay: {
       title:        "Миттєвий повтор",

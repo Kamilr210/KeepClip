@@ -23,6 +23,21 @@ internal static class DisplayHelper
     private static extern bool EnumDisplaySettingsW(string? deviceName, int modeNum, ref DEVMODE devMode);
     private const int ENUM_CURRENT_SETTINGS = -1;
 
+    public static bool PreferGdiCapture()
+    {
+        if (Environment.GetEnvironmentVariable("KEEPCLIP_CAPTURE_GDI") == "1") return true;
+        if (Environment.UserName.Equals("WDAGUtilityAccount", StringComparison.OrdinalIgnoreCase)) return true;
+
+        try
+        {
+            if (System.Windows.Forms.SystemInformation.TerminalServerSession) return true;
+        }
+        catch { }
+
+        var sessionName = Environment.GetEnvironmentVariable("SESSIONNAME");
+        return sessionName?.StartsWith("RDP-", StringComparison.OrdinalIgnoreCase) == true;
+    }
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct DEVMODE
     {
