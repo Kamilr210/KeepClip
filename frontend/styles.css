@@ -341,6 +341,7 @@ header {
 .seg-edit-actions .btn { padding: 4px 12px; font-size: 13px; }
 
 .empty { padding: 40px; text-align: center; color: var(--muted); }
+.grid > .empty { grid-column: 1 / -1; width: 100%; }
 
 .tabs {
   display: flex; gap: 2px; margin-bottom: 16px;
@@ -1219,18 +1220,6 @@ body.cloud-connected .scc-body.on { display: block; }
 @keyframes windowSnap {
   0%   { opacity: 0; transform: translateY(-12px) scale(0.985); }
   100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-#root.anim-close {
-  transition: opacity 0.18s ease-out, transform 0.18s ease-out !important;
-  opacity: 0 !important;
-  transform: scale(0.97) translateY(-8px) !important;
-}
-
-#root.anim-minimize {
-  transition: opacity 0.16s ease-in, transform 0.16s ease-in !important;
-  opacity: 0 !important;
-  transform: translateY(30px) scale(0.95) !important;
 }
 
 #root.anim-snap {

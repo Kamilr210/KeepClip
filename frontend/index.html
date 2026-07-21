@@ -994,24 +994,9 @@
 (function() {
   var snapHint = document.getElementById('snap-hint');
 
-  function animClose() {
-    var root = document.getElementById('root');
-    root.classList.remove('anim-minimize', 'anim-snap');
-    root.classList.add('anim-close');
-    setTimeout(function() { root.classList.remove('anim-close'); }, 800);
-  }
-
-  function animMinimize() {
-    var root = document.getElementById('root');
-    root.classList.remove('anim-close', 'anim-snap');
-    root.classList.add('anim-minimize');
-    setTimeout(function() { root.classList.remove('anim-minimize'); }, 700);
-  }
-
   function animSnap() {
     var root = document.getElementById('root');
     snapHint.classList.add('show');
-    root.classList.remove('anim-close', 'anim-minimize');
     root.classList.add('anim-snap');
     setTimeout(function() {
       root.classList.remove('anim-snap');
@@ -1019,14 +1004,7 @@
     }, 260);
   }
 
-  var btnClose = document.getElementById('btn-close');
-  var btnMin   = document.getElementById('btn-minimize');
   var btnMax   = document.getElementById('btn-maximize');
-
-  if (btnClose) btnClose.addEventListener('click', function(e) {
-    animClose();
-  });
-  if (btnMin) btnMin.addEventListener('click', animMinimize);
   if (btnMax) btnMax.addEventListener('click', animSnap);
 })();
 </script>

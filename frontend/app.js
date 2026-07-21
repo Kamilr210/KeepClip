@@ -199,6 +199,36 @@ els.cutRangeStart = els.cutRange.querySelector(".range-thumb.start");
 els.cutRangeEnd = els.cutRange.querySelector(".range-thumb.end");
 els.cutPlayhead = els.cutRange.querySelector(".range-playhead");
 
+function callWindowApi(method, ...args) {
+  const api = window.pywebview?.api;
+  if (!api || typeof api[method] !== "function") {
+    console.error(`Most okna nie udostępnia metody ${method}.`);
+    return;
+  }
+  Promise.resolve(api[method](...args)).catch((error) => {
+    console.error(`Nie udało się wykonać operacji okna ${method}:`, error);
+  });
+}
+
+(function initTitlebar() {
+  document.getElementById("btn-minimize")?.addEventListener("click", () => {
+    callWindowApi("minimize_window");
+  });
+
+  document.getElementById("btn-maximize")?.addEventListener("click", () => {
+    callWindowApi(
+      "toggle_maximize_window",
+      window.screen.availWidth,
+      window.screen.availHeight,
+      window.screen.availLeft || 0,
+      window.screen.availTop || 0,
+    );
+  });
+
+  document.getElementById("btn-close")?.addEventListener("click", () => {
+    callWindowApi("close_window");
+  });
+})();
 function fmtTime(s) {
   if (!isFinite(s)) return "0:00";
   s = Math.max(0, Math.floor(s));
@@ -2966,63 +2996,6 @@ setInterval(sendHeartbeat, 30000);
   if (s.running) attachStream();
   await renderRecent("");
   startAutoLibrarySync();
-
-window.addEventListener('pywebviewready', function() {
-  
-  const btnMinimize = document.getElementById('btn-minimize');
-  if (btnMinimize) {
-    btnMinimize.addEventListener('click', () => {
-      window.pywebview.api.minimize_window();
-    });
-  }
-
-  const btnClose = document.getElementById('btn-close');
-  if (btnClose) {
-    btnClose.addEventListener('click', () => {
-      window.pywebview.api.close_window();
-    });
-  }
-  
-});
-function initTitlebar() {
-  const btnMinimize = document.getElementById('btn-minimize');
-  if (btnMinimize) {
-    btnMinimize.addEventListener('click', () => {
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.minimize_window();
-      }
-    });
-  }
-
-  const btnMaximize = document.getElementById('btn-maximize');
-  if (btnMaximize) {
-    btnMaximize.addEventListener('click', () => {
-      if (window.pywebview && window.pywebview.api) {
-        const aw = window.screen.availWidth;
-        const ah = window.screen.availHeight;
-        const al = window.screen.availLeft || 0;
-        const at = window.screen.availTop || 0;
-        
-        window.pywebview.api.toggle_maximize_window(aw, ah, al, at);
-      }
-    });
-  }
-
-  const btnClose = document.getElementById('btn-close');
-  if (btnClose) {
-    btnClose.addEventListener('click', () => {
-      if (window.pywebview && window.pywebview.api) {
-        window.pywebview.api.close_window();
-      }
-    });
-  }
-}
-
-if (window.pywebview && window.pywebview.api) {
-  initTitlebar();
-} else {
-  window.addEventListener('pywebviewready', initTitlebar);
-}
 })();
 
 const playerIcons = {
