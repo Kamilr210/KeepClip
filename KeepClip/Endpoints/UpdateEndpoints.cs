@@ -13,7 +13,7 @@ public static class UpdateEndpoints
         {
             Heartbeat.Touch();
             if (!UpdateService.BeginInstall())
-                return Api.Detail(409, "Aktualizacja już trwa.");
+                return Api.Detail(409, Strings.Get("update.inProgress"), "updateInProgress");
             DevLog.Add("Aktualizacja: pobieranie instalatora rozpoczęte");
             return Results.Json(new { ok = true });
         });

@@ -15,13 +15,13 @@ public static class CloudService
         using var con = Db.Open();
         var row = con.QueryOne(
             "SELECT filepath, filename, game, duration, mtime, storage FROM clips WHERE id=$id", ("$id", clipId))
-            ?? throw new FileNotFoundException("Nie znaleziono klipu.");
+            ?? throw new FileNotFoundException(Strings.Get("clip.notFound"));
         if ((row["storage"] as string) == "cloud") return true;
 
         var filepath = row["filepath"] as string ?? "";
         var filename = row["filename"] as string ?? Path.GetFileName(filepath);
         if (string.IsNullOrEmpty(filepath) || !File.Exists(filepath))
-            throw new FileNotFoundException("Plik nie istnieje na dysku.");
+            throw new FileNotFoundException(Strings.Get("clip.fileMissing"));
 
         var token = await OAuthService.GetAccessTokenAsync();
         var folderId = await EnsureFolderAsync(token);
@@ -130,13 +130,13 @@ public static class CloudService
         using var con = Db.Open();
         var row = con.QueryOne(
             "SELECT filepath, storage, remote_id FROM clips WHERE id=$id", ("$id", clipId))
-            ?? throw new FileNotFoundException("Nie znaleziono klipu.");
+            ?? throw new FileNotFoundException(Strings.Get("clip.notFound"));
         if ((row["storage"] as string) != "cloud") return true;
 
         var filepath = row["filepath"] as string ?? "";
         var remoteId = row["remote_id"] as string;
-        if (string.IsNullOrEmpty(filepath)) throw new InvalidOperationException("Brak ścieżki docelowej klipu.");
-        if (string.IsNullOrEmpty(remoteId)) throw new InvalidOperationException("Klip nie ma identyfikatora w chmurze.");
+        if (string.IsNullOrEmpty(filepath)) throw new InvalidOperationException(Strings.Get("cloud.noTargetPath"));
+        if (string.IsNullOrEmpty(remoteId)) throw new InvalidOperationException(Strings.Get("cloud.noRemoteId"));
 
         var token = await OAuthService.GetAccessTokenAsync();
         Directory.CreateDirectory(Path.GetDirectoryName(filepath)!);
@@ -185,7 +185,7 @@ public static class CloudService
     public static async Task TrashRemoteAsync(string remoteId)
     {
         if (!OAuthService.IsConfigured() || !OAuthService.IsConnected())
-            throw new InvalidOperationException("Nie połączono z Google Drive.");
+            throw new InvalidOperationException(Strings.Get("cloud.notConnected"));
 
         var token = await OAuthService.GetAccessTokenAsync();
         await GoogleDrive.TrashAsync(token, remoteId);

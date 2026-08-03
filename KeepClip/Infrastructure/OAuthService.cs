@@ -40,7 +40,7 @@ public static class OAuthService
                   : root.TryGetProperty("web", out var web) ? web
                   : root;
         string id = (creds.TryGetProperty("client_id", out var cid) ? cid.GetString() : null)
-            ?? throw new InvalidOperationException("Brak client_id w google_client.json.");
+            ?? throw new InvalidOperationException(Strings.Get("cloud.missingClientId"));
         string secret = creds.TryGetProperty("client_secret", out var cs) ? cs.GetString() ?? "" : "";
         return (id, secret);
     }
@@ -100,7 +100,7 @@ public static class OAuthService
                 return _accessToken;
 
             var refresh = CredentialStore.Read(Config.DriveTokenTarget)
-                ?? throw new InvalidOperationException("Nie połączono z Google Drive.");
+                ?? throw new InvalidOperationException(Strings.Get("cloud.notConnected"));
             var (id, secret) = LoadClient();
             try
             {
@@ -213,7 +213,7 @@ public static class OAuthService
                         var (_, secret) = LoadClient();
                         var tok = await GoogleDrive.ExchangeCodeAsync(clientId, secret, code, verifier, redirectUri);
                         if (string.IsNullOrEmpty(tok.RefreshToken))
-                            throw new InvalidOperationException("Google nie zwrócił tokenu odświeżania.");
+                            throw new InvalidOperationException(Strings.Get("drive.noRefreshToken"));
 
                         // E-mail opisuje wpis w Menedżerze poświadczeń, ale nie jest wymagany.
                         string? email = null;

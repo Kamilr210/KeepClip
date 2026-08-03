@@ -30,7 +30,7 @@ public static class CloudEndpoints
         {
             Heartbeat.Touch();
             if (!OAuthService.IsConfigured())
-                return Api.Detail(400, "Brak pliku google_client.json w folderze data.");
+                return Api.Detail(400, Strings.Get("cloud.missingClientFile"));
             try
             {
                 var url = OAuthService.BeginConnect();
@@ -51,7 +51,7 @@ public static class CloudEndpoints
         app.MapPost("/api/cloud/sync", async () =>
         {
             Heartbeat.Touch();
-            if (!OAuthService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            if (!OAuthService.IsConnected()) return Api.Detail(400, Strings.Get("cloud.notConnected"), "cloudNotConnected");
             try
             {
                 var result = await CloudService.SyncFromCloudAsync();
@@ -68,7 +68,7 @@ public static class CloudEndpoints
             }
             catch (GoogleDrive.GoogleApiException ex) when (ex.IsInvalidGrant)
             {
-                return Api.Detail(401, "Wygasło połączenie z Google Drive — połącz ponownie.");
+                return Api.Detail(401, Strings.Get("cloud.expired"), "cloudExpired");
             }
             catch (Exception ex) { return Api.Detail(500, ex.Message); }
         });
@@ -76,7 +76,7 @@ public static class CloudEndpoints
         app.MapPost("/api/clips/{clipId:long}/upload", async (long clipId) =>
         {
             Heartbeat.Touch();
-            if (!OAuthService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            if (!OAuthService.IsConnected()) return Api.Detail(400, Strings.Get("cloud.notConnected"), "cloudNotConnected");
             try
             {
                 bool already = await CloudService.UploadClipAsync(clipId);
@@ -86,7 +86,7 @@ public static class CloudEndpoints
             catch (FileNotFoundException ex) { return Api.Detail(404, ex.Message); }
             catch (GoogleDrive.GoogleApiException ex) when (ex.IsInvalidGrant)
             {
-                return Api.Detail(401, "Wygasło połączenie z Google Drive — połącz ponownie.");
+                return Api.Detail(401, Strings.Get("cloud.expired"), "cloudExpired");
             }
             catch (Exception ex) { return Api.Detail(500, ex.Message); }
         });
@@ -94,7 +94,7 @@ public static class CloudEndpoints
         app.MapPost("/api/clips/{clipId:long}/download", async (long clipId) =>
         {
             Heartbeat.Touch();
-            if (!OAuthService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            if (!OAuthService.IsConnected()) return Api.Detail(400, Strings.Get("cloud.notConnected"), "cloudNotConnected");
             try
             {
                 bool already = await CloudService.DownloadClipAsync(clipId);
@@ -104,7 +104,7 @@ public static class CloudEndpoints
             catch (FileNotFoundException ex) { return Api.Detail(404, ex.Message); }
             catch (GoogleDrive.GoogleApiException ex) when (ex.IsInvalidGrant)
             {
-                return Api.Detail(401, "Wygasło połączenie z Google Drive — połącz ponownie.");
+                return Api.Detail(401, Strings.Get("cloud.expired"), "cloudExpired");
             }
             catch (Exception ex) { return Api.Detail(500, ex.Message); }
         });
@@ -112,7 +112,7 @@ public static class CloudEndpoints
         app.MapPost("/api/folders/{folderId:long}/upload", async (long folderId) =>
         {
             Heartbeat.Touch();
-            if (!OAuthService.IsConnected()) return Api.Detail(400, "Nie połączono z Google Drive.");
+            if (!OAuthService.IsConnected()) return Api.Detail(400, Strings.Get("cloud.notConnected"), "cloudNotConnected");
             try
             {
                 var (uploaded, total, skipped, failed) = await CloudService.UploadFolderAsync(folderId);

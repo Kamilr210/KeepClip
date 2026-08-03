@@ -14,13 +14,15 @@ public static class ReplayEndpoints
         {
             Heartbeat.Touch();
             if (body.duration_s is < 15 or > 600)
-                return Api.Detail(400, "Długość powtórki musi być w zakresie 15–600 sekund.");
+                return Api.Detail(400, Strings.Get("replay.badDuration"),
+                    "replayBadDuration");
             if (body.fps is not null && body.fps is not (30 or 60 or 90))
-                return Api.Detail(400, "Obsługiwane wartości FPS: 30, 60 lub 90.");
+                return Api.Detail(400, Strings.Get("replay.badFps"), "replayBadFps");
             if (body.quality is not null && body.quality is not ("low" or "medium" or "high"))
-                return Api.Detail(400, "Jakość musi być jedną z: low, medium, high.");
+                return Api.Detail(400, Strings.Get("replay.badQuality"), "replayBadQuality");
             if (body.hotkey is not null && !HotkeyManager.TryParse(body.hotkey, out _, out _))
-                return Api.Detail(400, "Nieprawidłowy skrót — użyj modyfikatora i klawisza, np. Alt+F10.");
+                return Api.Detail(400, Strings.Get("replay.badHotkey"),
+                    "replayBadHotkey");
 
             if (body.enabled is not null) Settings.SetString("replay_enabled", body.enabled.Value ? "1" : "0");
             if (body.background is not null) Settings.SetString("replay_background", body.background.Value ? "1" : "0");

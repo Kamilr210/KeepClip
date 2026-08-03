@@ -75,6 +75,18 @@ public static class Settings
         }
     }
 
+    // Język interfejsu jest zapisywany po stronie serwera, ponieważ steruje także
+    // transkrypcją, która działa bez otwartego okna aplikacji.
+    public static string GetLanguage()
+    {
+        var lang = StringOrNull(Load(), "ui_language");
+        return lang is not null && Config.UiLanguages.Contains(lang)
+            ? lang
+            : Config.DefaultLanguage;
+    }
+
+    public static void SetLanguage(string language) => SetString("ui_language", language);
+
     public static string? GetString(string key) => StringOrNull(Load(), key);
 
     public static void SetString(string key, string value)

@@ -108,7 +108,7 @@ public static class UpdateService
         {
             var check = await CheckAsync();
             var url = check.GetValueOrDefault("url") as string
-                ?? throw new Exception("Brak pliku instalatora w najnowszym wydaniu.");
+                ?? throw new Exception(Strings.Get("update.noInstaller"));
 
             var setupPath = Path.Combine(Path.GetTempPath(), "KeepClip-Setup.exe");
             using (var resp = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))

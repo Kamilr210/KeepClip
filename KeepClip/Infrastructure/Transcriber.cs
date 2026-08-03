@@ -30,7 +30,7 @@ public static class Transcriber
     {
         progress?.Invoke(0.02, "audio");
         var samples = LoadAudioNormalized(path)
-            ?? throw new InvalidOperationException($"Nie udało się zdekodować audio: {path}");
+            ?? throw new InvalidOperationException(Strings.Get("transcribe.decodeFailed", path));
 
         while (true)
         {
@@ -48,7 +48,7 @@ public static class Transcriber
 
         // Znaczniki czasu tokenów są potrzebne do dzielenia wypowiedzi na fragmenty po ciszy.
         using var processor = factory.CreateBuilder()
-            .WithLanguage(Config.WhisperLang)
+            .WithLanguage(Settings.GetLanguage())
             .WithBeamSearchSamplingStrategy(b => b.WithBeamSize(5))
             .WithNoContext()
             .WithTokenTimestamps()
@@ -125,7 +125,7 @@ public static class Transcriber
                 }
             }
             throw new InvalidOperationException(
-                "Nie udało się uruchomić żadnego modelu transkrypcji.", last);
+                Strings.Get("transcribe.noModel"), last);
         }
     }
 

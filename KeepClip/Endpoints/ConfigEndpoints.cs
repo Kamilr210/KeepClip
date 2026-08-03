@@ -59,6 +59,7 @@ public static class ConfigEndpoints
                 configured,
                 dev = DevBuild,
                 accent_theme = AccentThemeOrDefault(),
+                language = Settings.GetLanguage(),
                 version = $"{currentVersion.Major}.{currentVersion.Minor}.{Math.Max(currentVersion.Build, 0)}",
             });
         });
@@ -67,14 +68,14 @@ public static class ConfigEndpoints
         {
             Heartbeat.Touch();
             if (TranscribeState.Snapshot().running)
-                return Api.Detail(409, "Nie można zmieniać folderu w trakcie transkrypcji.");
+                return Api.Detail(409, Strings.Get("config.transcribeBusy"), "configTranscribeBusy");
             var newRoot = body.clips_root?.Trim().Trim('"').Trim('\'') ?? "";
             if (string.IsNullOrEmpty(newRoot))
-                return Api.Detail(400, "Ścieżka folderu jest wymagana.");
+                return Api.Detail(400, Strings.Get("config.pathRequired"), "configPathRequired");
             if (!Path.Exists(newRoot))
-                return Api.Detail(400, $"Folder nie istnieje: {newRoot}");
+                return Api.Detail(400, Strings.Get("config.pathMissing", newRoot));
             if (!Directory.Exists(newRoot))
-                return Api.Detail(400, $"To nie jest folder: {newRoot}");
+                return Api.Detail(400, Strings.Get("config.notAFolder", newRoot));
             Settings.SetClipsRoot(newRoot);
         var scan = Scanner.Scan();              // Skanuje od razu, aby pokazać zawartość.
             ThumbnailWorker.Ensure();
@@ -90,9 +91,22 @@ public static class ConfigEndpoints
             Heartbeat.Touch();
             var theme = body.theme?.Trim().ToLowerInvariant();
             if (theme is not ("purple" or "green"))
-                return Api.Detail(400, "Nieobsługiwany motyw kolorystyczny.");
+                return Api.Detail(400, Strings.Get("config.badTheme"), "configBadTheme");
             Settings.SetString("accent_theme", theme);
             return Results.Json(new { ok = true, theme });
+        });
+
+        // Interfejs zgłasza tu swój język, aby transkrypcja rozpoznawała mowę w tym samym.
+        app.MapPost("/api/language", (LanguagePayload body) =>
+        {
+            Heartbeat.Touch();
+            var language = body.language?.Trim().ToLowerInvariant();
+            if (language is null || !Config.UiLanguages.Contains(language))
+                return Api.Detail(400, Strings.Get("config.badLanguage"), "configBadLanguage");
+            if (language != Settings.GetLanguage())
+                DevLog.Add($"Zmieniono język na: {language} (dotyczy też transkrypcji)");
+            Settings.SetLanguage(language);
+            return Results.Json(new { ok = true, language });
         });
 
         app.MapPost("/api/heartbeat", () => { Heartbeat.Touch(); return Results.Json(new { ok = true }); });
@@ -130,3 +144,4 @@ public static class ConfigEndpoints
 
 record ConfigPayload(string clips_root);
 record AccentThemePayload(string? theme);
+record LanguagePayload(string? language);

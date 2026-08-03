@@ -12,9 +12,10 @@ const LANG = (() => {
     const saved = localStorage.getItem('keepclip_lang');
     if (saved && SUPPORTED.includes(saved)) return saved;
   } catch(e) {}
+  // Świeża instalacja podąża za językiem systemu, a gdy nie jest obsługiwany — angielski.
   const bl = (navigator.language || '').slice(0, 2).toLowerCase();
   if (SUPPORTED.includes(bl)) return bl;
-  return 'pl';
+  return 'en';
 })();
 const t = (key) => {
   if (!window.i18n) return key;
@@ -82,6 +83,17 @@ function localizeBackendError(error) {
       .replace("{path}", message.slice(decodeAudioPrefix.length).trim());
   }
   return message;
+}
+
+// Serwer dokłada `error` z kodem błędu, gdy komunikat ma tłumaczenie w interfejsie.
+// Bez kodu (albo bez tłumaczenia) zostaje `detail`, żeby nie zgubić treści błędu.
+function backendErrorMessage(payload, fallback) {
+  const code = payload && payload.error;
+  if (code) {
+    const translated = t(`errors.${code}`);
+    if (translated !== `errors.${code}`) return translated;
+  }
+  return localizeBackendError((payload && payload.detail) || fallback);
 }
 const els = {
   scan: $("#btn-scan"),
@@ -2575,6 +2587,48 @@ els.replayOverlay.addEventListener("click", (e) => {
 });
 
 
+// Klawisze interpunkcyjne nazywają się w WinForms Oem*, a znak zwracany przez `key`
+// zależy od układu klawiatury i wciśniętego Shiftu. `code` opisuje fizyczny klawisz,
+// więc daje tę samą nazwę niezależnie od układu.
+const OEM_KEY_BY_CODE = {
+  Semicolon: "OemSemicolon", Equal: "Oemplus", Comma: "Oemcomma",
+  Minus: "OemMinus", Period: "OemPeriod", Slash: "OemQuestion",
+  Backquote: "Oemtilde", BracketLeft: "OemOpenBrackets",
+  Backslash: "OemPipe", BracketRight: "OemCloseBrackets", Quote: "OemQuotes",
+};
+
+// Zwraca nazwę klawisza w formacie oczekiwanym przez serwer albo null, gdy nie da się
+// jej ustalić.
+function winFormsKeyName(e) {
+  const code = e.code || "";
+  if (OEM_KEY_BY_CODE[code]) return OEM_KEY_BY_CODE[code];
+
+  let m;
+  if ((m = /^Key([A-Z])$/.exec(code))) return m[1];
+  if ((m = /^Digit([0-9])$/.exec(code))) return "D" + m[1];
+  if ((m = /^Numpad([0-9])$/.exec(code))) return "NumPad" + m[1];
+  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(code)) return code;
+  if (code === "Space") return "Space";
+  if (code === "NumpadAdd") return "Add";
+  if (code === "NumpadSubtract") return "Subtract";
+  if (code === "NumpadMultiply") return "Multiply";
+  if (code === "NumpadDivide") return "Divide";
+  if (code === "NumpadDecimal") return "Decimal";
+  if (code === "Backspace") return "Back";   // WinForms nazywa ten klawisz Keys.Back.
+  if (/^(Insert|Delete|Home|End|PageUp|PageDown|Tab|Enter|Pause)$/.test(code)) return code;
+  if ((m = /^Arrow(Up|Down|Left|Right)$/.exec(code))) return m[1];
+
+  // Zapasowa ścieżka dla przeglądarek bez `code`.
+  const key = e.key || "";
+  if (/^[a-z]$/i.test(key)) return key.toUpperCase();
+  if (/^[0-9]$/.test(key)) return "D" + key;
+  if (key === " ") return "Space";
+  if (key.startsWith("Arrow")) return key.slice(5);
+  if (key === "Backspace") return "Back";
+  if (/^(F([1-9]|1[0-9]|2[0-4])|Insert|Delete|Home|End|Tab|Enter|Pause)$/.test(key)) return key;
+  return null;
+}
+
 let _hotkeyPrev = null;
 
 function stopHotkeyCapture() {
@@ -2607,12 +2661,10 @@ els.replayHotkey.addEventListener("keydown", (e) => {
     return;
   }
   if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
-  // Tłumaczy nazwę klawisza DOM na format WinForms oczekiwany przez serwer.
-  let key = e.key;
-  if (/^[a-z]$/i.test(key)) key = key.toUpperCase();
-  else if (/^[0-9]$/.test(key)) key = "D" + key;
-  else if (key === " ") key = "Space";
-  else if (key.startsWith("Arrow")) key = key.slice(5);
+  const key = winFormsKeyName(e);
+  // Klawisza, którego serwer nie rozpozna, nie warto wpisywać w pole — pole zostaje
+  // w trybie przechwytywania, więc można od razu nacisnąć inny.
+  if (!key) return;
   const mods = [];
   if (e.ctrlKey) mods.push("Ctrl");
   if (e.altKey) mods.push("Alt");
@@ -2647,8 +2699,8 @@ els.replayApply.addEventListener("click", async () => {
   // Starsza część serwerowa może zwrócić pustą odpowiedź; wtedy pokazuje stan HTTP.
     let st = null;
     try { st = await r.json(); } catch { }
-    if (!r.ok) throw new Error((st && st.detail) || `${r.status} ${r.statusText}`.trim());
-    if (!st) throw new Error("pusta odpowiedź serwera");
+    if (!r.ok) throw new Error(backendErrorMessage(st, `${r.status} ${r.statusText}`.trim()));
+    if (!st) throw new Error(t("errors.emptyResponse"));
     renderReplayStatus(st);
     toast(t("replay.cfgSaved"));
   } catch (e) {
@@ -2666,7 +2718,7 @@ els.replaySaveNow.addEventListener("click", async () => {
     let data = null;
     try { data = await r.json(); } catch { }
     if (!r.ok) throw new Error((data && data.detail) || `${r.status} ${r.statusText}`.trim());
-    if (!data) throw new Error("pusta odpowiedź serwera");
+    if (!data) throw new Error(t("errors.emptyResponse"));
     toast(t("replay.savedToast").replace("{file}", data.file));
     loadStats();
     doSearch();
@@ -3051,6 +3103,15 @@ setInterval(sendHeartbeat, 30000);
     if (els.settingsVersion && cfg.version) {
       els.settingsVersion.textContent = `KeepClip • v${cfg.version}`;
     }
+    // Interfejs pamięta język w przeglądarce, a transkrypcja czyta go z ustawień serwera.
+    // Zgłoszenie przy starcie zgrywa oba dla osób, które wybrały język przed tą zmianą.
+    if (cfg.language !== LANG) {
+      fetch("/api/language", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ language: LANG }),
+      }).catch(() => {});
+    }
     if (!cfg.configured) {
       await openConfigModal({ mode: "first" });
       return;
@@ -3356,7 +3417,7 @@ document.addEventListener("keydown", (e) => {
   });
   document.getElementById("logs-copy").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(output.textContent); toast("Logi skopiowane do schowka."); }
-    catch { toast("Nie udało się skopiować.", "error"); }
+    catch { toast(t("errors.copyFailed"), "error"); }
   });
   document.getElementById("logs-clear").addEventListener("click", async () => {
     try { await fetch("/api/logs/clear", { method: "POST" }); } catch {}

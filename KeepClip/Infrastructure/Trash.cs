@@ -38,7 +38,7 @@ public static class Trash
         };
         int rc = SHFileOperation(ref op);
         if (rc != 0 || op.fAnyOperationsAborted)
-            throw new IOException($"Nie udało się przenieść do Kosza (kod {rc}).");
+            throw new IOException(Strings.Get("trash.moveFailed", rc));
     }
 
     // Po zamknięciu odtwarzacza uchwyt pliku może pozostać chwilowo otwarty,

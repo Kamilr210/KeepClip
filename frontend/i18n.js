@@ -57,6 +57,14 @@ const i18n = {
       sublabel:  "Zezwól na tło animowane w aplikacji",
       toggleAria: "Włącz/wyłącz animację tła",
     },
+    errors: {
+      emptyResponse:     "Pusta odpowiedź serwera.",
+      copyFailed:        "Nie udało się skopiować.",
+      replayBadDuration: "Długość powtórki musi mieścić się w zakresie 15–600 sekund.",
+      replayBadFps:      "Obsługiwane wartości FPS: 30, 60 lub 90.",
+      replayBadQuality:  "Nieobsługiwana jakość nagrania.",
+      replayBadHotkey:   "Nieprawidłowy skrót — użyj modyfikatora i klawisza, np. Alt+F10.",
+    },
     progress: {
       close:     "Zamknij",
       done:      "Zakończono.",
@@ -405,6 +413,9 @@ const i18n = {
       folderPath: "Ścieżka folderu",
     },
     ui: {
+      layoutGroup:       "Układ klipów",
+      clear:             "Wyczyść",
+      close:             "Zamknij",
       layoutGrid:        "Równa siatka",
       layoutMosaic:      "Mozaika — różne rozmiary",
       browseFolder:      "Wybierz folder (Przeglądaj)",
@@ -504,6 +515,14 @@ const i18n = {
       label:    "Анимированный фон",
       sublabel: "Разрешить анимированный фон в приложении",
       toggleAria: "Включить/выключить анимацию фона",
+    },
+    errors: {
+      emptyResponse:     "Пустой ответ сервера.",
+      copyFailed:        "Не удалось скопировать.",
+      replayBadDuration: "Длительность повтора должна быть в диапазоне 15–600 секунд.",
+      replayBadFps:      "Поддерживаемые значения FPS: 30, 60 или 90.",
+      replayBadQuality:  "Неподдерживаемое качество записи.",
+      replayBadHotkey:   "Неверное сочетание — используйте модификатор и клавишу, например Alt+F10.",
     },
     progress: {
       close: "Закрыть",
@@ -853,6 +872,9 @@ const i18n = {
       folderPath: "Путь к папке",
     },
     ui: {
+      layoutGroup:       "Вид клипов",
+      clear:             "Очистить",
+      close:             "Закрыть",
       layoutGrid:        "Равная сетка",
       layoutMosaic:      "Мозаика — разные размеры",
       browseFolder:      "Выбрать папку (Обзор)",
@@ -952,6 +974,14 @@ const i18n = {
       label:    "Animated background",
       sublabel: "Allow the animated background in the app",
       toggleAria: "Toggle animated background",
+    },
+    errors: {
+      emptyResponse:     "Empty response from the server.",
+      copyFailed:        "Copying failed.",
+      replayBadDuration: "Replay length must be between 15 and 600 seconds.",
+      replayBadFps:      "Supported FPS values: 30, 60 or 90.",
+      replayBadQuality:  "Unsupported recording quality.",
+      replayBadHotkey:   "Invalid shortcut - use a modifier and a key, for example Alt+F10.",
     },
     progress: {
       close: "Close",
@@ -1301,6 +1331,9 @@ const i18n = {
       folderPath: "Folder path",
     },
     ui: {
+      layoutGroup:       "Clip layout",
+      clear:             "Clear",
+      close:             "Close",
       layoutGrid:        "Grid layout",
       layoutMosaic:      "Mosaic — varied sizes",
       browseFolder:      "Choose folder (Browse)",
@@ -1400,6 +1433,14 @@ const i18n = {
       label:    "Анімований фон",
       sublabel: "Дозволити анімований фон у застосунку",
       toggleAria: "Увімкнути/вимкнути анімований фон",
+    },
+    errors: {
+      emptyResponse:     "Порожня відповідь сервера.",
+      copyFailed:        "Не вдалося скопіювати.",
+      replayBadDuration: "Тривалість повтору має бути в межах 15–600 секунд.",
+      replayBadFps:      "Підтримувані значення FPS: 30, 60 або 90.",
+      replayBadQuality:  "Непідтримувана якість запису.",
+      replayBadHotkey:   "Неправильне поєднання — використайте модифікатор і клавішу, наприклад Alt+F10.",
     },
     progress: {
       close: "Закрити",
@@ -1749,6 +1790,9 @@ const i18n = {
       folderPath: "Шлях до папки",
     },
     ui: {
+      layoutGroup:       "Вигляд кліпів",
+      clear:             "Очистити",
+      close:             "Закрити",
       layoutGrid:        "Рівна сітка",
       layoutMosaic:      "Мозаїка — різні розміри",
       browseFolder:      "Вибрати папку (Огляд)",

@@ -58,7 +58,7 @@ internal sealed class AudioPump : IDisposable
             catch { }
         }
         if (names.Count == 0)
-            throw new InvalidOperationException("no capturable render endpoint");
+            throw new InvalidOperationException(Strings.Get("audio.noEndpoint"));
 
         if (withMic)
         {

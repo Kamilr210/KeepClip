@@ -36,7 +36,14 @@ public static class Config
     // Token odświeżania jest przechowywany w Menedżerze poświadczeń Windows.
     public const string DriveTokenTarget = "KeepClip:GoogleDriveRefreshToken";
 
-    public const string WhisperLang  = "pl";
+    // Whisper posługuje się tymi samymi kodami ISO 639-1 co interfejs, więc język
+    // transkrypcji może wprost podążać za językiem wybranym w aplikacji.
+    public static readonly string[] UiLanguages = { "pl", "en", "ru", "uk" };
+
+    // Aplikacja trafia do odbiorców z różnych krajów, więc świeża instalacja startuje
+    // po angielsku, a nie w języku systemu.
+    public const string DefaultLanguage = "en";
+
     public const string WhisperDevice = "auto";
     public const string WhisperComputeType = "int8";
     public const double WhisperSplitGapSeconds = 1.5;

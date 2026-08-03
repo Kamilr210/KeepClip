@@ -150,15 +150,15 @@ public static class ReplayService
         for (int i = 0; Enabled && _ff is not { HasExited: false } && i < 8; i++)
             await Task.Delay(500);
         if (_ff is not { HasExited: false })
-            throw new InvalidOperationException("Bufor powtórki nie jest uruchomiony.");
+            throw new InvalidOperationException(Strings.Get("replay.notRunning"));
         if (Interlocked.CompareExchange(ref _saving, 1, 0) != 0)
-            throw new InvalidOperationException("Poprzedni zapis powtórki jeszcze trwa.");
+            throw new InvalidOperationException(Strings.Get("replay.saveInProgress"));
 
         var game = DisplayHelper.ForegroundGameName() ?? "Pulpit";
 
         // Potwierdza skrót natychmiast, zanim zakończy się składanie dużego pliku.
         PlayCue(ok: true);
-        try { Notifier?.Invoke(true, "Zapisywanie powtórki…", "przetwarzanie, chwila…"); } catch { }
+        try { Notifier?.Invoke(true, Strings.Get("replay.savingTitle"), Strings.Get("replay.savingSubtitle")); } catch { }
 
         string? listPath = null, snapPath = null, tmpOut = null;
         try
@@ -167,7 +167,7 @@ public static class ReplayService
                 .OrderBy(f => f, StringComparer.Ordinal)
                 .ToList();
             if (files.Count == 0)
-                throw new InvalidOperationException("Bufor powtórki jest jeszcze pusty — daj mu kilka sekund.");
+                throw new InvalidOperationException(Strings.Get("replay.bufferEmpty"));
 
             // Kopiuje także aktualnie zapisywany TS, aby zachować najnowsze sekundy.
             var current = files[^1];
@@ -188,7 +188,7 @@ public static class ReplayService
             if (snapPath is not null && new FileInfo(snapPath).Length > 50_000)
                 take.Add(snapPath);
             if (take.Count == 0)
-                throw new InvalidOperationException("Bufor powtórki jest jeszcze pusty — daj mu kilka sekund.");
+                throw new InvalidOperationException(Strings.Get("replay.bufferEmpty"));
 
         // Demukser łączenia wymaga ukośników i specjalnego zapisu apostrofów.
             listPath = Path.Combine(Config.TmpDir, $"replay_list_{Guid.NewGuid():N}.txt");
@@ -221,7 +221,7 @@ public static class ReplayService
             args.AddRange(new[] { "-f", "mp4", tmpOut });
             var (code, err) = await RunFfmpegAsync(args.ToArray(), timeoutMs: 120_000);
             if (code != 0 || !File.Exists(tmpOut) || new FileInfo(tmpOut).Length < 10_000)
-                throw new Exception($"Nie udało się złożyć powtórki (ffmpeg: {Tail(err)})");
+                throw new Exception(Strings.Get("replay.muxFailed", Tail(err)));
 
             // Antywirus lub indeksator może chwilowo blokować plik tuż po zamknięciu FFmpeg.
             for (int attempt = 0; ; attempt++)
@@ -231,7 +231,7 @@ public static class ReplayService
             }
             tmpOut = null;
 
-            try { Notifier?.Invoke(true, "Powtórka zapisana", outName); } catch { }
+            try { Notifier?.Invoke(true, Strings.Get("replay.savedTitle"), outName); } catch { }
             Console.Error.WriteLine($"Powtórka zapisana ({source}): {outPath}");
 
             Scanner.Scan();
@@ -257,7 +257,7 @@ public static class ReplayService
         try
         {
             if (!File.Exists(Config.Ffmpeg))
-                throw new Exception("Brak ffmpeg.exe w tools\\bin — uruchom setup.ps1.");
+                throw new Exception(Strings.Get("replay.ffmpegMissing"));
 
             Directory.CreateDirectory(SegDir);
             // Restart po awarii zachowuje segmenty i kontynuuje numerację, aby nie tracić bufora.
@@ -413,7 +413,7 @@ public static class ReplayService
             Path.Combine(SegDir, "seg_%06d.ts"));
 
         var proc = new Process { StartInfo = psi };
-        if (!proc.Start()) throw new Exception("ffmpeg nie wystartował.");
+        if (!proc.Start()) throw new Exception(Strings.Get("replay.ffmpegStart"));
 
         // Opróżnia strumień błędów, aby nie zablokować procesu, i zachowuje końcówkę do diagnostyki.
         _ = Task.Run(async () =>

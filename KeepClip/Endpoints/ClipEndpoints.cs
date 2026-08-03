@@ -14,7 +14,7 @@ public static class ClipEndpoints
         {
             Heartbeat.Touch();
             var state = clips.ToggleFavorite(clipId);
-            if (state is null) return Api.Detail(404, "Klip nie istnieje.");
+            if (state is null) return Api.Detail(404, Strings.Get("clip.notFound"));
             DevLog.Add($"Ulubione: klip #{clipId} {(state.Value ? "dodany do ulubionych" : "usunięty z ulubionych")}");
             return Results.Json(new { ok = true, id = clipId, favorite = state.Value });
         });

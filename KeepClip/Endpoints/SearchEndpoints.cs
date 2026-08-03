@@ -19,7 +19,7 @@ public static class SearchEndpoints
     {
         app.MapGet("/api/search", (string q, string? sort, int? limit, SegmentRepository segments) =>
         {
-            if (string.IsNullOrEmpty(q)) return Api.Detail(422, "q is required");
+            if (string.IsNullOrEmpty(q)) return Api.Detail(422, Strings.Get("search.queryRequired"));
             var ftsQ = ToFtsQuery(q);
             if (string.IsNullOrEmpty(ftsQ))
                 return Results.Json(new Dictionary<string, object?> { ["query"] = q, ["results"] = Array.Empty<object>() });

@@ -106,22 +106,22 @@ public static class GoogleDrive
                 || uri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase)
                 || uri.Host.Equals("ggpht.com", StringComparison.OrdinalIgnoreCase)
                 || uri.Host.EndsWith(".ggpht.com", StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException("Nieprawidłowy adres zdjęcia profilowego Google.");
+            throw new InvalidOperationException(Strings.Get("drive.badPhotoUrl"));
 
         using var response = await Api.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
         response.EnsureSuccessStatusCode();
 
         const int maxPhotoBytes = 1024 * 1024;
         if (response.Content.Headers.ContentLength is > maxPhotoBytes)
-            throw new InvalidOperationException("Zdjęcie profilowe Google jest zbyt duże.");
+            throw new InvalidOperationException(Strings.Get("drive.photoTooLarge"));
 
         var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
         if (!contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("Google nie zwrócił prawidłowego zdjęcia profilowego.");
+            throw new InvalidOperationException(Strings.Get("drive.badPhoto"));
 
         var data = await response.Content.ReadAsByteArrayAsync();
         if (data.Length == 0 || data.Length > maxPhotoBytes)
-            throw new InvalidOperationException("Nieprawidłowy rozmiar zdjęcia profilowego Google.");
+            throw new InvalidOperationException(Strings.Get("drive.badPhotoSize"));
 
         return new ProfilePhoto(data, contentType);
     }
@@ -183,7 +183,7 @@ public static class GoogleDrive
         using var initResp = await Api.SendAsync(init);
         if (!initResp.IsSuccessStatusCode) await ThrowFrom(initResp);
         var session = initResp.Headers.Location
-            ?? throw new InvalidOperationException("Drive nie zwrócił adresu sesji uploadu.");
+            ?? throw new InvalidOperationException(Strings.Get("drive.noUploadUrl"));
 
         using var fs = File.OpenRead(filePath);
         using var put = new HttpRequestMessage(HttpMethod.Put, session);

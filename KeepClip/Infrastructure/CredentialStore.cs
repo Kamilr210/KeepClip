@@ -44,7 +44,7 @@ public static class CredentialStore
     {
         var blob = Encoding.Unicode.GetBytes(secret);
         if (blob.Length > CRED_MAX_CREDENTIAL_BLOB_SIZE)
-            throw new ArgumentException("Sekret jest zbyt długi dla Menedżera poświadczeń.");
+            throw new ArgumentException(Strings.Get("credential.tooLong"));
 
         IntPtr blobPtr = Marshal.AllocHGlobal(blob.Length);
         try

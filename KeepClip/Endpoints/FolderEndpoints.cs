@@ -14,10 +14,10 @@ public static class FolderEndpoints
         {
             Heartbeat.Touch();
             var name = body.name?.Trim() ?? "";
-            if (string.IsNullOrEmpty(name)) return Api.Detail(400, "Nazwa folderu jest wymagana.");
-            if (name.Length > 100) return Api.Detail(400, "Nazwa folderu za długa (max 100 znaków).");
+            if (string.IsNullOrEmpty(name)) return Api.Detail(400, Strings.Get("folder.nameRequired"));
+            if (name.Length > 100) return Api.Detail(400, Strings.Get("folder.nameTooLong"), "folderNameTooLong");
             var row = folders.Create(name);
-            if (row is null) return Api.Detail(409, $"Folder o nazwie „{name}\" już istnieje.");
+            if (row is null) return Api.Detail(409, Strings.Get("folder.duplicate", name), "folderDuplicate");
             DevLog.Add($"Folder: utworzono „{name}” (#{row["id"]})");
             return Results.Json(row);
         });
@@ -26,11 +26,11 @@ public static class FolderEndpoints
         {
             Heartbeat.Touch();
             var name = body.name?.Trim() ?? "";
-            if (string.IsNullOrEmpty(name)) return Api.Detail(400, "Nazwa folderu jest wymagana.");
+            if (string.IsNullOrEmpty(name)) return Api.Detail(400, Strings.Get("folder.nameRequired"));
             return folders.Rename(folderId, name) switch
             {
-                FolderWrite.NotFound => Api.Detail(404, "Folder nie istnieje."),
-                FolderWrite.Duplicate => Api.Detail(409, $"Folder o nazwie „{name}\" już istnieje."),
+                FolderWrite.NotFound => Api.Detail(404, Strings.Get("folder.notFound")),
+                FolderWrite.Duplicate => Api.Detail(409, Strings.Get("folder.duplicate", name), "folderDuplicate"),
                 _ => Log(),
             };
 
@@ -45,7 +45,7 @@ public static class FolderEndpoints
         {
             Heartbeat.Touch();
             var deletedName = folders.Delete(folderId);
-            if (deletedName is null) return Api.Detail(404, "Folder nie istnieje.");
+            if (deletedName is null) return Api.Detail(404, Strings.Get("folder.notFound"));
             DevLog.Add($"Folder: usunięto „{deletedName}” (#{folderId})");
             return Results.Json(new Dictionary<string, object?> { ["ok"] = true, ["deleted_name"] = deletedName });
         });
@@ -54,7 +54,7 @@ public static class FolderEndpoints
         {
             Heartbeat.Touch();
             var result = folders.ListClips(folderId, sort, limit ?? 500);
-            if (result is null) return Api.Detail(404, "Folder nie istnieje.");
+            if (result is null) return Api.Detail(404, Strings.Get("folder.notFound"));
             return Results.Json(new Dictionary<string, object?> { ["folder"] = result.Value.folder, ["clips"] = result.Value.clips });
         });
 
@@ -63,8 +63,8 @@ public static class FolderEndpoints
             Heartbeat.Touch();
             return folders.AddClip(folderId, clipId) switch
             {
-                AddClipResult.NoFolder => Api.Detail(404, "Folder nie istnieje."),
-                AddClipResult.NoClip => Api.Detail(404, "Klip nie istnieje."),
+                AddClipResult.NoFolder => Api.Detail(404, Strings.Get("folder.notFound")),
+                AddClipResult.NoClip => Api.Detail(404, Strings.Get("clip.notFound")),
                 _ => LogOk(),
             };
 

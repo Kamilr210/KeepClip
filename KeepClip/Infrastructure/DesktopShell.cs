@@ -117,6 +117,36 @@ internal sealed class ShellForm : Form
         };
     }
 
+    // F10 aktywuje w Windows pasek menu, więc WebView2 oddaje go oknu zamiast stronie —
+    // przez to pole skrótu nigdy nie widziało tego klawisza i skrótów z F10 nie dało się
+    // ustawić. Zdarzenie jest tu przechwytywane i przekazywane do interfejsu.
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+    {
+        if ((keyData & Keys.KeyCode) == Keys.F10)
+        {
+            ForwardF10ToPage(keyData);
+            return true;
+        }
+        return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    private void ForwardF10ToPage(Keys keyData)
+    {
+        var core = _web.CoreWebView2;
+        if (core is null) return;
+
+        static string Js(bool value) => value ? "true" : "false";
+        string script =
+            "(function(){var el=document.activeElement||document.body;" +
+            "el.dispatchEvent(new KeyboardEvent('keydown',{key:'F10',code:'F10'," +
+            "keyCode:121,which:121," +
+            $"altKey:{Js((keyData & Keys.Alt) != 0)}," +
+            $"ctrlKey:{Js((keyData & Keys.Control) != 0)}," +
+            $"shiftKey:{Js((keyData & Keys.Shift) != 0)}," +
+            "bubbles:true,cancelable:true}));})();";
+        try { core.ExecuteScriptAsync(script); } catch { }
+    }
+
     protected override void WndProc(ref Message m)
     {
         if (HotkeyManager.HandleMessage(ref m))
@@ -133,7 +163,7 @@ internal sealed class ShellForm : Form
                     // Ponowne naciśnięcie podczas zapisu nie jest błędem użytkownika.
                     if (ReplayService.SaveInProgress) return;
                     ReplayService.PlayCue(ok: false);
-                    SafeToast(false, "Nie udało się zapisać powtórki", ex.Message);
+                    SafeToast(false, Strings.Get("replay.saveFailedTitle"), ex.Message);
                 }
             });
             return;
@@ -164,17 +194,18 @@ internal sealed class ShellForm : Form
     private void InitTray()
     {
         var menu = new ContextMenuStrip();
-        menu.Items.Add("Otwórz KeepClip", null, (_, _) => RestoreFromTray());
+        menu.Items.Add(Strings.Get("tray.open"), null, (_, _) => RestoreFromTray());
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Zakończ i zatrzymaj nagrywanie", null, (_, _) =>
+        var exitItem = new ToolStripMenuItem(Strings.Get("tray.exit"), null, (_, _) =>
         {
             _exitRequested = true;
             Close();
-        });
+        }) { Tag = "exit" };
+        menu.Items.Add(exitItem);
 
         _tray = new NotifyIcon
         {
-            Text = "KeepClip — nagrywanie w tle",
+            Text = Strings.Get("tray.tooltip"),
             Icon = Icon ?? SystemIcons.Application,
             ContextMenuStrip = menu,
             Visible = false,
@@ -193,7 +224,25 @@ internal sealed class ShellForm : Form
     private void HideToTray()
     {
         Hide();
-        if (_tray is not null) _tray.Visible = true;
+        if (_tray is null) return;
+        // Menu powstaje przy starcie, a język można zmienić w trakcie działania, więc
+        // teksty są odświeżane tuż przed pokazaniem ikony.
+        RefreshTrayTexts();
+        _tray.Visible = true;
+    }
+
+    private void RefreshTrayTexts()
+    {
+        if (_tray is null) return;
+        _tray.Text = Strings.Get("tray.tooltip");
+        if (_tray.ContextMenuStrip is not { } menu) return;
+        foreach (var item in menu.Items)
+        {
+            if (item is not ToolStripMenuItem entry) continue;
+            entry.Text = entry.Tag as string == "exit"
+                ? Strings.Get("tray.exit")
+                : Strings.Get("tray.open");
+        }
     }
 
     private void RestoreFromTray()
@@ -248,6 +297,12 @@ internal sealed class ShellForm : Form
 
         core.Settings.IsStatusBarEnabled = false;
         core.Settings.IsSwipeNavigationEnabled = false;
+
+        // Skróty przeglądarki (m.in. F10 aktywujące pasek menu) przechwytują klawisze, zanim
+        // dotrą do strony — przez to nie dało się ustawić skrótu powtórki z klawiszem F10.
+        // Aplikacja nie korzysta z żadnego z tych skrótów, więc można je wyłączyć w całości.
+        try { core.Settings.AreBrowserAcceleratorKeysEnabled = false; }
+        catch { }
 
         // Starsze WebView2 nie obsługuje regionów natywnych; wtedy pozostaje most JS.
         try { core.Settings.IsNonClientRegionSupportEnabled = true; }

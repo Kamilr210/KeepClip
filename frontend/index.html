@@ -162,11 +162,11 @@
     <div id="view-clips">
       <section class="search-bar card">
         <input id="q" type="search" placeholder="Szukaj klipów, map, słów z transkrypcji…" autocomplete="off" autofocus />
-        <div class="view-toggle" role="group" aria-label="Układ klipów">
-          <button id="layout-grid" class="view-toggle-btn active" data-layout="grid" type="button" data-i18n-title="ui.layoutGrid" title="Równa siatka" aria-label="Równa siatka">
+        <div class="view-toggle" role="group" data-i18n-aria="ui.layoutGroup" aria-label="Układ klipów">
+          <button id="layout-grid" class="view-toggle-btn active" data-layout="grid" type="button" data-i18n-title="ui.layoutGrid" data-i18n-aria="ui.layoutGrid" title="Równa siatka" aria-label="Równa siatka">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="8" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/><rect x="13" y="13" width="8" height="8" rx="1.6"/></svg>
           </button>
-          <button id="layout-mosaic" class="view-toggle-btn" data-layout="mosaic" type="button" data-i18n-title="ui.layoutMosaic" title="Mozaika — różne rozmiary" aria-label="Mozaika">
+          <button id="layout-mosaic" class="view-toggle-btn" data-layout="mosaic" type="button" data-i18n-title="ui.layoutMosaic" data-i18n-aria="ui.layoutMosaic" title="Mozaika — różne rozmiary" aria-label="Mozaika">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="3" y="3" width="11" height="11" rx="1.6"/><rect x="16" y="3" width="5" height="5" rx="1.2"/><rect x="16" y="10" width="5" height="4" rx="1.2"/><rect x="3" y="16" width="6" height="5" rx="1.2"/><rect x="11" y="16" width="10" height="5" rx="1.2"/></svg>
           </button>
         </div>
@@ -663,8 +663,8 @@
       <div class="logs-head-actions">
         <label class="logs-autoscroll"><input type="checkbox" id="logs-autoscroll" checked /> Auto-przewijanie</label>
         <button id="logs-copy" class="btn ghost" type="button">Kopiuj</button>
-        <button id="logs-clear" class="btn ghost" type="button">Wyczyść</button>
-        <button id="logs-close" class="btn ghost" type="button">Zamknij</button>
+        <button id="logs-clear" class="btn ghost" type="button" data-i18n="ui.clear">Wyczyść</button>
+        <button id="logs-close" class="btn ghost" type="button" data-i18n="ui.close">Zamknij</button>
       </div>
     </header>
     <pre id="logs-output" class="logs-output"></pre>
@@ -896,9 +896,13 @@
     if (SUPPORTED.indexOf(bl) !== -1) lang = bl;
   }
 
-  if (!lang) lang = 'pl';
+  // Nieobsługiwany język systemu oznacza start po angielsku.
+  if (!lang) lang = 'en';
 
   window.LANG = lang;
+  // Znacznik dokumentu musi zgadzać się z wybranym językiem, bo z niego korzystają
+  // czytniki ekranu i sprawdzanie pisowni.
+  document.documentElement.lang = lang;
 
   if (!window.i18n && typeof i18n !== 'undefined') window.i18n = i18n;
 
@@ -971,7 +975,15 @@
       var chosen = langSel.value;
       try { localStorage.setItem('keepclip_lang', chosen); } catch(e) {}
       var url = window.location.href.split('?')[0];
-      window.location.href = url + '?lang=' + chosen;
+      // Zapis na serwerze musi się zakończyć przed przeładowaniem strony, bo od niego
+      // zależy język transkrypcji. Błąd zapisu nie może zablokować zmiany interfejsu.
+      fetch('/api/language', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: chosen })
+      }).catch(function() {}).then(function() {
+        window.location.href = url + '?lang=' + chosen;
+      });
     });
   }
 })();
