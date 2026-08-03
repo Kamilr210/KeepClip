@@ -14,9 +14,9 @@
     <Company>Kamil</Company>
     <Authors>Kamil</Authors>
     <Description>KeepClip — przeglądarka i wyszukiwarka klipów z transkrypcją (Whisper) i offloadem na Google Drive.</Description>
-    <Version>2.2.4</Version>
-    <FileVersion>2.2.4.0</FileVersion>
-    <AssemblyVersion>2.2.4.0</AssemblyVersion>
+    <Version>2.2.5</Version>
+    <FileVersion>2.2.5.0</FileVersion>
+    <AssemblyVersion>2.2.5.0</AssemblyVersion>
     <Copyright>© Kamil</Copyright>
 
     <!-- Publikacja samowystarczalna pozostaje katalogiem bez przycinania, ponieważ WebView2
