@@ -8,8 +8,19 @@ namespace KeepClip.Infrastructure;
 
 public static class Transcriber
 {
+    private const string ModelSetting = "whisper_model";
+    private const string ProbeSetting = "whisper_model_probe";
+    private const string BlockedSetting = "whisper_model_blocked";
+
     private static readonly object ModelLock = new();
     private static WhisperFactory? _factory;
+    private static string? _activeModel;
+    private static bool _probeCleared;
+
+    // Wyznacza dolną granicę drabinki po nieudanej próbie w tej sesji.
+    private static int _ladderFloor;
+
+    public static string? ActiveModel { get { lock (ModelLock) return _activeModel; } }
 
     public readonly record struct Segment(double Start, double End, string Text);
 
@@ -21,6 +32,17 @@ public static class Transcriber
         var samples = LoadAudioNormalized(path)
             ?? throw new InvalidOperationException($"Nie udało się zdekodować audio: {path}");
 
+        while (true)
+        {
+            // Filtr wyjątku tylko sprawdza warunek; zwolnienie modelu musi nastąpić po
+            // rozwinięciu stosu, gdy procesor korzystający z niego jest już zamknięty.
+            try { return RunOnce(samples, progress); }
+            catch (Exception ex) when (CanStepDown()) { StepDown(ex); }
+        }
+    }
+
+    private static List<Segment> RunOnce(float[] samples, Action<double, string>? progress)
+    {
         var factory = GetFactory();
         progress?.Invoke(0.15, "transcribing");
 
@@ -37,8 +59,39 @@ public static class Transcriber
         var audioDuration = samples.Length / 16000.0;
         foreach (var seg in ProcessAll(processor, samples, audioDuration, progress))
             SplitOnInternalGaps(seg, Config.WhisperSplitGapSeconds, outSegs);
+
+        // Model przeszedł pełną transkrypcję, więc bufory obliczeniowe też się zmieściły.
+        ClearProbe();
         progress?.Invoke(0.97, "saving");
         return outSegs;
+    }
+
+    // Jawny wybór użytkownika nigdy nie jest podmieniany, a z ostatniego szczebla nie ma zejścia.
+    private static bool CanStepDown()
+    {
+        lock (ModelLock)
+        {
+            int current = Array.IndexOf(Config.WhisperModelLadder, _activeModel);
+            return Config.WhisperModelOverride is null && current >= 0
+                   && current + 1 < Config.WhisperModelLadder.Length;
+        }
+    }
+
+    private static void StepDown(Exception ex)
+    {
+        lock (ModelLock)
+        {
+            int current = Array.IndexOf(Config.WhisperModelLadder, _activeModel);
+            if (current < 0) return;
+
+            TranscribeState.PushLog(
+                $"Model {_activeModel} nie poradził sobie ({ex.Message}) — przechodzę na lżejszy.");
+            _ladderFloor = current + 1;
+            _factory?.Dispose();
+            _factory = null;
+            _activeModel = null;
+            ClearProbe();
+        }
     }
 
     private static WhisperFactory GetFactory()
@@ -46,15 +99,84 @@ public static class Transcriber
         lock (ModelLock)
         {
             if (_factory is not null) return _factory;
-            EnsureModelFile();
-            _factory = WhisperFactory.FromPath(Config.WhisperModelPath);
-            ReportLoadedRuntime();
-            return _factory;
+
+            Exception? last = null;
+            foreach (var model in CandidateModels())
+            {
+                try
+                {
+                    EnsureModelFile(model);
+                    // Znacznik przetrwa twarde zamknięcie procesu przy braku pamięci GPU,
+                    // dzięki czemu następny start nie powtórzy tej samej próby.
+                    Settings.SetString(ProbeSetting, model);
+                    _probeCleared = false;
+
+                    _factory = WhisperFactory.FromPath(Config.WhisperModelPath(model));
+                    _activeModel = model;
+                    Settings.SetString(ModelSetting, model);
+                    ReportLoadedRuntime(model);
+                    return _factory;
+                }
+                catch (Exception ex)
+                {
+                    last = ex;
+                    ClearProbe();
+                    TranscribeState.PushLog($"Model {model} nie wystartował: {ex.Message}");
+                }
+            }
+            throw new InvalidOperationException(
+                "Nie udało się uruchomić żadnego modelu transkrypcji.", last);
         }
     }
 
+    // Kolejność prób: od modelu pasującego do pamięci GPU w dół.
+    private static IEnumerable<string> CandidateModels()
+    {
+        if (Config.WhisperModelOverride is { } forced) return new[] { forced };
+
+        var ladder = Config.WhisperModelLadder;
+        int start = _ladderFloor;
+
+        long vram = GpuInfo.LargestDedicatedVideoMemory();
+        while (start < ladder.Length - 1 &&
+               Config.WhisperModelMinVram.GetValueOrDefault(ladder[start]) > vram)
+            start++;
+
+        // Model, przy którym poprzedni proces zniknął bez śladu, jest pomijany na stałe.
+        DetectCrashedModel();
+        var blocked = Settings.GetString(BlockedSetting);
+        if (blocked is not null)
+        {
+            int i = Array.IndexOf(ladder, blocked);
+            if (i >= 0) start = Math.Max(start, i + 1);
+        }
+
+        if (start > 0)
+            TranscribeState.PushLog(
+                $"Dobór modelu: {GpuInfo.Describe(vram)} → {ladder[Math.Min(start, ladder.Length - 1)]}");
+        return ladder.Skip(Math.Min(start, ladder.Length - 1));
+    }
+
+    // Pozostawiony znacznik oznacza, że poprzednie uruchomienie nie przeżyło ładowania modelu.
+    private static void DetectCrashedModel()
+    {
+        var probe = Settings.GetString(ProbeSetting);
+        if (probe is null) return;
+        Settings.SetString(BlockedSetting, probe);
+        Settings.SetString(ProbeSetting, "");
+        TranscribeState.PushLog(
+            $"Model {probe} przerwał poprzednie uruchomienie — zostaje wyłączony na tym komputerze.");
+    }
+
+    private static void ClearProbe()
+    {
+        if (_probeCleared) return;
+        _probeCleared = true;
+        try { Settings.SetString(ProbeSetting, ""); } catch { }
+    }
+
     // Zapisuje wybrany mechanizm obliczeniowy, aby rozpoznać użycie GPU albo CPU.
-    private static void ReportLoadedRuntime()
+    private static void ReportLoadedRuntime(string model)
     {
         string label = RuntimeOptions.LoadedLibrary switch
         {
@@ -66,25 +188,26 @@ public static class Transcriber
             RuntimeLibrary.CpuNoAvx                      => "CPU (bez AVX)",
             _                                            => "nieznany",
         };
-        string msg = $"Silnik STT: {label} [model: {Config.WhisperGgmlType}]";
+        string msg = $"Silnik STT: {label} [model: {model}]";
         Console.Error.WriteLine(msg);
         TranscribeState.PushLog(msg);
     }
 
-    private static void EnsureModelFile()
+    private static void EnsureModelFile(string model)
     {
-        if (File.Exists(Config.WhisperModelPath)) return;
+        var target = Config.WhisperModelPath(model);
+        if (File.Exists(target)) return;
         Directory.CreateDirectory(Config.ModelsDir);
 
         // Plik .part zapobiega uznaniu przerwanego pobierania za gotowy model.
-        var part = Config.WhisperModelPath + ".part";
+        var part = target + ".part";
         try
         {
             using (var modelStream = WhisperGgmlDownloader.Default
-                       .GetGgmlModelAsync(ResolveGgmlType(Config.WhisperGgmlType)).GetAwaiter().GetResult())
+                       .GetGgmlModelAsync(ResolveGgmlType(model)).GetAwaiter().GetResult())
             using (var file = File.Create(part))
                 modelStream.CopyToAsync(file).GetAwaiter().GetResult();
-            File.Move(part, Config.WhisperModelPath, overwrite: true);
+            File.Move(part, target, overwrite: true);
         }
         catch
         {

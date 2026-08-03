@@ -36,17 +36,33 @@ public static class Config
     // Token odświeżania jest przechowywany w Menedżerze poświadczeń Windows.
     public const string DriveTokenTarget = "KeepClip:GoogleDriveRefreshToken";
 
-    public const string WhisperModel = "large-v3-turbo";
     public const string WhisperLang  = "pl";
     public const string WhisperDevice = "auto";
     public const string WhisperComputeType = "int8";
     public const double WhisperSplitGapSeconds = 1.5;
 
-    // Zmienna środowiskowa pozwala wybrać lżejszy model na słabszym sprzęcie.
-    public static readonly string WhisperGgmlType =
-        (Environment.GetEnvironmentVariable("KEEPCLIP_WHISPER_MODEL") ?? WhisperModel).Trim().ToLowerInvariant();
+    // Kolejność schodzenia, gdy sprzęt nie udźwignie mocniejszego modelu. Pierwszy pasujący
+    // do pamięci GPU jest domyślny; kolejne są używane, gdy poprzedni nie wystartuje.
+    public static readonly string[] WhisperModelLadder =
+        { "large-v3", "large-v3-turbo", "small" };
 
-    public static readonly string WhisperModelPath = Path.Combine(ModelsDir, $"ggml-{WhisperGgmlType}.bin");
+    // Zmierzone szczytowe zużycie pamięci GPU to ~4,3 GB dla large-v3 i ~2,3 GB dla turbo.
+    // Progi zostawiają zapas na pulpit i grę działającą w tle.
+    public static readonly Dictionary<string, long> WhisperModelMinVram =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["large-v3"]       = 6L * 1024 * 1024 * 1024,
+            ["large-v3-turbo"] = 3L * 1024 * 1024 * 1024,
+            ["small"]          = 0,
+        };
+
+    // Jawny wybór użytkownika wyłącza automatyczny dobór modelu.
+    public static readonly string? WhisperModelOverride =
+        Environment.GetEnvironmentVariable("KEEPCLIP_WHISPER_MODEL")?.Trim().ToLowerInvariant()
+            is { Length: > 0 } forced ? forced : null;
+
+    public static string WhisperModelPath(string ggmlType) =>
+        Path.Combine(ModelsDir, $"ggml-{ggmlType}.bin");
 
     private static string FindAppRoot()
     {
