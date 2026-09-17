@@ -233,7 +233,7 @@ window.keepClipTranslations = {
         "showcase_badge": "Примеры клипов",
         "showcase_heading": "Примеры игровых клипов"
     },
-"uk": {
+    "uk": {
         "title": "KeepClip — Зберігайте. Шукайте. Переглядайте.",
         "nav_features": "Можливості",
         "nav_software": "Як це працює",
