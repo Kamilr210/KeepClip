@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
 
+CrashLog.Install();
+
 var builder = WebApplication.CreateBuilder(args);
 
 bool serverOnly = args.Contains("server-only")
@@ -97,6 +99,7 @@ static int FreeLoopbackPort()
 
 static void StartIdleWatcher()
 {
+    if (Environment.GetEnvironmentVariable("KEEPCLIP_IDLE_EXIT") == "0") return;
     var t = new Thread(() =>
     {
         while (true)
@@ -110,3 +113,5 @@ static void StartIdleWatcher()
     { IsBackground = true, Name = "KeepClip-Idle" };
     t.Start();
 }
+
+public partial class Program { }

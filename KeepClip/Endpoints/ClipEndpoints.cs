@@ -44,7 +44,7 @@ public static class ClipEndpoints
                 text.AppendLine($"[{stamp}] {(row["text"] as string ?? "").Trim()}");
             }
 
-            var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true).GetBytes(text.ToString());
+            var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(text.ToString())).ToArray();
             var name = Path.GetFileNameWithoutExtension(clip.Filename);
             return Results.File(bytes, "text/plain; charset=utf-8",
                 DisplayHelper.SafeFolderName($"{name}.txt"));

@@ -4,7 +4,10 @@ public static class Config
 {
     public static readonly string AppRoot = FindAppRoot();
 
-    public static readonly string DataDir     = Path.Combine(AppRoot, "data");
+    public static readonly string DataDir =
+        Environment.GetEnvironmentVariable("KEEPCLIP_DATA_DIR") is { Length: > 0 } dataDir
+            ? Path.GetFullPath(dataDir)
+            : Path.Combine(AppRoot, "data");
     public static readonly string ThumbsDir   = Path.Combine(DataDir, "thumbs");
     public static readonly string TmpDir      = Path.Combine(DataDir, "tmp");
     public static readonly string PlaybackDir = Path.Combine(DataDir, "playback");

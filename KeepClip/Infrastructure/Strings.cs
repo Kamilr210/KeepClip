@@ -12,6 +12,9 @@ internal static class Strings
     private static string? Lookup(string lang, string key) =>
         Table.TryGetValue(lang, out var dict) && dict.TryGetValue(key, out var value) ? value : null;
 
+    internal static IEnumerable<string> Languages => Table.Keys;
+    internal static IReadOnlyDictionary<string, string> Entries(string lang) => Table[lang];
+
     private static readonly Dictionary<string, Dictionary<string, string>> Table = new()
     {
         ["pl"] = new()
@@ -61,6 +64,7 @@ internal static class Strings
             ["tray.open"]              = "Otwórz KeepClip",
             ["tray.exit"]              = "Zakończ i zatrzymaj nagrywanie",
             ["tray.tooltip"]           = "KeepClip — nagrywanie w tle",
+            ["shell.webview2Failed"]   = "KeepClip nie może otworzyć okna, bo brakuje składnika Microsoft Edge WebView2 albo jest on uszkodzony.\n\nSzczegóły: {0}\n\nOtworzyć stronę pobierania WebView2?",
             ["credential.tooLong"]     = "Sekret jest zbyt długi dla Menedżera poświadczeń.",
             ["drive.badPhotoUrl"]      = "Nieprawidłowy adres zdjęcia profilowego Google.",
             ["drive.photoTooLarge"]    = "Zdjęcie profilowe Google jest zbyt duże.",
@@ -119,6 +123,7 @@ internal static class Strings
             ["tray.open"]              = "Open KeepClip",
             ["tray.exit"]              = "Quit and stop recording",
             ["tray.tooltip"]           = "KeepClip - recording in the background",
+            ["shell.webview2Failed"]   = "KeepClip cannot open its window because the Microsoft Edge WebView2 component is missing or damaged.\n\nDetails: {0}\n\nOpen the WebView2 download page?",
             ["credential.tooLong"]     = "The secret is too long for Windows Credential Manager.",
             ["drive.badPhotoUrl"]      = "Invalid Google profile picture address.",
             ["drive.photoTooLarge"]    = "The Google profile picture is too large.",
@@ -177,6 +182,7 @@ internal static class Strings
             ["tray.open"]              = "Открыть KeepClip",
             ["tray.exit"]              = "Выйти и остановить запись",
             ["tray.tooltip"]           = "KeepClip — запись в фоне",
+            ["shell.webview2Failed"]   = "KeepClip не может открыть окно: компонент Microsoft Edge WebView2 отсутствует или повреждён.\n\nПодробности: {0}\n\nОткрыть страницу загрузки WebView2?",
             ["credential.tooLong"]     = "Секрет слишком длинный для Диспетчера учётных данных.",
             ["drive.badPhotoUrl"]      = "Неверный адрес фото профиля Google.",
             ["drive.photoTooLarge"]    = "Фото профиля Google слишком большое.",
@@ -235,6 +241,7 @@ internal static class Strings
             ["tray.open"]              = "Відкрити KeepClip",
             ["tray.exit"]              = "Вийти та зупинити запис",
             ["tray.tooltip"]           = "KeepClip — запис у фоні",
+            ["shell.webview2Failed"]   = "KeepClip не може відкрити вікно: компонент Microsoft Edge WebView2 відсутній або пошкоджений.\n\nДеталі: {0}\n\nВідкрити сторінку завантаження WebView2?",
             ["credential.tooLong"]     = "Секрет задовгий для Диспетчера облікових даних.",
             ["drive.badPhotoUrl"]      = "Неправильна адреса фото профілю Google.",
             ["drive.photoTooLarge"]    = "Фото профілю Google завелике.",

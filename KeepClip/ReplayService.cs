@@ -412,39 +412,48 @@ public static class ReplayService
         var t = new Thread(() =>
         {
             try { proc.WaitForExit(); } catch { return; }
-            lock (Gate)
+
+            try
             {
-                if (_stopRequested || !ReferenceEquals(proc, _ff)) return;
-                var uptime = DateTime.UtcNow - startedAt;
-                string tail;
-                lock (_stderrTail) tail = string.Join(" | ", _stderrTail);
-                StopLocked();
+                lock (Gate)
+                {
+                    if (_stopRequested || !ReferenceEquals(proc, _ff)) return;
+                    var uptime = DateTime.UtcNow - startedAt;
+                    string tail;
+                    lock (_stderrTail) tail = string.Join(" | ", _stderrTail);
+                    StopLocked();
 
-                _consecFails = uptime < TimeSpan.FromSeconds(10) ? _consecFails + 1 : 0;
-                if (_consecFails >= 2 && _captureTier < TierGdi)
-                {
-                    _captureTier++;
-                    Console.Error.WriteLine($"Bufor: przechwytywanie pada od razu — schodzę na „{CaptureName(_captureTier)}”.");
-                }
-                if (_consecFails >= 6)
-                {
-                    _error = $"Bufor powtórki zatrzymał się: {Tail(tail)}";
-                    return;
-                }
-
-                int delayMs = _consecFails == 0 ? 700 : 1_500 * _consecFails;
-                Console.Error.WriteLine(
-                    $"Bufor: nieoczekiwany koniec po {uptime.TotalSeconds:F0}s ({Tail(tail)}) — " +
-                    $"restart za {delayMs} ms (bufor zachowany).");
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(delayMs);
-                    lock (Gate)
+                    _consecFails = uptime < TimeSpan.FromSeconds(10) ? _consecFails + 1 : 0;
+                    if (_consecFails >= 2 && _captureTier < TierGdi)
                     {
-                        if (!Enabled || _ff is not null) return;
-                        StartLocked(freshRing: false);
+                        _captureTier++;
+                        Console.Error.WriteLine($"Bufor: przechwytywanie pada od razu — schodzę na „{CaptureName(_captureTier)}”.");
                     }
-                });
+                    if (_consecFails >= 6)
+                    {
+                        _error = $"Bufor powtórki zatrzymał się: {Tail(tail)}";
+                        return;
+                    }
+
+                    int delayMs = _consecFails == 0 ? 700 : 1_500 * _consecFails;
+                    Console.Error.WriteLine(
+                        $"Bufor: nieoczekiwany koniec po {uptime.TotalSeconds:F0}s ({Tail(tail)}) — " +
+                        $"restart za {delayMs} ms (bufor zachowany).");
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(delayMs);
+                        lock (Gate)
+                        {
+                            if (!Enabled || _ff is not null) return;
+                            StartLocked(freshRing: false);
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                CrashLog.Write("watchdog bufora powtórki", ex);
+                lock (Gate) _error = $"Bufor powtórki zatrzymał się: {ex.Message}";
             }
         })
         { IsBackground = true, Name = "KeepClip-ReplayWatchdog" };

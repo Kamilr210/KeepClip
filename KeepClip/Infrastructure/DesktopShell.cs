@@ -14,6 +14,10 @@ internal static class DesktopShell
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
         try { Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); } catch { }
+
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        Application.ThreadException += (_, e) => CrashLog.Write("wątek okna", e.Exception);
+
         using var form = new ShellForm(baseUrl);
         Application.Run(form);
     }
@@ -104,7 +108,7 @@ internal sealed class ShellForm : Form
         _web.DefaultBackgroundColor = AppBg;
         Controls.Add(_web);
 
-        Load += async (_, _) => await InitWebViewAsync();
+        Load += async (_, _) => await InitWebViewSafeAsync();
 
         HandleCreated += (_, _) =>
         {
@@ -268,6 +272,32 @@ internal sealed class ShellForm : Form
         })
         { IsBackground = true, Name = "KeepClip-ShowSignal" };
         t.Start();
+    }
+
+    private async Task InitWebViewSafeAsync()
+    {
+        try
+        {
+            await InitWebViewAsync();
+        }
+        catch (Exception ex)
+        {
+            CrashLog.Write("WebView2", ex);
+            _exitRequested = true;
+            var answer = MessageBox.Show(this,
+                Strings.Get("shell.webview2Failed", ex.Message),
+                "KeepClip", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
+            if (answer == DialogResult.Yes)
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                        "https://developer.microsoft.com/microsoft-edge/webview2/") { UseShellExecute = true });
+                }
+                catch { }
+            }
+            Close();
+        }
     }
 
     private async Task InitWebViewAsync()

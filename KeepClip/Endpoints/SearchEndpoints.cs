@@ -6,7 +6,7 @@ public static class SearchEndpoints
 {
     private static readonly Regex FtsSafe = new(@"[\wÀ-ſ]+", RegexOptions.Compiled);
 
-    private static string ToFtsQuery(string q)
+    internal static string ToFtsQuery(string q)
     {
         var tokens = FtsSafe.Matches(q.ToLowerInvariant()).Select(m => m.Value).ToList();
         if (tokens.Count == 0) return "";
