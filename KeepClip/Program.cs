@@ -2,12 +2,9 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Tryb samego serwera uruchamia HTTP bez okna WebView2.
 bool serverOnly = args.Contains("server-only")
     || Environment.GetEnvironmentVariable("KEEPCLIP_SERVER_ONLY") == "1";
 
-// Dwie instancje walczyłyby o mechanizm powielania pulpitu, zrywając bufor powtórek i tryb
-// pełnoekranowy gry. using utrzymuje własność muteksu do końca procesu.
 bool isFirstInstance = true;
 using var singleInstance = serverOnly ? null : new Mutex(true, @"Local\KeepClip-SingleInstance", out isFirstInstance);
 if (!isFirstInstance)
@@ -16,19 +13,16 @@ if (!isFirstInstance)
     return;
 }
 
-DevLog.Install();   // W wydaniu publicznym ta metoda nie wykonuje żadnej operacji.
+DevLog.Install();
 
-// Częste odpytywanie statusu nie powinno zalewać logów komunikatami informacyjnymi.
 builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
 builder.Logging.AddFilter("Microsoft.AspNetCore.Routing.EndpointMiddleware", LogLevel.Warning);
 
-// Tryb okienkowy wybiera wolny port lokalny, a tryb samego serwera używa portu 8770.
 string baseUrl = serverOnly
     ? (builder.Configuration["urls"] ?? "http://127.0.0.1:8770")
     : $"http://127.0.0.1:{FreeLoopbackPort()}";
 builder.WebHost.UseUrls(baseUrl);
 
-// Interfejs programistyczny zachowuje jawnie podane nazwy z podkreśleniami.
 builder.Services.ConfigureHttpJsonOptions(o =>
 {
     o.SerializerOptions.PropertyNamingPolicy = null;
@@ -74,13 +68,12 @@ app.MapOnboardingEndpoints();
 
 StartIdleWatcher();
 
-// ProcessExit gwarantuje, że ffmpeg bufora powtórek nie przeżyje aplikacji.
 ReplayService.ApplyConfig();
 AppDomain.CurrentDomain.ProcessExit += (_, _) => ReplayService.Shutdown();
 
 if (serverOnly)
 {
-    app.Run();   // Czeka na stałym adresie deweloperskim do zamknięcia serwera.
+    app.Run();
     ReplayService.Shutdown();
     return;
 }
@@ -102,8 +95,6 @@ static int FreeLoopbackPort()
     return p;
 }
 
-// Brak sygnału aktywności zamyka proces tylko wtedy, gdy nie trwa transkrypcja ani nagrywanie
-// powtórek w tle.
 static void StartIdleWatcher()
 {
     var t = new Thread(() =>

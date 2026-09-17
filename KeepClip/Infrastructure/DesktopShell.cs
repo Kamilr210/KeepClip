@@ -22,7 +22,6 @@ internal static class DesktopShell
     [DllImport("user32.dll")] private static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
     private const int SW_RESTORE = 9;
 
-    // Nazwane zdarzenie pozwala drugiemu uruchomieniu przywrócić okno ukryte w zasobniku.
     internal const string ShowEventName = @"Local\KeepClip-ShowRequest";
 
     public static void FocusExistingInstance()
@@ -56,7 +55,6 @@ internal static class DesktopShell
 
 internal sealed class ShellForm : Form
 {
-    // Rozpoczyna natywne przesuwanie lub skalowanie okna po zdarzeniu myszy z WebView2.
     [DllImport("user32.dll")] private static extern bool ReleaseCapture();
     [DllImport("user32.dll")] private static extern bool PostMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
@@ -72,7 +70,6 @@ internal sealed class ShellForm : Form
     private bool _isMaximized;
     private Rectangle _restoreBounds;
 
-    // W trybie nagrywania w tle zamknięcie okna ukrywa aplikację w zasobniku.
     private NotifyIcon? _tray;
     private bool _exitRequested;
 
@@ -94,7 +91,7 @@ internal sealed class ShellForm : Form
         FormClosing += (_, e) =>
         {
             SaveWindowState();
-            // Zamknięcie przez system lub opcję „Zakończ” musi naprawdę zakończyć proces.
+
             if (!_exitRequested && e.CloseReason == CloseReason.UserClosing
                 && ReplayService.Enabled && ReplayService.BackgroundEnabled)
             {
@@ -109,7 +106,6 @@ internal sealed class ShellForm : Form
 
         Load += async (_, _) => await InitWebViewAsync();
 
-        // Uchwyt formularza odbiera globalny skrót także wtedy, gdy gra jest na pełnym ekranie.
         HandleCreated += (_, _) =>
         {
             HotkeyManager.Attach(this);
@@ -117,9 +113,6 @@ internal sealed class ShellForm : Form
         };
     }
 
-    // F10 aktywuje w Windows pasek menu, więc WebView2 oddaje go oknu zamiast stronie —
-    // przez to pole skrótu nigdy nie widziało tego klawisza i skrótów z F10 nie dało się
-    // ustawić. Zdarzenie jest tu przechwytywane i przekazywane do interfejsu.
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
         if ((keyData & Keys.KeyCode) == Keys.F10)
@@ -160,7 +153,7 @@ internal sealed class ShellForm : Form
                 catch (Exception ex)
                 {
                     Console.Error.WriteLine($"Powtórka (hotkey): {ex.Message}");
-                    // Ponowne naciśnięcie podczas zapisu nie jest błędem użytkownika.
+
                     if (ReplayService.SaveInProgress) return;
                     ReplayService.PlayCue(ok: false);
                     SafeToast(false, Strings.Get("replay.saveFailedTitle"), ex.Message);
@@ -190,7 +183,6 @@ internal sealed class ShellForm : Form
         catch { }
     }
 
-    // Powiadomienia balonowe są wyłączone, ponieważ potrafią minimalizować gry pełnoekranowe.
     private void InitTray()
     {
         var menu = new ContextMenuStrip();
@@ -211,7 +203,7 @@ internal sealed class ShellForm : Form
             Visible = false,
         };
         _tray.DoubleClick += (_, _) => RestoreFromTray();
-        // Jawne zwolnienie zapobiega pozostawieniu nieaktywnej ikony w zasobniku.
+
         FormClosed += (_, _) =>
         {
             if (_tray is null) return;
@@ -225,8 +217,7 @@ internal sealed class ShellForm : Form
     {
         Hide();
         if (_tray is null) return;
-        // Menu powstaje przy starcie, a język można zmienić w trakcie działania, więc
-        // teksty są odświeżane tuż przed pokazaniem ikony.
+
         RefreshTrayTexts();
         _tray.Visible = true;
     }
@@ -281,12 +272,9 @@ internal sealed class ShellForm : Form
 
     private async Task InitWebViewAsync()
     {
-        // Profil WebView2 trafia do data, aby deinstalator mógł usunąć go razem z aplikacją.
         var userData = Path.Combine(Config.DataDir, "webview2");
         Directory.CreateDirectory(userData);
 
-        // WebView2 domyślnie korzysta z akceleracji. Wymuszanie konkretnego GPU potrafi powodować
-        // migotanie sprzętowego kursora na komputerach z kilkoma układami graficznymi.
         var opts = new CoreWebView2EnvironmentOptions
         {
             AdditionalBrowserArguments = "--enable-features=PlatformHEVCDecoderSupport",
@@ -298,17 +286,12 @@ internal sealed class ShellForm : Form
         core.Settings.IsStatusBarEnabled = false;
         core.Settings.IsSwipeNavigationEnabled = false;
 
-        // Skróty przeglądarki (m.in. F10 aktywujące pasek menu) przechwytują klawisze, zanim
-        // dotrą do strony — przez to nie dało się ustawić skrótu powtórki z klawiszem F10.
-        // Aplikacja nie korzysta z żadnego z tych skrótów, więc można je wyłączyć w całości.
         try { core.Settings.AreBrowserAcceleratorKeysEnabled = false; }
         catch { }
 
-        // Starsze WebView2 nie obsługuje regionów natywnych; wtedy pozostaje most JS.
         try { core.Settings.IsNonClientRegionSupportEnabled = true; }
         catch { }
 
-        // Nowe okna otwiera w przeglądarce systemowej zamiast w pustym podrzędnym WebView2.
         core.NewWindowRequested += (_, e) =>
         {
             e.Handled = true;
@@ -316,7 +299,6 @@ internal sealed class ShellForm : Form
             catch { }
         };
 
-        // Most musi istnieć przed uruchomieniem skryptów strony.
         await core.AddScriptToExecuteOnDocumentCreatedAsync(BridgeJs);
         core.WebMessageReceived += OnWebMessage;
 
@@ -391,7 +373,6 @@ internal sealed class ShellForm : Form
         return dlg.ShowDialog(this) == DialogResult.OK ? dlg.SelectedPath : null;
     }
 
-    // Zapisane położenie jest akceptowane tylko wtedy, gdy przecina aktualnie podłączony ekran.
     private void RestoreWindowState()
     {
         _restoreBounds = DefaultBounds();
@@ -413,7 +394,7 @@ internal sealed class ShellForm : Form
 
         StartPosition = FormStartPosition.Manual;
         _isMaximized = maximized;
-        // Maksymalizuje na ekranie, na którym okno znajdowało się poprzednio.
+
         Bounds = maximized ? Screen.FromRectangle(_restoreBounds).WorkingArea : _restoreBounds;
     }
 
@@ -428,10 +409,8 @@ internal sealed class ShellForm : Form
     {
         try
         {
-            // Dla okna zminimalizowanego rzeczywiste wymiary są dostępne w RestoreBounds.
             var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
 
-            // Zmiana rozmiaru okna bez ramki nie zeruje flagi maksymalizacji, więc weryfikuje granice.
             bool maximized = _isMaximized;
             if (maximized)
             {
@@ -470,7 +449,6 @@ internal sealed class ShellForm : Form
     private sealed record BridgeRequest(bool __kc, int id, string method, JsonElement[]? args);
     private sealed record BridgeReply(bool __kcReply, int id, object? result, string? error);
 
-    // Wstrzyknięty most odtwarza interfejs pywebview używany przez warstwę widoku.
     private const string BridgeJs = """
 (function () {
   if (window.__keepclip) return;
@@ -502,7 +480,6 @@ internal sealed class ShellForm : Form
     start_native_resize: function () { return call('start_native_resize', []); }
   };
 
-  // Przeciąganie oznaczonego obszaru uruchamia natywne przesuwanie okna.
   document.addEventListener('mousedown', function (ev) {
     if (ev.button !== 0) return;
     var el = ev.target;
@@ -516,8 +493,6 @@ internal sealed class ShellForm : Form
     }
   }, true);
 
-  // Niewidoczne uchwyty używają kodów HT Win32 do skalowania każdej krawędzi.
-  // Wyłączenie przeciągania jest konieczne u góry, bo natywny pasek przechwytuje mysz.
   function addGrips() {
     if (!document.body || document.querySelector('[data-keepclip-grips]')) return;
     var host = document.createElement('div');

@@ -54,8 +54,6 @@ internal static class DisplayHelper
         public uint dmPanningWidth, dmPanningHeight;
     }
 
-    // EnumDisplaySettings zwraca fizyczne piksele niezależnie od skalowania DPI.
-    // Rozmiar kodowania musi być parzysty i mieścić się w limicie H.264 NVENC.
     public static (int grabW, int grabH, int capW, int capH) MeasurePrimary()
     {
         int w = 0, h = 0;

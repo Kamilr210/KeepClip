@@ -17,7 +17,6 @@ public static class Transcriber
     private static string? _activeModel;
     private static bool _probeCleared;
 
-    // Wyznacza dolną granicę drabinki po nieudanej próbie w tej sesji.
     private static int _ladderFloor;
 
     public static string? ActiveModel { get { lock (ModelLock) return _activeModel; } }
@@ -34,8 +33,6 @@ public static class Transcriber
 
         while (true)
         {
-            // Filtr wyjątku tylko sprawdza warunek; zwolnienie modelu musi nastąpić po
-            // rozwinięciu stosu, gdy procesor korzystający z niego jest już zamknięty.
             try { return RunOnce(samples, progress); }
             catch (Exception ex) when (CanStepDown()) { StepDown(ex); }
         }
@@ -46,7 +43,6 @@ public static class Transcriber
         var factory = GetFactory();
         progress?.Invoke(0.15, "transcribing");
 
-        // Znaczniki czasu tokenów są potrzebne do dzielenia wypowiedzi na fragmenty po ciszy.
         using var processor = factory.CreateBuilder()
             .WithLanguage(Settings.GetLanguage())
             .WithBeamSearchSamplingStrategy(b => b.WithBeamSize(5))
@@ -60,13 +56,11 @@ public static class Transcriber
         foreach (var seg in ProcessAll(processor, samples, audioDuration, progress))
             SplitOnInternalGaps(seg, Config.WhisperSplitGapSeconds, outSegs);
 
-        // Model przeszedł pełną transkrypcję, więc bufory obliczeniowe też się zmieściły.
         ClearProbe();
         progress?.Invoke(0.97, "saving");
         return outSegs;
     }
 
-    // Jawny wybór użytkownika nigdy nie jest podmieniany, a z ostatniego szczebla nie ma zejścia.
     private static bool CanStepDown()
     {
         lock (ModelLock)
@@ -106,8 +100,7 @@ public static class Transcriber
                 try
                 {
                     EnsureModelFile(model);
-                    // Znacznik przetrwa twarde zamknięcie procesu przy braku pamięci GPU,
-                    // dzięki czemu następny start nie powtórzy tej samej próby.
+
                     Settings.SetString(ProbeSetting, model);
                     _probeCleared = false;
 
@@ -129,7 +122,6 @@ public static class Transcriber
         }
     }
 
-    // Kolejność prób: od modelu pasującego do pamięci GPU w dół.
     private static IEnumerable<string> CandidateModels()
     {
         if (Config.WhisperModelOverride is { } forced) return new[] { forced };
@@ -142,7 +134,6 @@ public static class Transcriber
                Config.WhisperModelMinVram.GetValueOrDefault(ladder[start]) > vram)
             start++;
 
-        // Model, przy którym poprzedni proces zniknął bez śladu, jest pomijany na stałe.
         DetectCrashedModel();
         var blocked = Settings.GetString(BlockedSetting);
         if (blocked is not null)
@@ -157,7 +148,6 @@ public static class Transcriber
         return ladder.Skip(Math.Min(start, ladder.Length - 1));
     }
 
-    // Pozostawiony znacznik oznacza, że poprzednie uruchomienie nie przeżyło ładowania modelu.
     private static void DetectCrashedModel()
     {
         var probe = Settings.GetString(ProbeSetting);
@@ -175,7 +165,6 @@ public static class Transcriber
         try { Settings.SetString(ProbeSetting, ""); } catch { }
     }
 
-    // Zapisuje wybrany mechanizm obliczeniowy, aby rozpoznać użycie GPU albo CPU.
     private static void ReportLoadedRuntime(string model)
     {
         string label = RuntimeOptions.LoadedLibrary switch
@@ -199,7 +188,6 @@ public static class Transcriber
         if (File.Exists(target)) return;
         Directory.CreateDirectory(Config.ModelsDir);
 
-        // Plik .part zapobiega uznaniu przerwanego pobierania za gotowy model.
         var part = target + ".part";
         try
         {
@@ -248,13 +236,11 @@ public static class Transcriber
             return list;
         }).GetAwaiter().GetResult();
 
-    // Dzieli wynik po dłuższej ciszy. Przy niespójnych czasach tokenów zachowuje cały segment.
     private static void SplitOnInternalGaps(SegmentData seg, double maxGap, List<Segment> outSegs)
     {
         double segStart = seg.Start.TotalSeconds;
         double segEnd = seg.End.TotalSeconds;
 
-        // Pomija tokeny specjalne; czasy Whispera są zapisane w setnych częściach sekundy.
         var toks = new List<(double Start, double End, string Text)>();
         if (seg.Tokens is not null)
         {
@@ -267,7 +253,6 @@ public static class Transcriber
             }
         }
 
-        // Dzielenie jest bezpieczne tylko wtedy, gdy zegar tokenów zgadza się z segmentem.
         bool aligned = toks.Count > 0
             && Math.Abs(toks[0].Start - segStart) < 1.0
             && Math.Abs(toks[^1].End - segEnd) < 1.0;
@@ -320,7 +305,6 @@ public static class Transcriber
         try { if (!proc.Start()) return null; }
         catch { return null; }
 
-        // stderr trzeba opróżniać równolegle, aby pełny potok nie zablokował FFmpeg.
         using var pcm = new MemoryStream();
         var copyTask = proc.StandardOutput.BaseStream.CopyToAsync(pcm);
         var errTask = proc.StandardError.ReadToEndAsync();
@@ -339,7 +323,6 @@ public static class Transcriber
         int byteLen = (int)pcm.Length;
         if (byteLen < 2) return null;
 
-        // Windows używa little-endian, więc bufor s16le można bezpośrednio odczytać jako Int16.
         int n = byteLen / 2;
         var shorts = MemoryMarshal.Cast<byte, short>(pcm.GetBuffer().AsSpan(0, n * 2));
         var samples = new float[n];

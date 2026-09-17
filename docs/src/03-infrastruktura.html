@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>KeepClip — Infrastruktura</title>
+<style>
+@page { size: A4; margin: 16mm 15mm 18mm 15mm;
+  @bottom-right { content: counter(page) " / " counter(pages); font: 9pt "Segoe UI", sans-serif; color: #888; }
+  @bottom-left { content: "KeepClip 2.3.0 — dokumentacja infrastruktury"; font: 9pt "Segoe UI", sans-serif; color: #888; } }
+body { font: 10.5pt/1.5 "Segoe UI", Calibri, sans-serif; color: #1a1a1a; margin: 0; }
+h1 { font-size: 26pt; margin: 0 0 4pt; }
+.subtitle { color: #555; font-size: 12pt; margin-bottom: 14pt; }
+.meta { font-size: 9.5pt; color: #666; margin-bottom: 24pt; }
+h2 { font-size: 17pt; margin: 22pt 0 8pt; padding-bottom: 4pt; border-bottom: 2px solid #d9822b; break-before: page; }
+h3 { font-size: 13pt; margin: 16pt 0 6pt; color: #7a3f00; }
+h4 { font-size: 11pt; margin: 12pt 0 4pt; }
+.num { color: #d9822b; }
+code { font: 9.5pt Consolas, "Courier New", monospace; background: #f8f3ee; padding: 0 3px; border-radius: 3px; }
+pre { font: 8.8pt/1.4 Consolas, "Courier New", monospace; background: #faf6f2; border: 1px solid #ddd; padding: 8pt; white-space: pre-wrap; word-break: break-word; border-radius: 4px; break-inside: avoid; }
+pre code { background: none; padding: 0; font-size: inherit; }
+table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; font-size: 9.5pt; }
+th, td { border: 1px solid #ccc; padding: 4pt 6pt; vertical-align: top; text-align: left; }
+th { background: #f6e9dc; }
+tr { break-inside: avoid; }
+.note { background: #fff8e1; border-left: 4px solid #f5a524; padding: 6pt 10pt; margin: 8pt 0; }
+.warn { background: #fdecea; border-left: 4px solid #c62828; padding: 6pt 10pt; margin: 8pt 0; }
+.toc { list-style: none; padding-left: 0; margin: 0; }
+.toc li { margin: 2pt 0; }
+.toc li.h3 { padding-left: 18pt; font-size: 9.5pt; }
+.toc a { text-decoration: none; color: #1a1a1a; }
+.toc-title { font-size: 17pt; font-weight: 600; margin: 0 0 8pt; }
+nav#toc { break-after: page; }
+ul, ol { margin: 4pt 0 8pt; }
+li { margin: 2pt 0; }
+.diagram { font: 8.5pt/1.35 Consolas, monospace; background: #fafafa; border: 1px dashed #bbb; padding: 8pt; white-space: pre; }
+</style>
+</head>
+<body>
+
+<h1>KeepClip — dokumentacja infrastruktury</h1>
+<div class="subtitle">Narzędzia zewnętrzne, integracja z Windows, Google Drive, bufor powtórek, budowanie i wydania, testy, diagnostyka, skalowanie</div>
+<div class="meta">Wersja aplikacji 2.3.0 · gałąź <code>csharp</code> · stan na 17 września 2026</div>
+
+<p>Ten dokument opisuje wszystko wokół kodu aplikacji: z jakich zewnętrznych składników KeepClip korzysta, jak łączy się z systemem Windows i z Google, jak działa nagrywanie powtórek, jak buduje się instalator i publikuje wydanie, jak działają testy i jak rozwijać projekt dalej. Endpointy i bazę danych opisuje dokument <em>Backend</em>, a interfejs dokument <em>Frontend</em>.</p>
+
+<nav id="toc"></nav>
+
+<h2>Składniki zewnętrzne</h2>
+<table>
+<tr><th>Składnik</th><th>Skąd</th><th>Gdzie leży</th><th>Do czego</th></tr>
+<tr><td>Microsoft Edge WebView2 Runtime</td><td>Zwykle jest w Windows 10/11; instalator ma bootstrapper (<code>installer/redist/MicrosoftEdgeWebview2Setup.exe</code>, pobierany przez <code>build.ps1</code>) i uruchamia go tylko, gdy w rejestrze <code>EdgeUpdate\Clients\{F3017226-…}</code> nie ma wersji.</td><td>System</td><td>Okno aplikacji. Brak lub uszkodzenie: okno pokazuje komunikat z odnośnikiem do pobrania i aplikacja się zamyka; szczegóły w <code>data/crash.log</code>.</td></tr>
+<tr><td>ffmpeg / ffprobe</td><td><code>setup.ps1</code> pobiera build „release-essentials" z gyan.dev; w wydaniu kopiuje je cel <code>StageRuntimeAssets</code> w csproj.</td><td><code>tools/bin/</code> (poza gitem)</td><td>Miniatury, pomiar czasu, wycinanie, naprawa, kopie podglądowe, dekodowanie audio dla Whispera, przechwytywanie i łączenie powtórek.</td></tr>
+<tr><td>Whisper.net 1.9.1 + Runtime + Runtime.Vulkan</td><td>NuGet</td><td>Biblioteki natywne w <code>runtimes/win-x64</code> i <code>runtimes/vulkan/win-x64</code></td><td>Rozpoznawanie mowy. Whisper.net wybiera Vulkan, gdy GPU jest dostępny, inaczej CPU. Modele GGML pobiera sam do <code>models/</code>.</td></tr>
+<tr><td>NAudio 2.2.1</td><td>NuGet</td><td>w procesie</td><td>WASAPI loopback (dźwięk gry) i mikrofon dla powtórek; lista urządzeń.</td></tr>
+<tr><td>Microsoft.Data.Sqlite + SQLitePCLRaw.bundle_e_sqlite3 2.1.12</td><td>NuGet</td><td><code>e_sqlite3.dll</code></td><td>Baza. Bezpośrednia referencja do bundle wymusza załataną wersję (podatność w 2.1.11).</td></tr>
+<tr><td>Google Drive API v3, OAuth 2.0</td><td>HTTPS</td><td>—</td><td>Chmura. Bez SDK Google; własne żądania <code>HttpClient</code>.</td></tr>
+<tr><td>GitHub Releases API</td><td>HTTPS</td><td>—</td><td>Sprawdzanie aktualizacji i pobieranie instalatora.</td></tr>
+<tr><td>Inno Setup 6</td><td>winget / jrsoftware.org</td><td>maszyna budująca</td><td>Instalator <code>KeepClip-Setup.exe</code>.</td></tr>
+</table>
+<div class="warn"><b>Podpisy cyfrowe.</b> Żaden plik w wydaniu nie jest podpisany (exe, <code>KeepClip.dll</code>, biblioteki Whispera, ffmpeg, instalator). Windows 11 z włączonym Smart App Control blokuje niepodpisane biblioteki bez reputacji — po każdym wydaniu użytkownicy zgłaszają blokadę <code>ggml-whisper.dll</code> (transkrypcja nie działa). Jedyna trwała naprawa to podpisywanie wszystkich plików w CI (Azure Trusted Signing albo certyfikat, np. Certum). Do tego czasu to znany problem.</div>
+
+<h2>Integracja z Windows</h2>
+<h3>Okno (DesktopShell / ShellForm)</h3>
+<ul>
+<li><b>Położenie okna</b> zapisywane w ustawieniach jako <code>max;x;y;w;h</code> przy zamykaniu; przywracane tylko, gdy prostokąt przecina podłączony ekran (odłączony monitor nie chowa okna poza ekranem). Maksymalizacja odbywa się na ekranie, na którym okno było ostatnio. Domyślnie 1280×800 na środku, minimum 900×600.</li>
+<li><b>Zasobnik</b>: przy włączonym nagrywaniu w tle zamknięcie okna chowa je do zasobnika (ikona, menu „Otwórz / Zakończ i zatrzymaj nagrywanie", teksty odświeżane w bieżącym języku tuż przed pokazaniem). Zamknięcie przez system lub „Zakończ" naprawdę kończy proces.</li>
+<li><b>Pojedyncza instancja</b>: muteks <code>Local\KeepClip-SingleInstance</code>; drugi start sygnalizuje zdarzenie <code>Local\KeepClip-ShowRequest</code>, na które czeka wątek <code>KeepClip-ShowSignal</code> i przywraca okno z zasobnika.</li>
+<li><b>Profil WebView2</b> leży w <code>data/webview2</code>, żeby deinstalator usunął go z aplikacją. Argument przeglądarki <code>--enable-features=PlatformHEVCDecoderSupport</code> włącza dekodowanie HEVC. Skróty przeglądarki (F10 i inne) są wyłączone. Nowe okna (np. zgoda Google) otwierają się w przeglądarce systemowej.</li>
+<li><b>Wyjątki</b> na wątku okna trafiają do <code>crash.log</code> zamiast systemowego okna błędu (<code>UnhandledExceptionMode.CatchException</code>).</li>
+</ul>
+<h3>Globalny skrót (HotkeyManager)</h3>
+<p><code>RegisterHotKey</code> na uchwycie okna z flagą <code>MOD_NOREPEAT</code>; rejestracja musi odbyć się w wątku UI. Skrót działa też, gdy gra jest na pełnym ekranie. Wymagany jest co najmniej jeden modyfikator. Gdy inna aplikacja ma ten sam skrót, rejestracja się nie udaje i interfejs pokazuje ostrzeżenie (<code>hotkey_active=false</code>). W trybie samego serwera nie ma okna, więc i skrótu.</p>
+<h3>Powiadomienie o powtórce (ReplayToast)</h3>
+<p>Małe okno bez aktywacji (<code>WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT</code>) w prawym górnym rogu: ikona ✓/✕, tytuł, podtytuł, kolorowy pasek. Pojawia się przez animację przezroczystości i znika tą samą drogą; <b>nigdy nie jest ukrywane ani zamykane</b>, bo zmiana stanu okna potrafi zminimalizować grę pełnoekranową. Dźwięk (<code>frontend/sounds/replay-saved.wav</code> / <code>replay-failed.wav</code>) gra natychmiast po skrócie, bo nakładka nie zawsze jest widoczna nad grą.</p>
+<h3>Kosz (Trash)</h3>
+<p><code>SHFileOperation</code> z <code>FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI</code>. <code>SendWithRetry</code> ponawia 6 razy co 250 ms, bo tuż po zamknięciu odtwarzacza plik bywa jeszcze otwarty.</p>
+<h3>Menedżer poświadczeń (CredentialStore)</h3>
+<p>Token odświeżania Google jest zapisywany przez <code>CredWriteW</code> jako poświadczenie ogólne <code>KeepClip:GoogleDriveRefreshToken</code> z trwałością <code>LOCAL_MACHINE</code> (przeżywa wylogowanie i restart tego użytkownika). Limit 2560 bajtów. Nigdy nie trafia do <code>data/</code> ani do repozytorium. Deinstalator usuwa go poleceniem <code>cmdkey /delete</code>.</p>
+<h3>Sprzęt (GpuInfo, DisplayHelper)</h3>
+<ul>
+<li><code>GpuInfo.LargestDedicatedVideoMemory()</code> pyta DXGI (<code>CreateDXGIFactory1 → EnumAdapters1 → GetDesc1</code>) o największą pamięć karty z pominięciem adapterów programowych. WMI zwraca 32-bitowy <code>AdapterRAM</code> ucięty do 4 GB, dlatego DXGI. Brak DXGI → 0 → najostrożniejszy model.</li>
+<li><code>DisplayHelper.MeasurePrimary()</code> czyta fizyczną rozdzielczość ekranu głównego przez <code>EnumDisplaySettings</code> (niezależnie od skalowania DPI), ogranicza szerokość kodowania do 3840 px (limit NVENC H.264) i wymusza parzyste wymiary.</li>
+<li><code>PreferGdiCapture()</code> zwraca prawdę w Windows Sandbox (<code>WDAGUtilityAccount</code>), sesji zdalnej (<code>TerminalServerSession</code>, <code>SESSIONNAME=RDP-…</code>) albo przy <code>KEEPCLIP_CAPTURE_GDI=1</code> — tam Desktop Duplication zakłóca kursor.</li>
+<li><code>ForegroundGameName()</code> bierze nazwę procesu okna na pierwszym planie (pomija Eksploratora i KeepClip), mapuje znane nazwy (<code>cs2</code> → Counter-Strike 2), próbuje <code>ProductName</code>/<code>FileDescription</code> z zasobów pliku i czyści przez <code>SafeFolderName</code> (niedozwolone znaki → <code>_</code>, obcięcie do 80 znaków, nazwy zastrzeżone <code>CON</code>, <code>AUX</code>… dostają przedrostek <code>_</code>, pusta nazwa → „Pulpit").</li>
+</ul>
+
+<h2>Google Drive: OAuth i transfer</h2>
+<h3>Klient OAuth</h3>
+<p>Aplikacja używa <b>jednego wspólnego klienta OAuth autora</b> (typ „Desktop app") zapisanego w <code>data/google_client.json</code>. Plik nie jest w repozytorium: instalator wbudowuje go z <code>installer/embed/google_client.json</code>, a CI odtwarza z sekretu <code>GOOGLE_CLIENT_JSON_B64</code> (base64 pliku JSON) i przerywa wydanie, gdy sekretu brak albo nie zawiera <code>installed.client_id</code> i <code>client_secret</code>. Bez pliku widok Chmura pokazuje instrukcję założenia własnego klienta w Google Cloud Console. Zakres uprawnień to wyłącznie <code>https://www.googleapis.com/auth/drive.file</code> — aplikacja widzi tylko pliki, które sama utworzyła.</p>
+<h3>Przepływ łączenia (PKCE)</h3>
+<ol>
+<li><code>POST /api/cloud/connect</code>: losowy <code>code_verifier</code> (64 bajty), <code>code_challenge = SHA-256</code> w base64url, losowy <code>state</code>, lokalny <code>HttpListener</code> na <code>http://127.0.0.1:{wolny port}/</code>, limit 5 minut. Poprzedni niedokończony przepływ jest anulowany.</li>
+<li>Adres zgody: <code>accounts.google.com/o/oauth2/v2/auth</code> z <code>access_type=offline</code> (prosi o token odświeżania) i <code>prompt=consent</code> (wymusza jego wydanie także przy ponownej zgodzie).</li>
+<li>Google przekierowuje na lokalny adres z <code>code</code> i <code>state</code>. Żądania bez kodu (np. favicon) dostają 204 i nie kończą oczekiwania. Zgodność <code>state</code> jest sprawdzana.</li>
+<li>Wymiana kodu na tokeny (<code>oauth2.googleapis.com/token</code>) z <code>code_verifier</code>; brak tokenu odświeżania to błąd. Adres e-mail konta trafia do opisu wpisu w Menedżerze poświadczeń.</li>
+<li>Strona w przeglądarce dostaje prosty HTML „Połączono z Google Drive". Interfejs KeepClip wykrywa połączenie odpytywaniem statusu.</li>
+</ol>
+<h3>Tokeny i pamięć podręczna</h3>
+<p>Token dostępu żyje w pamięci z zapasem 60 s przed wygaśnięciem; odświeżanie chroni semafor (<code>TokenGate</code>). Nowy token odświeżania z odpowiedzi Google nadpisuje zapisany. Błąd <code>invalid_grant</code> (cofnięta zgoda, wygasły token) rozłącza lokalnie i wymaga ponownego połączenia. Dane konta (<code>drive/v3/about</code>: nazwa, e-mail, zdjęcie, limit, użycie) są trzymane 20 s, a operacje zmieniające zużycie unieważniają je. Rozłączenie usuwa token lokalnie i odwołuje go w Google (błąd odwołania jest ignorowany).</p>
+<h3>Operacje na plikach</h3>
+<table>
+<tr><th>Operacja</th><th>Jak</th></tr>
+<tr><td>Folder <code>KeepClip</code></td><td><code>EnsureFolderAsync</code>: sprawdza zapamiętany identyfikator (<code>cloud_folder_id</code>, także czy nie jest w koszu), szuka po nazwie, w ostateczności tworzy.</td></tr>
+<tr><td>Wysyłka</td><td>Sesja wznawialna (<code>uploadType=resumable</code>): najpierw metadane (<code>name</code>, <code>parents</code>, <code>appProperties</code>), potem jeden <code>PUT</code> ze strumieniem pliku bez buforowania w pamięci; osobny <code>HttpClient</code> bez limitu czasu dla wielogigabajtowych plików (klient API ma 60 s).</td></tr>
+<tr><td>Metadane</td><td><code>appProperties</code>: <code>keepclip="1"</code>, <code>game</code>, <code>duration</code>, <code>mtime</code> — pozwalają odtworzyć bibliotekę na innym komputerze bez bazy.</td></tr>
+<tr><td>Lista</td><td><code>files?q='{folder}' in parents and trashed=false</code>, strony po 1000 z <code>pageToken</code>.</td></tr>
+<tr><td>Pobranie</td><td><code>files/{id}?alt=media</code> do pliku <code>.part</code>, potem podmiana.</td></tr>
+<tr><td>Odtwarzanie z chmury</td><td>To samo żądanie z nagłówkiem <code>Range</code> przekazanym od przeglądarki; odpowiedź 206 i <code>Content-Range</code> są przepuszczane, więc przewijanie działa bez pobierania całości.</td></tr>
+<tr><td>Usunięcie</td><td><code>PATCH files/{id}</code> z <code>{"trashed":true}</code> — kosz Google, nie trwałe usunięcie.</td></tr>
+</table>
+<h3>Prywatność</h3>
+<p>KeepClip nie ma własnego serwera. Dane idą wyłącznie między komputerem użytkownika a jego Dyskiem Google. Aplikacja nie wysyła telemetrii; zdarzenia samouczka trafiają tylko do lokalnego logu deweloperskiego i tylko jako identyfikatory kroków.</p>
+
+<h2>Bufor natychmiastowej powtórki (ReplayService)</h2>
+<h3>Potok</h3>
+<div class="diagram">AudioPump (NAudio) ──PCM f32le──▶ stdin ┐
+                                        ├─ ffmpeg ─▶ data/tmp/replay/seg_000123.ts (2 s każdy)
+ekran (ddagrab / gdigrab) ──────────────┘             ▲ janitor kasuje starsze niż długość powtórki + 2
+skrót / przycisk ─▶ SaveAsync ─▶ ffmpeg concat (-c:v copy, audio AAC) ─▶ &lt;biblioteka&gt;/&lt;gra&gt;/&lt;gra&gt; data.mp4</div>
+<h3>Przechwytywanie ekranu — trzy poziomy</h3>
+<table>
+<tr><th>Poziom</th><th>Filtr ffmpeg</th><th>Kiedy</th></tr>
+<tr><td><code>ddagrab-gpu</code> (0)</td><td><code>ddagrab=framerate=N:draw_mouse=0,null[v]</code> — klatki zostają na GPU</td><td>Najszybszy; obecnie start odbywa się od poziomu 1, poziom 0 istnieje w kodzie jako opcja.</td></tr>
+<tr><td><code>ddagrab</code> (1)</td><td><code>ddagrab…,hwdownload,format=bgra,scale=W:H:force_original_aspect_ratio=decrease,pad=W:H:(ow-iw)/2:(oh-ih)/2,format=nv12[v]</code></td><td>Domyślny na zwykłym pulpicie (transfer przez CPU).</td></tr>
+<tr><td><code>gdigrab</code> (2)</td><td><code>-f gdigrab -framerate N -draw_mouse 0 -video_size WxH -i desktop</code> + ta sama normalizacja</td><td>Windows Sandbox, sesje zdalne, <code>KEEPCLIP_CAPTURE_GDI=1</code>, albo po dwóch szybkich awariach wyższego poziomu.</td></tr>
+</table>
+<p>Stały, parzysty rozmiar ekranu głównego (skalowanie i wypełnienie) chroni enkoder przed zmianą trybu przez grę. Kursor nie jest dodawany (<code>draw_mouse=0</code>), bo kopiowanie sprzętowego kursora powodowało jego migotanie na pulpicie; kursory rysowane przez gry są widoczne. <b>Znaczniki czasu nie są normalizowane</b>: <code>ddagrab</code> stempluje klatki zegarem rzeczywistym, co utrzymuje synchronizację z audio przy zgubionych klatkach. Wcześniejsza próba <code>setpts=N/fps</code> zerowała znaczniki (filtr liczy w jednostkach osi czasu, nie w sekundach) i bufor wychodził pusty.</p>
+<h3>Kodowanie</h3>
+<p>Enkoder jest wybierany raz na proces przez krótki test kodowania 3 klatek (<code>ProbeEncoder</code>): <code>h264_nvenc</code> → <code>h264_amf</code> → <code>h264_qsv</code> → <code>libx264</code>. Stały kwantyzator (jakość: low 28, medium 24, high 20; NVENC <code>constqp</code>, AMF <code>cqp</code>, QSV <code>global_quality</code>, x264 <code>crf</code>) trzyma jakość szybkiego ruchu lepiej niż ograniczona przepływność. GOP = FPS. Wyjście: <code>-f segment -segment_time 2 -reset_timestamps 1 -segment_format mpegts</code> z numeracją kontynuowaną po restarcie (<code>NextSegNumber</code>), żeby nie tracić bufora.</p>
+<h3>Audio (AudioPump)</h3>
+<p>Bez jawnego wyboru urządzenia miksuje <b>wszystkie aktywne wyjścia</b> (gra nie zawsze gra na domyślnym) plus opcjonalny mikrofon, każde przez <code>BufferedWaveProvider</code> (5 s, nadmiar odrzucany), z konwersją częstotliwości i kanałów. Osobny wątek pompuje próbki według zegara ściennego z opóźnieniem 200 ms — dzięki temu strumień nie zatrzymuje się podczas ciszy, a krótkie skoki WASAPI są pokrywane prawdziwymi próbkami. Po 30 s rozjazdu następuje twarda resynchronizacja (np. po uśpieniu). Co 15 s loguje szczyt sygnału, co pozwala wykryć niemy strumień. Audio używa czasu próbek od zera; znaczniki zegara rzeczywistego miały inną skalę niż <code>ddagrab</code> i ffmpeg przestawał czytać potok. Brak urządzeń audio nie blokuje nagrywania obrazu.</p>
+<h3>Nadzór</h3>
+<ul>
+<li><b>Watchdog</b> czeka na koniec procesu ffmpeg. Nieoczekiwany koniec: zatrzymanie, licznik szybkich awarii (poniżej 10 s pracy), po 2 → zejście poziomem przechwytywania, po 6 → zatrzymanie z komunikatem; restart po 700 ms (pierwszy) albo 1,5 s × liczba awarii, z zachowaniem segmentów. Cała logika jest w try/catch — wyjątek zatrzymuje tylko bufor i trafia do <code>crash.log</code>.</li>
+<li><b>Janitor</b> co 5 s kasuje segmenty starsze niż <code>długość/2 + 2</code>, chyba że trwa zapis.</li>
+<li>Ostatnie 20 wierszy stderr ffmpeg jest trzymane do komunikatów błędów.</li>
+<li><code>ApplyConfig</code> porównuje podpis ustawień (<code>długość|fps|jakość|mikrofon|wyjście|wejście</code>) i restartuje bufor tylko przy zmianie.</li>
+</ul>
+<h3>Zapis (SaveAsync)</h3>
+<ol>
+<li>Czeka do 4 s, jeśli bufor właśnie się restartuje; blokuje równoległy zapis (<code>_saving</code>).</li>
+<li>Nazwa gry z okna na pierwszym planie; dźwięk i powiadomienie „Zapisuję…" natychmiast.</li>
+<li>Bierze ukończone segmenty potrzebne na długość powtórki oraz kopię aktualnie pisanego segmentu (jeśli ma ponad 50 kB), żeby nie stracić ostatnich sekund.</li>
+<li>Plik listy dla demuksera <code>concat</code> (ukośniki, apostrofy w zapisie <code>'\''</code>); łączenie <code>-c:v copy</code> (dla HEVC <code>-tag:v hvc1</code>), audio <code>aac 192k</code> z <code>aresample=async=1:first_pts=0,apad</code> i <code>-shortest</code>, limit 120 s.</li>
+<li>Plik tymczasowy <code>.part</code> leży w folderze docelowym (przemianowanie na tym samym woluminie); przeniesienie ponawiane do 5 razy co 400 ms (antywirus, indeksator).</li>
+<li>Powiadomienie z nazwą pliku, skan biblioteki, miniatury.</li>
+</ol>
+
+<h2>Transkrypcja: środowisko Whispera</h2>
+<ul>
+<li>Whisper.net ładuje bibliotekę natywną w kolejności: Vulkan (dowolne GPU) → CPU. Użyty silnik trafia do dziennika transkrypcji (<code>Silnik STT: Vulkan (GPU) [model: large-v3]</code>).</li>
+<li>Modele: <code>ggml-large-v3.bin</code> (ok. 3 GB), <code>ggml-large-v3-turbo.bin</code> (ok. 1,6 GB), <code>ggml-small.bin</code> (ok. 0,5 GB) w <code>models/</code> obok aplikacji; pobierane przy pierwszym użyciu przez plik <code>.part</code>.</li>
+<li>Dobór: pierwszy model z drabinki, którego próg VRAM jest spełniony (6 GB / 3 GB / 0). Brak pamięci GPU może zabić proces bez wyjątku — znacznik <code>whisper_model_probe</code> w ustawieniach wykrywa to przy następnym starcie i blokuje model (<code>whisper_model_blocked</code>). Wyjątek w trakcie transkrypcji schodzi na lżejszy model w tej samej sesji.</li>
+<li>Zmienna <code>KEEPCLIP_WHISPER_MODEL</code> wymusza model i wyłącza automatykę (przydatne w diagnostyce).</li>
+<li>Deinstalator usuwa <code>models/</code>; aktualizacja w miejscu go nie rusza.</li>
+</ul>
+
+<h2>Budowanie i wydanie</h2>
+<h3>Konfiguracje</h3>
+<table>
+<tr><th>Polecenie</th><th>Efekt</th></tr>
+<tr><td><code>dotnet build KeepClip/KeepClip.csproj -c Release</code></td><td>Build lokalny z <code>KEEPCLIP_DEV</code> (panel logów, <code>/api/logs</code>). Aplikacja musi być zamknięta (<code>taskkill /IM KeepClip.exe /F</code>), inaczej błąd MSB3021.</td></tr>
+<tr><td><code>dotnet run --project KeepClip</code></td><td>Uruchomienie z repozytorium; <code>data/</code> i <code>models/</code> są wspólne dla wszystkich konfiguracji (odnajdywane w górę drzewa).</td></tr>
+<tr><td><code>installer\build.ps1 [-PublicRelease] [-SkipPublish] [-NoInstaller]</code></td><td>Publikacja samowystarczalna win-x64 (bez przycinania i bez pojedynczego pliku, bo WebView2 i Whisper muszą być osobnymi plikami), usunięcie bloków DEV z interfejsu w trybie publicznym, przycięcie nieużywanych runtimów (x86, arm64, linux, osx), Inno Setup → <code>installer/dist/KeepClip-Setup.exe</code>.</td></tr>
+</table>
+<h3>Instalator (Inno Setup)</h3>
+<ul>
+<li>Instalacja dla użytkownika w <code>%LOCALAPPDATA%\KeepClip</code> bez uprawnień administratora; stały <code>AppId</code> i <code>CloseApplications=yes</code> dają aktualizację w miejscu — działający KeepClip (także w zasobniku) jest zamykany przez Menedżera ponownego uruchamiania, a biblioteka, transkrypcje, ustawienia i połączenie z Google zostają.</li>
+<li>Bootstrapper WebView2 uruchamiany tylko przy braku składnika; <code>google_client.json</code> kopiowany do <code>{app}\data</code>.</li>
+<li>Deinstalacja: usuwa token Google (<code>cmdkey /delete</code>), <code>data/</code> i <code>models/</code>, ale nigdy klipów użytkownika.</li>
+<li>Języki instalatora: polski i angielski.</li>
+</ul>
+<h3>Wersjonowanie i CI</h3>
+<ol>
+<li>Numer wersji w <b>dwóch</b> miejscach: <code>KeepClip.csproj</code> (<code>Version</code>, <code>FileVersion</code>, <code>AssemblyVersion</code>) i <code>installer/KeepClip.iss</code> (<code>MyAppVersion</code>). Muszą się zgadzać; commit „Release X.Y.Z".</li>
+<li>Tag <code>vX.Y.Z</code> uruchamia <code>.github/workflows/release.yml</code> (windows-latest): checkout, .NET 10, <b>kontrola tłumaczeń i testy xUnit</b>, pobranie ffmpeg (<code>setup.ps1</code>), odtworzenie klienta OAuth z sekretu, <code>build.ps1 -PublicRelease</code>, <code>gh release create</code> z instalatorem i automatycznymi notatkami.</li>
+<li>Ponowne uruchomienie workflow dla istniejącego tagu kończy się błędem na kroku tworzenia wydania (wydanie już istnieje) — to nie jest awaria builda.</li>
+<li><code>.github/workflows/ci.yml</code> uruchamia te same testy przy każdym pushu i pull requeście na <code>csharp</code> (z pominięciem zmian tylko na stronie WWW i w plikach Markdown).</li>
+<li>Strona <code>keepclip.pl</code> (<code>keepClip-Web/</code>) publikuje się osobnym workflow <code>pages.yml</code> na GitHub Pages przy zmianach w tym katalogu.</li>
+<li>Aplikacja sama sprawdza wydania (6 h pamięci podręcznej) i instaluje je w miejscu; więcej w dokumencie Backend przy <code>/api/update/*</code>.</li>
+</ol>
+<div class="note">Wydanie jest nieodwracalne i publiczne. Kolejność: zmiany → build → własne testy → sprawdzenie w aplikacji → dopiero potem podbicie wersji, tag i push tagu.</div>
+
+<h2>Testy automatyczne</h2>
+<h3>Uruchamianie</h3>
+<pre><code>dotnet test tests/KeepClip.Tests/KeepClip.Tests.csproj -c Release
+node tests/i18n-check.js</code></pre>
+<p>Projekt <code>tests/KeepClip.Tests</code> (xUnit 2.9, <code>Microsoft.AspNetCore.Mvc.Testing</code>, <code>net10.0-windows</code> z WinForms) referuje projekt aplikacji. Klasy wewnętrzne są widoczne dzięki <code>InternalsVisibleTo</code>. Cały przebieg trwa kilka sekund; 124 testy.</p>
+<h3>Izolacja od danych użytkownika</h3>
+<p>Inicjalizator modułu (<code>TestEnvironment</code>) ustawia przed pierwszym użyciem klasy <code>Config</code>: <code>KEEPCLIP_DATA_DIR</code> na katalog w <code>%TEMP%\KeepClip.Tests\&lt;guid&gt;</code>, <code>KEEPCLIP_SERVER_ONLY=1</code> (bez muteksu i okna) i <code>KEEPCLIP_IDLE_EXIT=0</code>. Po zakończeniu procesu katalog jest usuwany. Testy nie wymagają ffmpeg, modelu Whispera ani konta Google: sprawdzają, że bez tych narzędzi aplikacja zwraca czysty błąd, a nie awarię. Równoległość klas jest wyłączona, bo aplikacja trzyma ścieżki w polach statycznych; każdy test zaczyna od <code>TestDb.Reset()</code> (czyszczenie tabel) i/lub <code>TestSettings.Reset()</code> (usunięcie <code>settings.json</code>).</p>
+<h3>Rodzaje testów</h3>
+<table>
+<tr><th>Katalog</th><th>Co sprawdza</th></tr>
+<tr><td><code>Data/</code></td><td>Repozytoria na prawdziwym SQLite: sortowania, filtry, ulubione, kaskady, FTS (diakrytyki, prefiksy, AND), przesuwanie znaczników po naprawie, foldery, statystyki.</td></tr>
+<tr><td><code>Services/</code></td><td><code>OnboardingService</code> (wznawianie, ukończenie, limit podpowiedzi), <code>Settings</code> (domyślne wartości, zepsuty plik, nieznany język, kopie obiektów).</td></tr>
+<tr><td><code>Infrastructure/</code></td><td><code>DisplayHelper.SafeFolderName</code>, <code>Strings</code> (komplet kluczy w czterech językach, zgodność symboli, każdy klucz użyty w źródłach istnieje — test skanuje pliki <code>.cs</code> repozytorium).</td></tr>
+<tr><td><code>Endpoints/</code></td><td>Budowanie zapytań FTS (<code>ToFtsQuery</code>), w tym odporność na operatory FTS.</td></tr>
+<tr><td><code>Workers/</code></td><td>Skaner na tymczasowym folderze z udawanymi plikami: dodawanie, pomijanie świeżo zapisanych, usuwanie, klipy w chmurze, zmiana rozmiaru, brak folderu.</td></tr>
+<tr><td><code>Api/</code></td><td>Cały <code>Program.cs</code> uruchomiony przez <code>WebApplicationFactory&lt;Program&gt;</code> (jedna instancja na kolekcję <code>"api"</code>): strona główna i cache-busting, pliki statyczne, konfiguracja folderu, język, motyw, foldery, klipy, segmenty, wyszukiwanie, statystyki, plik .txt (BOM, kolejność, nagłówki), usuwanie, samouczek, endpointy statusu.</td></tr>
+</table>
+<h3>Jak działa uruchomienie aplikacji w teście</h3>
+<p><code>WebApplicationFactory</code> wykonuje prawdziwy punkt wejścia: <code>Program.cs</code> działa od początku do <code>app.Run()</code>, przy czym serwer Kestrel jest podmieniony na <code>TestServer</code> (bez portu). Dlatego w teście działają też skaner, worker miniatur (bez ffmpeg kończy się kodem 2 dla każdego klipu) i idle watcher (wyłączony zmienną). Wymaga to <code>public partial class Program</code> na końcu <code>Program.cs</code>.</p>
+<h3>Jak dodać test</h3>
+<ul>
+<li>Test repozytorium: klasa z konstruktorem wołającym <code>TestDb.Reset()</code>; dane przez <code>TestDb.AddClip(...)</code> lub bezpośrednio przez repozytoria.</li>
+<li>Test endpointu: <code>[Collection("api")]</code>, konstruktor <code>(ApiFactory factory)</code> z resetem bazy i ustawień, <code>factory.CreateClient()</code>; pomocniki <code>GetJson</code>, <code>PostJson</code>, <code>PatchJson</code>, <code>PostEmpty</code>, <code>Json()</code>.</li>
+<li>Nie wołaj endpointów uruchamiających ffmpeg, Whisper ani Google (wycinanie, transkrypcja zbiorcza, chmura) w ścieżce sukcesu — testuj ścieżki błędów.</li>
+<li>Test powinien paść po zepsuciu kodu: sprawdzono to mutacyjnie (7 celowych błędów w różnych warstwach, każdy wykryty przez co najmniej jeden test).</li>
+</ul>
+<h3>Czego testy nie obejmują i jak to sprawdzać ręcznie</h3>
+<table>
+<tr><th>Obszar</th><th>Jak sprawdzić</th></tr>
+<tr><td>ffmpeg: miniatury, wycinanie, naprawa, kopie podglądowe</td><td>Własne pliki testowe w osobnym folderze biblioteki; sprawdź wynik w Eksploratorze i w odtwarzaczu (przewijanie, 120+ FPS).</td></tr>
+<tr><td>Whisper</td><td><code>KEEPCLIP_WHISPER_MODEL=small</code> dla szybkiej próby; sprawdź dziennik w statusie transkrypcji (silnik, model).</td></tr>
+<tr><td>Google Drive</td><td>Osobne konto testowe; wysyłka, synchronizacja na drugim komputerze (<code>appProperties</code>), pobranie, odtwarzanie z chmury z przewijaniem. <b>Nie wysyłaj prywatnych klipów użytkownika.</b></td></tr>
+<tr><td>Bufor powtórek</td><td>Włącz w ustawieniach, sprawdź status (enkoder, przechwytywanie, audio), zapisz skrótem podczas gry pełnoekranowej i z pulpitu; sprawdź synchronizację audio i długość.</td></tr>
+<tr><td>Okno i zasobnik</td><td>Zamknięcie z nagrywaniem w tle, drugi start (przywrócenie okna), zmiana monitora, brak WebView2 (tymczasowo zablokuj profil <code>data/webview2</code>).</td></tr>
+<tr><td>Interfejs</td><td>Tryb serwera w przeglądarce (<code>KEEPCLIP_SERVER_ONLY=1</code>, <code>http://127.0.0.1:8770</code>) i w WebView2; oba motywy; cztery języki; samouczek od zera (usuń klucz <code>onboarding</code> z ustawień).</td></tr>
+</table>
+
+<h2>Diagnostyka</h2>
+<table>
+<tr><th>Narzędzie</th><th>Gdzie</th><th>Co daje</th></tr>
+<tr><td>Panel logów</td><td>przycisk „Logi" (tylko build deweloperski)</td><td>Wszystko, co kod pisze na <code>Console.Error</code> i przez <code>DevLog.Add</code>: start bufora, audio, chmura, skany, samouczek.</td></tr>
+<tr><td><code>data/crash.log</code></td><td>obok bazy</td><td>Nieobsłużone wyjątki (wątek okna, wątki tła, zadania), błąd WebView2, watchdog powtórek. Plik zaczyna się od nowa po 512 kB. Z datą i wersją aplikacji.</td></tr>
+<tr><td>Port serwera</td><td><code>netstat -ano | findstr &lt;PID KeepClip.exe&gt;</code></td><td>Pozwala odpytać API z przeglądarki lub curl: <code>/api/ping</code>, <code>/api/replay/status</code>, <code>/api/transcribe/status</code>, <code>/api/cloud/status</code>.</td></tr>
+<tr><td>Tryb serwera</td><td><code>KEEPCLIP_SERVER_ONLY=1</code></td><td>Stały port 8770, interfejs w zwykłej przeglądarce z narzędziami deweloperskimi.</td></tr>
+<tr><td>Status transkrypcji</td><td><code>/api/transcribe/status</code> → <code>log_tail</code></td><td>Dobór modelu, silnik, błędy Whispera.</td></tr>
+</table>
+<h3>Typowe problemy</h3>
+<table>
+<tr><th>Objaw</th><th>Przyczyna i rozwiązanie</th></tr>
+<tr><td>Transkrypcja nie działa, Windows pokazuje „aplikacja częściowo zablokowana"</td><td>Smart App Control blokuje niepodpisaną bibliotekę Whispera. Rozwiązanie po stronie autora: podpisywanie plików. Użytkownik może tylko wyłączyć Smart App Control (na stałe).</td></tr>
+<tr><td>Bufor powtórek pusty lub „zatrzymał się"</td><td>Sprawdź status (<code>error</code>, <code>capture</code>). Zmiana trybu ekranu przez grę restartuje ffmpeg; po 6 awariach bufor się zatrzymuje — zmień ustawienia albo włącz ponownie. W sesji zdalnej lub Sandbox działa tylko GDI.</td></tr>
+<tr><td>Nieme powtórki</td><td>Log audio: „Bufor audio: szczyt 15s = 0.0000" oznacza brak sygnału z wybranego wyjścia — wybierz inne urządzenie lub „Domyślne" (wszystkie wyjścia).</td></tr>
+<tr><td>Proces zabity przy transkrypcji</td><td>Brak pamięci GPU. Po restarcie model zostaje zablokowany; można wymusić <code>KEEPCLIP_WHISPER_MODEL</code>.</td></tr>
+<tr><td>Okno czarne / komunikat o WebView2</td><td>Brak lub uszkodzony runtime WebView2 — instalacja ze strony Microsoftu; szczegóły w <code>crash.log</code>.</td></tr>
+<tr><td>Klip powyżej 120 FPS zacina się</td><td>Poczekaj na kopię podglądową (pasek postępu w odtwarzaczu); wymaga ffmpeg.</td></tr>
+<tr><td>Skrót powtórki nie działa</td><td>Konflikt z inną aplikacją (status <code>hotkey_active=false</code>) — zmień skrót. Klawisz F10 wymaga modyfikatora.</td></tr>
+<tr><td>Aplikacja zamyka się sama po kilku minutach</td><td>Brak sygnału życia z interfejsu (5 min). Sprawdź, czy strona się ładuje; w trybie serwera ustaw <code>KEEPCLIP_IDLE_EXIT=0</code>.</td></tr>
+</table>
+
+<h2>Skalowanie i kierunki rozwoju</h2>
+<p>KeepClip jest aplikacją jednego użytkownika na jednym komputerze i taka architektura jest celowa: brak serwera, brak kont, brak kosztów. „Skalowanie" oznacza tu cztery różne rzeczy, każda z innym planem.</p>
+<h3>Większe biblioteki (tysiące klipów)</h3>
+<ul>
+<li>Baza jest gotowa: indeksy po grze i dacie, FTS5 z <code>bm25</code>, identyfikatory bez ponownego użycia. Listy mają parametr <code>limit</code>; interfejs pobiera 120 klipów i 200 wyników. Przy dużych bibliotekach dodaj stronicowanie (<code>offset</code> lub kursor po <code>mtime,id</code>) w <code>/api/clips</code> i <code>/api/search</code> oraz doładowywanie przy przewijaniu.</li>
+<li>Skan co 2,5 s przegląda cały folder rekurencyjnie. Dla dziesiątek tysięcy plików zamień odpytywanie na <code>FileSystemWatcher</code> z opóźnionym skanem tylko zmienionych podfolderów; zostaw pełny skan przy starcie i na żądanie.</li>
+<li>Miniatury i kopie podglądowe rosną bez limitu w <code>data/</code>. Dodaj sprzątanie kopii podglądowych (LRU po rozmiarze) i pomiar w <code>/api/stats</code>.</li>
+<li>Transkrypcja jest sekwencyjna. Whisper na GPU i tak zajmuje całą kartę; dla CPU można równolegle dekodować audio ffmpeg dla następnego klipu (potok), co skraca przerwy między klipami.</li>
+</ul>
+<h3>Więcej funkcji bez chaosu</h3>
+<ul>
+<li>Serwisy statyczne (<code>ReplayService</code>, <code>OAuthService</code>, <code>Transcriber</code>, <code>Settings</code>) utrudniają testy i wymianę implementacji. Kierunek: przenieść je do wstrzykiwania zależności jak <code>ClipService</code> i <code>PlaybackProxyService</code>, z interfejsami dla ffmpeg (<code>IMediaTools</code>), chmury (<code>ICloudStorage</code>) i mowy (<code>ISpeechToText</code>). Wtedy testy dostaną atrapy, a produkcja prawdziwe implementacje.</li>
+<li>Drugi dostawca chmury (OneDrive, Dropbox, S3) to naturalny pierwszy przypadek dla <code>ICloudStorage</code>: <code>CloudService</code> używa dziś pięciu operacji (folder, wysyłka, lista, pobranie, kosz) i strumienia z zakresem.</li>
+<li>Podział rozwiązania na projekty: <code>KeepClip.Core</code> (Data, Services, Domain, bez WinForms) i <code>KeepClip.Desktop</code> (okno, tray, hotkey). Core dałoby się uruchomić także na Linuksie w trybie serwera.</li>
+<li>Migracje bazy jako ponumerowane kroki (tabela <code>schema_version</code>) zamiast listy <code>AddColumn</code> — dziś wystarcza, przy zmianach typów kolumn przestanie.</li>
+</ul>
+<h3>Wiele urządzeń / dostęp z sieci</h3>
+<ul>
+<li>Serwer już działa bez okna (tryb serwera), więc pierwszym krokiem jest uwierzytelnianie (token w nagłówku, wydawany lokalnie) i HTTPS, zanim nasłuch wyjdzie poza <code>127.0.0.1</code>. Bez tego każdy w sieci mógłby usuwać klipy.</li>
+<li>Synchronizacja biblioteki między komputerami działa dziś przez Dysk Google (<code>appProperties</code> odtwarzają grę, czas i długość). Do pełnej synchronizacji (ulubione, foldery, transkrypcje) trzeba eksportować metadane, np. plik JSON w folderze KeepClip na Dysku, scalany przy synchronizacji.</li>
+<li>Transkrypcja na innym komputerze (mocniejsze GPU) to osobny proces roboczy z tym samym API <code>ISpeechToText</code> i kolejką zadań; klipy w chmurze już mają wszystko, czego potrzebuje taki worker.</li>
+</ul>
+<h3>Jakość i utrzymanie</h3>
+<ul>
+<li>CI uruchamia 124 testy przy każdym pushu i przed wydaniem. Kolejne obszary do pokrycia: <code>CloudService.SyncFromCloudAsync</code> z atrapą Dysku (logika dopasowania jest złożona), <code>ReplayService.SaveAsync</code> z atrapą ffmpeg (wybór segmentów), <code>Transcriber.SplitOnInternalGaps</code> (dzielenie po ciszy).</li>
+<li>Podpisywanie kodu w CI usuwa blokady Smart App Control i ostrzeżenia SmartScreen — największy pojedynczy problem użytkowników.</li>
+<li>Dokumentacja żyje w <code>docs/src/*.html</code>, a PDF-y powstają poleceniem <code>node docs/build-pdf.js</code> (Edge lub Chrome w trybie bez okna). Kod nie ma komentarzy; przy każdej zmianie zachowania zaktualizuj odpowiedni rozdział.</li>
+<li>Telemetrii nie ma i nie powinno być; do diagnozy u użytkowników wystarczy <code>crash.log</code> i dziennik statusu transkrypcji.</li>
+</ul>
+
+</body>
+</html>

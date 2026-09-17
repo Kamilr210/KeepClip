@@ -12,7 +12,7 @@ const LANG = (() => {
     const saved = localStorage.getItem('keepclip_lang');
     if (saved && SUPPORTED.includes(saved)) return saved;
   } catch(e) {}
-  // Świeża instalacja podąża za językiem systemu, a gdy nie jest obsługiwany — angielski.
+
   const bl = (navigator.language || '').slice(0, 2).toLowerCase();
   if (SUPPORTED.includes(bl)) return bl;
   return 'en';
@@ -85,8 +85,6 @@ function localizeBackendError(error) {
   return message;
 }
 
-// Serwer dokłada `error` z kodem błędu, gdy komunikat ma tłumaczenie w interfejsie.
-// Bez kodu (albo bez tłumaczenia) zostaje `detail`, żeby nie zgubić treści błędu.
 function backendErrorMessage(payload, fallback) {
   const code = payload && payload.error;
   if (code) {
@@ -320,7 +318,6 @@ function clipsWord(n) {
 }
 
 function parseTime(s) {
-// Przyjmuje M:SS, H:MM:SS albo liczbę sekund.
   if (typeof s !== "string" && typeof s !== "number") return NaN;
   s = String(s).trim();
   if (!s) return NaN;
@@ -348,7 +345,6 @@ function fmtSize(bytes) {
   return bytes + " B";
 }
 
-// Oba paski miejsca mogą odświeżać się niezależnie, dlatego przechowują ostatnie dane.
 let _lastStats = null;
 let _cloudQuota = null;
 
@@ -384,7 +380,7 @@ function refreshCloudQuota() {
 
 function renderStorage() {
   const s = _lastStats || {};
-  
+
   const pct = (part, whole) => {
     if (!whole || whole <= 0 || !part || part <= 0) return 0;
     return Math.max(0, Math.min(100, (part / whole) * 100));
@@ -393,13 +389,13 @@ function renderStorage() {
   const lClips = s.local_bytes || 0;
   const dTotal = s.disk_total || 0;
   const dFree = s.disk_free != null ? s.disk_free : 0;
-  
+
   const dUsed = dTotal > 0 ? dTotal - dFree : 0;
-  const lOther = Math.max(0, dUsed - lClips); 
+  const lOther = Math.max(0, dUsed - lClips);
 
   if (els.localClips) els.localClips.textContent = fmtSize(lClips);
   if (els.localTotal) els.localTotal.textContent = dTotal ? fmtSize(dTotal) : "—";
-  
+
   if (els.localFree) {
     els.localFree.textContent = dFree > 0 ? t("storage.free").replace("{size}", fmtSize(dFree)) : "—";
     els.localFree.classList.remove("text-red");
@@ -408,7 +404,6 @@ function renderStorage() {
   let lClipsPct = pct(lClips, dTotal);
   let lOtherPct = pct(lOther, dTotal);
 
-    // Minimalna szerokość pozwala zobaczyć użycie mniejsze niż jeden piksel.
   if (lClips > 0 && lClipsPct < 0.2) lClipsPct = 0.5;
 
   const localFillClips = document.getElementById("local-fill-clips");
@@ -417,39 +412,37 @@ function renderStorage() {
   if (localFillClips) localFillClips.style.width = lClipsPct + "%";
   if (localFillOther) localFillOther.style.width = lOtherPct + "%";
 
-
   const cClips = s.cloud_bytes || 0;
   if (els.cloudClips) els.cloudClips.textContent = fmtSize(cClips);
-  
+
   const q = _cloudQuota;
-  
+
   const cloudFillClips = document.getElementById("cloud-fill-clips");
   const cloudFillOther = document.getElementById("cloud-fill-other");
   const cloudBarContainer = cloudFillClips ? cloudFillClips.parentElement : null;
-  
+
   if (q && q.limit) {
     const cUsed = q.usage || 0;
     const cOther = Math.max(0, cUsed - cClips);
     const cFree = Math.max(0, q.limit - cUsed);
-    
+
     if (els.cloudTotal) els.cloudTotal.textContent = fmtSize(q.limit);
     if (els.cloudFree) {
       els.cloudFree.textContent = t("storage.free").replace("{size}", fmtSize(cFree));
       els.cloudFree.classList.remove("text-red");
     }
-    
+
     let cClipsPct = pct(cClips, q.limit);
     if (cClips > 0 && cClipsPct < 0.5) cClipsPct = 0.5;
     let cOtherPct = pct(cOther, q.limit);
 
     if (cloudFillClips) cloudFillClips.style.width = cClipsPct + "%";
     if (cloudFillOther) cloudFillOther.style.width = cOtherPct + "%";
-    
+
     if (cloudBarContainer) cloudBarContainer.style.visibility = "visible";
-    
   } else {
     if (els.cloudTotal) els.cloudTotal.textContent = (q && _cloudConnected) ? "∞" : "—";
-    
+
     if (els.cloudFree) {
       if (!_cloudConnected) {
         els.cloudFree.textContent = t("storage.notConnected");
@@ -459,10 +452,10 @@ function renderStorage() {
         els.cloudFree.classList.remove("text-red");
       }
     }
-    
+
     if (cloudFillClips) cloudFillClips.style.width = "0%";
     if (cloudFillOther) cloudFillOther.style.width = "0%";
-    
+
     if (cloudBarContainer) {
       cloudBarContainer.style.visibility = _cloudConnected ? "visible" : "hidden";
     }
@@ -474,7 +467,6 @@ function escapeHtml(s) {
 }
 function escapeAttr(s) { return escapeHtml(s); }
 
-// Wynik FTS zawiera znaczniki <mark>; pozostały kod HTML musi zostać usunięty.
 function safeSnippet(html) {
   return String(html ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/&lt;mark&gt;/g, "<mark>").replace(/&lt;\/mark&gt;/g, "</mark>");
@@ -629,7 +621,7 @@ async function toggleFavorite(clipId) {
     if (!res.ok) throw new Error();
     const data = await res.json();
     const isFav = !!data.favorite;
-    // Synchronizuje wszystkie wystąpienia klipu bez usuwania etykiety przycisku odtwarzacza.
+
     document.querySelectorAll(`.fav-btn[data-fav-id="${clipId}"]`).forEach((b) => {
       b.classList.toggle("is-fav", isFav);
       setFavoriteIcon(b, isFav);
@@ -654,7 +646,6 @@ async function loadFavorites() {
   );
 }
 
-// Faza przechwytywania obsługuje gwiazdkę przed kliknięciem otwierającym odtwarzacz.
 document.addEventListener("click", (e) => {
   const fb = e.target.closest(".fav-btn");
   if (!fb) return;
@@ -666,7 +657,7 @@ document.addEventListener("click", (e) => {
 
 let _cloudConnected = false;
 let _cloudAvailable = false;
-// Blokuje powtórne kliknięcie, dopóki operacja chmurowa danego klipu trwa.
+
 const _busyClipIds = new Set();
 const CLOUD_UP_GLYPH =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.2 3.9 3.9 0 0 1 17 18z"/><path d="M12 12v5M9.5 14.5 12 12l2.5 2.5"/></svg>';
@@ -691,7 +682,7 @@ function setCloudConnected(on, email, available = on) {
   _cloudAvailable = _cloudConnected && !!available;
   document.body.classList.toggle("cloud-connected", _cloudConnected);
   if (els.cloudNavDot) els.cloudNavDot.hidden = !_cloudConnected;
-  // Mini-karta w sidebarze pokazuje konto po połączeniu.
+
   const sccEmail = document.getElementById("scc-email");
   if (sccEmail) sccEmail.textContent = _cloudConnected && email ? email : "";
   if (currentClipId != null && !els.overlay.hidden) {
@@ -1063,7 +1054,6 @@ if (els.cloudDisconnectBtn) {
   });
 }
 
-// Po powrocie z ekranu zgody Google odświeża stan połączenia.
 window.addEventListener("focus", () => { if (!els.viewCloud.hidden) loadCloud(); });
 
 let _layoutMode = "grid";
@@ -1102,7 +1092,7 @@ async function _startPreview(card) {
   const cid = parseInt(card.dataset.clipId, 10);
   if (!cid) return;
   const duration = parseFloat(card.dataset.duration || "0");
-  // Wynik wyszukiwania startuje w trafieniu, a zwykły podgląd omija początek klipu.
+
   const matchStart = parseFloat(card.dataset.start || "NaN");
   let startAt;
   if (isFinite(matchStart) && matchStart > 0) {
@@ -1126,7 +1116,7 @@ async function _startPreview(card) {
   video.loop = true;
   video.playsInline = true;
   video.preload = "auto";
-// Fragment adresu jest stabilniejszy niż właściwość currentTime przy strumieniowaniu w Chrome.
+
   const fragment = startAt > 0 ? `#t=${startAt.toFixed(2)}` : "";
   video.src = `${playback.url}${fragment}`;
   video.addEventListener("loadedmetadata", () => {
@@ -1148,7 +1138,7 @@ els.results.addEventListener("mouseover", (e) => {
 els.results.addEventListener("mouseout", (e) => {
   const card = e.target.closest(".result");
   if (!card) return;
-// Zdarzenie mouseout występuje też między elementami karty, więc reaguje dopiero po jej opuszczeniu.
+
   const goingTo = e.relatedTarget;
   if (goingTo && card.contains(goingTo)) return;
   clearTimeout(_hoverTimer);
@@ -1234,13 +1224,13 @@ async function openPlayer(clipId, startAt) {
   els.pfav.classList.toggle("is-fav", isFav);
   setFavoriteIcon(els.pfav, isFav);
   updatePlayerCloudBtn(data.clip.storage);
-  // Miniatura zapobiega czarnemu ekranowi podczas rozpoczęcia buforowania.
+
   els.video.poster = `/thumb/${clipId}?v=${data.clip.size_bytes}`;
   els.video.pause();
   els.video.removeAttribute("src");
   els.video.load();
   currentSegments = data.segments;
-  // Bez transkrypcji nie ma czego pobierać, więc przycisk pojawia się dopiero z nią.
+
   if (els.transcriptTxt) els.transcriptTxt.hidden = currentSegments.length === 0;
   rebuildSubtitles();
 
@@ -1259,7 +1249,6 @@ async function openPlayer(clipId, startAt) {
 
   els.segments.querySelectorAll(".seg").forEach((el) => {
     el.addEventListener("click", (e) => {
-    // Obsługa edytora nie może przewijać odtwarzacza.
       if (e.target.closest(".seg-edit, .seg-edit-box") || el.classList.contains("editing")) return;
       const t = parseFloat(el.dataset.start);
       els.video.currentTime = t;
@@ -1293,8 +1282,6 @@ async function openPlayer(clipId, startAt) {
   startSegmentTicker();
 }
 
-// Segmenty klipu tworzą ścieżkę napisów WebVTT, którą przeglądarka synchronizuje
-// bez własnego zegara również w trybie pełnoekranowym i przy zmianie prędkości.
 let _subsUrl = null;
 
 const subsEnabled = () => localStorage.getItem("kc_subtitles") === "1";
@@ -1311,7 +1298,6 @@ function clearSubtitles() {
   if (_subsUrl) { URL.revokeObjectURL(_subsUrl); _subsUrl = null; }
 }
 
-// Odbudowuje ścieżkę także po ręcznej edycji transkrypcji.
 function rebuildSubtitles() {
   if (!els.ctrlCc) return;
   clearSubtitles();
@@ -1321,11 +1307,9 @@ function rebuildSubtitles() {
   els.ctrlCc.classList.toggle("cc-on", has && subsEnabled());
   if (!has) return;
 
-    // VTT interpretuje znaki < i &, więc tekst użytkownika wymaga zakodowania.
   const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   let vtt = "WEBVTT\n\n";
   for (const s of currentSegments) {
-    // Każdy napis musi mieć dodatnią długość czasu.
     const end = Math.max(s.end_s, s.start_s + 0.3);
     vtt += `${vttTime(s.start_s)} --> ${vttTime(end)}\n${esc(s.text)}\n\n`;
   }
@@ -1354,7 +1338,7 @@ function startSegmentTicker() {
       const isActive = parseInt(el.dataset.id, 10) === activeId;
       if (isActive && !el.classList.contains("active")) {
         el.classList.add("active");
-  // Nie przewija listy podczas ręcznej edycji.
+
         if (editingSegId === null) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
       } else if (!isActive) {
         el.classList.remove("active");
@@ -1450,7 +1434,7 @@ function closePlayer() {
   currentClipStorage = "local";
   _cloudPlaybackErrorClipId = null;
   hidePlaybackPreparation();
-// Zamknięcie odtwarzacza musi najpierw opuścić tryb pełnoekranowy.
+
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   els.overlay.hidden = true;
   els.video.pause();
@@ -1476,7 +1460,6 @@ els.overlay.addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
-// W trybie pełnoekranowym pierwsze Esc obsługuje natywnie przeglądarka.
     if (document.fullscreenElement) return;
     if (!els.confirmOverlay.hidden) hideConfirm();
     else if (!els.overlay.hidden && editingSegId === null) closePlayer();
@@ -1683,7 +1666,6 @@ function updateCutEstimate() {
   }
 
   if (_cutTargetMb == null) {
-    // Bez kompresji szacuje rozmiar na podstawie przepływności pliku źródłowego.
     const src = document.querySelector(`.result[data-clip-id="${currentClipId}"]`);
     const srcSize = parseFloat(src?.dataset?.size || "0");
     const srcDur = parseFloat(src?.dataset?.duration || "0");
@@ -1697,7 +1679,6 @@ function updateCutEstimate() {
     return;
   }
 
-  // Dla kompresji odtwarza obliczenie docelowej przepływności używane przez serwer.
   const targetBytes = _cutTargetMb * 1000000;
   const audioKbps = 128;
   const audioBytes = (audioKbps * 1000 / 8) * duration;
@@ -1782,7 +1763,6 @@ async function pollSingleOperationProgress() {
       finishSingleOperationProgress(!!status.success, status.error || "");
     }
   } catch {
-    // Następna próba odpytywania nastąpi automatycznie.
   }
 }
 
@@ -2061,13 +2041,10 @@ document.addEventListener("click", (e) => {
 });
 window.addEventListener("resize", closeFoldersDropdown);
 
-// Serwer odsyła plik z nagłówkiem `Content-Disposition`, więc kliknięcie odnośnika
-// zapisuje go na dysku zamiast otwierać w oknie aplikacji.
 els.transcriptTxt?.addEventListener("click", async () => {
   if (!currentClipId) return;
   const url = `/api/clips/${currentClipId}/transcript.txt`;
   try {
-    // Sprawdzenie z wyprzedzeniem pozwala pokazać zrozumiały błąd zamiast pustego pliku.
     const probe = await fetch(url, { method: "HEAD" });
     if (!probe.ok) {
       const detail = await fetch(url).then((r) => r.json()).catch(() => null);
@@ -2155,7 +2132,7 @@ els.pdelete.addEventListener("click", async () => {
   if (!ok) return;
   const clipId = currentClipId;
   els.pdelete.disabled = true;
-  // Najpierw zwalnia strumień wideo, aby Windows mógł przenieść plik do Kosza.
+
   closePlayer();
   await new Promise((resolve) => setTimeout(resolve, 200));
   try {
@@ -2361,9 +2338,6 @@ document.querySelectorAll(".nav-tool[data-action]").forEach((btn) => {
   });
 });
 
-// Ustawienia to pełny widok (data-view="settings" w sidebarze), nie modal —
-// przycisk w nawigacji łapie standardowy handler navItems → setView("settings").
-
 function normalizeAccentTheme(theme) {
   return theme === "green" ? "green" : "purple";
 }
@@ -2416,8 +2390,8 @@ async function populateAudioDevices() {
       fillDeviceSelect(els.replayAudioInput,  data.inputs  || [], t("replay.audioDefault"));
       return;
     }
-    } catch { /* Przechodzi do zapasowej obsługi Web Audio. */ }
-  // Awaryjnie używa interfejsu MediaDevices, który w WebView2 może mieć ograniczone uprawnienia.
+    } catch {  }
+
   try {
     await navigator.mediaDevices.getUserMedia({ audio: true }).catch(() => {});
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -2425,7 +2399,7 @@ async function populateAudioDevices() {
     const inputs  = devices.filter(d => d.kind === "audioinput");
     fillDeviceSelect(els.replayAudioOutput, outputs.map(d => ({ id: d.deviceId, name: d.label || d.deviceId })), t("replay.audioDefault"));
     fillDeviceSelect(els.replayAudioInput,  inputs.map(d => ({ id: d.deviceId, name: d.label  || d.deviceId })), t("replay.audioDefault"));
-  } catch { /* Brak uprawnień do urządzeń dźwiękowych. */ }
+  } catch {  }
 }
 
 function fillDeviceSelect(sel, devices, defaultLabel) {
@@ -2525,7 +2499,7 @@ els.configSave.addEventListener("click", async () => {
       .replace("{details}", parts.length ? ` — ${parts.join(", ")}` : ""));
     await refreshLibraryViews();
     startAutoLibrarySync();
-    // Samouczek czeka z powitaniem, aż świeża instalacja dostanie folder z klipami.
+
     document.dispatchEvent(new CustomEvent("keepclip:configured"));
   } catch (e) {
     els.configError.textContent = e.message;
@@ -2551,7 +2525,6 @@ function renderReplayStatus(st) {
   if (els.replayNavDot) els.replayNavDot.hidden = !(st.enabled && st.running);
   if (!els.replayBox || els.replayOverlay.hidden) return;
 
-  // Odpytywanie statusu nie może nadpisywać niezapisanych zmian w otwartym formularzu.
   els.replaySaveNow.disabled = !st.running || st.saving;
 
   els.replayDot.className = "replay-dot" + (st.error ? " err" : st.running ? " on" : "");
@@ -2566,7 +2539,7 @@ function renderReplayStatus(st) {
 
   els.replayError.hidden = !st.error;
   els.replayError.textContent = st.error || "";
-  // Włączony bufor bez aktywnego skrótu oznacza zwykle konflikt z inną aplikacją.
+
   const hotkeyDead = st.enabled && st.running && !st.hotkey_active;
   els.replayHotkeyWarn.hidden = !hotkeyDead;
   els.replayHotkeyWarn.textContent = hotkeyDead ? t("replay.stHotkeyDead") : "";
@@ -2615,10 +2588,6 @@ els.replayOverlay.addEventListener("click", (e) => {
   if (e.target === els.replayOverlay) closeReplayModal();
 });
 
-
-// Klawisze interpunkcyjne nazywają się w WinForms Oem*, a znak zwracany przez `key`
-// zależy od układu klawiatury i wciśniętego Shiftu. `code` opisuje fizyczny klawisz,
-// więc daje tę samą nazwę niezależnie od układu.
 const OEM_KEY_BY_CODE = {
   Semicolon: "OemSemicolon", Equal: "Oemplus", Comma: "Oemcomma",
   Minus: "OemMinus", Period: "OemPeriod", Slash: "OemQuestion",
@@ -2626,8 +2595,6 @@ const OEM_KEY_BY_CODE = {
   Backslash: "OemPipe", BracketRight: "OemCloseBrackets", Quote: "OemQuotes",
 };
 
-// Zwraca nazwę klawisza w formacie oczekiwanym przez serwer albo null, gdy nie da się
-// jej ustalić.
 function winFormsKeyName(e) {
   const code = e.code || "";
   if (OEM_KEY_BY_CODE[code]) return OEM_KEY_BY_CODE[code];
@@ -2643,11 +2610,10 @@ function winFormsKeyName(e) {
   if (code === "NumpadMultiply") return "Multiply";
   if (code === "NumpadDivide") return "Divide";
   if (code === "NumpadDecimal") return "Decimal";
-  if (code === "Backspace") return "Back";   // WinForms nazywa ten klawisz Keys.Back.
+  if (code === "Backspace") return "Back";
   if (/^(Insert|Delete|Home|End|PageUp|PageDown|Tab|Enter|Pause)$/.test(code)) return code;
   if ((m = /^Arrow(Up|Down|Left|Right)$/.exec(code))) return m[1];
 
-  // Zapasowa ścieżka dla przeglądarek bez `code`.
   const key = e.key || "";
   if (/^[a-z]$/i.test(key)) return key.toUpperCase();
   if (/^[0-9]$/.test(key)) return "D" + key;
@@ -2691,15 +2657,14 @@ els.replayHotkey.addEventListener("keydown", (e) => {
   }
   if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
   const key = winFormsKeyName(e);
-  // Klawisza, którego serwer nie rozpozna, nie warto wpisywać w pole — pole zostaje
-  // w trybie przechwytywania, więc można od razu nacisnąć inny.
+
   if (!key) return;
   const mods = [];
   if (e.ctrlKey) mods.push("Ctrl");
   if (e.altKey) mods.push("Alt");
   if (e.shiftKey) mods.push("Shift");
   if (e.metaKey) mods.push("Win");
-  if (!mods.length) return; // Sam klawisz przechwytywałby zwykłe pisanie w całym systemie.
+  if (!mods.length) return;
   els.replayHotkey.value = [...mods, key].join("+");
   _hotkeyPrev = null;
   els.replayHotkey.classList.remove("capturing");
@@ -2725,7 +2690,7 @@ els.replayApply.addEventListener("click", async () => {
         audio_input:  els.replayAudioInput  ? (els.replayAudioInput.value  || null) : null,
       }),
     });
-  // Starsza część serwerowa może zwrócić pustą odpowiedź; wtedy pokazuje stan HTTP.
+
     let st = null;
     try { st = await r.json(); } catch { }
     if (!r.ok) throw new Error(backendErrorMessage(st, `${r.status} ${r.statusText}`.trim()));
@@ -2912,7 +2877,6 @@ els.selCancel.addEventListener("click", () => {
 });
 els.selAdd.addEventListener("click", saveSelection);
 
-// Jeden klip może wystąpić w wielu wynikach, więc zaznaczenie synchronizuje wszystkie karty.
 function _syncCardVisualState(cid, isSelected) {
   document.querySelectorAll(`.result[data-clip-id="${cid}"]`).forEach((c) => {
     c.classList.toggle("selected", isSelected);
@@ -2940,7 +2904,7 @@ els.results.addEventListener("click", (e) => {
   }
   _syncCardVisualState(cid, willBeSelected);
   _updateSelectionUI();
-}, true); // Faza przechwytywania wykonuje się przed zwykłym otwarciem odtwarzacza.
+}, true);
 
 function setView(view) {
   els.navItems.forEach((t) => t.classList.toggle("active", t.dataset.view === view));
@@ -3119,7 +3083,6 @@ els.btnDeleteFolder.addEventListener("click", async () => {
   }
 });
 
-// Serwer kończy pracę po pięciu minutach bez sygnału; aktywna strona wysyła go co 30 sekund.
 function sendHeartbeat() {
   fetch("/api/heartbeat", { method: "POST" }).catch(() => {});
 }
@@ -3132,8 +3095,7 @@ setInterval(sendHeartbeat, 30000);
     if (els.settingsVersion && cfg.version) {
       els.settingsVersion.textContent = `KeepClip • v${cfg.version}`;
     }
-    // Interfejs pamięta język w przeglądarce, a transkrypcja czyta go z ustawień serwera.
-    // Zgłoszenie przy starcie zgrywa oba dla osób, które wybrały język przed tą zmianą.
+
     if (cfg.language !== LANG) {
       fetch("/api/language", {
         method: "POST",
@@ -3178,7 +3140,7 @@ if (els.video) {
   const togglePlay = () => els.video.paused ? els.video.play() : els.video.pause();
   els.ctrlPlay.addEventListener("click", togglePlay);
   els.video.addEventListener("click", togglePlay);
-  
+
   els.video.addEventListener("play", () => els.ctrlPlay.innerHTML = playerIcons.pause);
   els.video.addEventListener("pause", () => els.ctrlPlay.innerHTML = playerIcons.play);
 
@@ -3187,12 +3149,10 @@ if (els.video) {
   els.ctrlRewind.addEventListener("click", () => els.video.currentTime = Math.max(0, els.video.currentTime - 5));
   els.ctrlForward.addEventListener("click", () => els.video.currentTime = Math.min(els.video.duration, els.video.currentTime + 5));
 
-// Selektory głośności są zakotwiczone przy odtwarzaczu, bo okno wycinania ma własny mikser.
   const volumePopover = els.ctrlMute?.closest(".volume-control-wrap")
     ?.querySelector(".volume-mixer-popover");
 
   if (els.ctrlMute && volumePopover && els.ctrlVolume) {
-
     els.ctrlMute.addEventListener("click", (e) => {
   e.stopPropagation();
       els.ctrlVolume.value = els.video.muted ? 0 : els.video.volume;
@@ -3213,12 +3173,10 @@ if (els.video) {
       els.video.muted = (vol === 0);
       els.ctrlMute.innerHTML = els.video.muted ? playerIcons.volOff : playerIcons.volOn;
     });
-
   } else {
     console.error("Brak elementów suwaka głośności w HTML!");
   }
 
-// Tryb pełnoekranowy obejmuje cały element #player-box, aby zachować nagłówek i sterowanie.
   const fsIcons = {
     expand: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>`,
     compress: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/></svg>`,
@@ -3232,7 +3190,6 @@ if (els.video) {
   };
   els.ctrlFullscreen.addEventListener("click", toggleFullscreen);
 
-// W pełnym ekranie sterowanie znika po bezczynności, ale pozostaje widoczne podczas pauzy.
   let _fsChromeTimer = null;
   function fsShowChrome() {
     els.playerBox.classList.remove("chrome-hidden");
@@ -3257,7 +3214,6 @@ if (els.video) {
     }
   });
 
-// Nowy klip zawsze rozpoczyna odtwarzanie z prędkością 1×.
   const SPEEDS = [1, 1.25, 1.5, 2, 0.5, 0.75];
   const setSpeed = (v) => {
     els.video.playbackRate = v;
@@ -3268,7 +3224,6 @@ if (els.video) {
     setSpeed(SPEEDS[(i + 1) % SPEEDS.length] ?? 1);
   });
 
-// Ustawienie napisów jest pamiętane między klipami.
   if (els.ctrlCc) {
     els.ctrlCc.addEventListener("click", () => {
       const on = !subsEnabled();
@@ -3280,7 +3235,7 @@ if (els.video) {
   }
 
   let isDragging = false;
-  
+
   els.video.addEventListener("loadedmetadata", () => {
     els.ctrlProgress.max = els.video.duration;
     els.ctrlTimeTot.textContent = fmtTime(els.video.duration);
@@ -3309,7 +3264,7 @@ if (els.video) {
     canvas.height = els.video.videoHeight;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(els.video, 0, 0, canvas.width, canvas.height);
-    
+
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/jpeg");
     a.download = `KeepClip_Screenshot_${fmtTime(els.video.currentTime).replace(':','-')}.jpg`;
@@ -3398,14 +3353,13 @@ document.addEventListener("keydown", (e) => {
 (function initDevLogs() {
   const overlay = document.getElementById("logs-overlay");
   const btn = document.getElementById("btn-logs");
-  if (!overlay || !btn) return; // W publicznym wydaniu odpowiadający HTML jest usunięty.
+  if (!overlay || !btn) return;
 
   const output = document.getElementById("logs-output");
   const autoscroll = document.getElementById("logs-autoscroll");
   let lastSeq = 0;
   let pollTimer = null;
 
-// Serwer potwierdza flagę kompilacji, zanim interfejs pokaże narzędzie deweloperskie.
   fetch("/api/config").then((r) => r.json()).then((cfg) => {
     if (cfg && cfg.dev) btn.hidden = false;
   }).catch(() => {});
@@ -3456,11 +3410,6 @@ document.addEventListener("keydown", (e) => {
 })();
 /* DEV:END */
 
-// ---------- aktualizacje aplikacji ----------
-// Cichy check przy starcie; baner pokazuje się tylko, gdy jest nowsze wydanie z plikiem
-// instalatora. „Pobierz i zainstaluj" pobiera setup po stronie backendu (bez SmartScreen,
-// bo plik nie ma znacznika przeglądarki) i uruchamia go — aplikacja wtedy sama się zamyka,
-// a instalator aktualizuje ją w miejscu, nie ruszając biblioteki ani ustawień.
 async function checkForUpdate() {
   try {
     const st = await fetch("/api/update/check").then((r) => r.json());
@@ -3471,7 +3420,7 @@ async function checkForUpdate() {
     const banner = document.getElementById("update-banner");
     if (banner) banner.hidden = false;
     window._kcLatest = st.latest;
-  } catch { /* brak sieci — bez banera */ }
+  } catch {  }
 }
 
 (function wireUpdateBanner() {
@@ -3507,7 +3456,7 @@ async function checkForUpdate() {
             btnLater.disabled = false;
             btnGo.textContent = t("update.installBtn");
           }
-        } catch { /* backend znika przy starcie instalatora — to oczekiwane */ }
+        } catch {  }
       }, 500);
     } catch (e) {
       toast(t("update.failed").replace("{error}", e.message), "error");

@@ -31,12 +31,12 @@ public static class ReplayEndpoints
             if (body.quality is not null) Settings.SetString("replay_quality", body.quality);
             if (body.hotkey is not null) Settings.SetString("replay_hotkey", body.hotkey);
             if (body.mic is not null) Settings.SetString("replay_mic", body.mic.Value ? "1" : "0");
-            // null oznacza powrót do domyślnego urządzenia, nie brak pola w żądaniu.
+
             Settings.SetString("replay_audio_output", body.audio_output ?? "");
             Settings.SetString("replay_audio_input", body.audio_input ?? "");
 
-        ReplayService.ApplyConfig();   // Dostosowuje stan bufora do nowych ustawień.
-        HotkeyManager.Refresh();       // Ponownie rejestruje skrót klawiaturowy.
+        ReplayService.ApplyConfig();
+        HotkeyManager.Refresh();
             return Results.Json(ReplayService.Status());
         });
 

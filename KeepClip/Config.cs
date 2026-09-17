@@ -2,8 +2,6 @@ namespace KeepClip;
 
 public static class Config
 {
-    // W instalacji katalog leży obok EXE, a w trybie deweloperskim jest
-    // odnajdywany przez przejście w górę drzewa katalogów.
     public static readonly string AppRoot = FindAppRoot();
 
     public static readonly string DataDir     = Path.Combine(AppRoot, "data");
@@ -28,33 +26,23 @@ public static class Config
 
     public static string ThumbPath(long clipId) => Path.Combine(ThumbsDir, $"{clipId}.jpg");
 
-    // Klient OAuth jest dostarczany w instalatorze, ale nie trafia do repozytorium.
     public static readonly string GoogleClientPath = Path.Combine(DataDir, "google_client.json");
 
     public const string DriveFolderName = "KeepClip";
 
-    // Token odświeżania jest przechowywany w Menedżerze poświadczeń Windows.
     public const string DriveTokenTarget = "KeepClip:GoogleDriveRefreshToken";
 
-    // Whisper posługuje się tymi samymi kodami ISO 639-1 co interfejs, więc język
-    // transkrypcji może wprost podążać za językiem wybranym w aplikacji.
     public static readonly string[] UiLanguages = { "pl", "en", "ru", "uk" };
 
-    // Aplikacja trafia do odbiorców z różnych krajów, więc świeża instalacja startuje
-    // po angielsku, a nie w języku systemu.
     public const string DefaultLanguage = "en";
 
     public const string WhisperDevice = "auto";
     public const string WhisperComputeType = "int8";
     public const double WhisperSplitGapSeconds = 1.5;
 
-    // Kolejność schodzenia, gdy sprzęt nie udźwignie mocniejszego modelu. Pierwszy pasujący
-    // do pamięci GPU jest domyślny; kolejne są używane, gdy poprzedni nie wystartuje.
     public static readonly string[] WhisperModelLadder =
         { "large-v3", "large-v3-turbo", "small" };
 
-    // Zmierzone szczytowe zużycie pamięci GPU to ~4,3 GB dla large-v3 i ~2,3 GB dla turbo.
-    // Progi zostawiają zapas na pulpit i grę działającą w tle.
     public static readonly Dictionary<string, long> WhisperModelMinVram =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -63,7 +51,6 @@ public static class Config
             ["small"]          = 0,
         };
 
-    // Jawny wybór użytkownika wyłącza automatyczny dobór modelu.
     public static readonly string? WhisperModelOverride =
         Environment.GetEnvironmentVariable("KEEPCLIP_WHISPER_MODEL")?.Trim().ToLowerInvariant()
             is { Length: > 0 } forced ? forced : null;
@@ -73,7 +60,6 @@ public static class Config
 
     private static string FindAppRoot()
     {
-        // Obsługuje zarówno układ instalacji, jak i bin/Debug/netX w repozytorium.
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {

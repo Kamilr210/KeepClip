@@ -3,11 +3,8 @@ using NAudio.Wave;
 
 namespace KeepClip.Infrastructure;
 
-// Miesza dźwięk z wyjść WASAPI i opcjonalny mikrofon do strumienia PCM dla FFmpeg.
-// Pompowanie według zegara ściennego zapobiega zatrzymaniu strumienia podczas ciszy.
 internal sealed class AudioPump : IDisposable
 {
-    // Opóźnienie bufora pochłania krótkie skoki WASAPI bez wstawiania ciszy.
     private const int JitterMs = 200;
 
     private readonly List<WasapiCapture> _captures = new();
@@ -17,7 +14,7 @@ internal sealed class AudioPump : IDisposable
     private Stream? _stdin;
     private float[] _fbuf = Array.Empty<float>();
     private byte[] _bbuf = Array.Empty<byte>();
-    // Wykrywa poprawny formalnie, lecz całkowicie niemy strumień.
+
     private float _peak;
     private long _lastPeakLogTicks = DateTime.UtcNow.Ticks;
 
@@ -34,8 +31,6 @@ internal sealed class AudioPump : IDisposable
 
     private AudioPump(bool withMic, string? outputId, string? inputId)
     {
-        // Bez jawnego wyboru przechwytuje wszystkie aktywne wyjścia, bo dźwięk gry nie
-        // zawsze trafia do urządzenia domyślnego. Zegar mieszania nie zależy od WASAPI.
         var en = new MMDeviceEnumerator();
         var def = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
         SampleRate = def.AudioClient.MixFormat.SampleRate;
@@ -88,8 +83,6 @@ internal sealed class AudioPump : IDisposable
         };
         cap.DataAvailable += (_, e) =>
         {
-            // Nie czyści bufora przy małym opóźnieniu: zaległe próbki są lepsze niż
-            // sekundowa dziura, a limit pięciu sekund chroni pamięć przed przepełnieniem.
             buf.AddSamples(e.Buffer, 0, e.BytesRecorded);
         };
         cap.RecordingStopped += (_, e) => Console.Error.WriteLine(
@@ -121,7 +114,6 @@ internal sealed class AudioPump : IDisposable
         try { PumpLoopCore(); }
         catch (Exception ex)
         {
-            // Awaria tej pętli prowadzi do cichych nagrań, więc trafia do diagnostyki.
             Console.Error.WriteLine($"Bufor audio: POMPA PADŁA: {ex}");
         }
     }
@@ -136,10 +128,8 @@ internal sealed class AudioPump : IDisposable
             var stdin = _stdin;
             if (stdin is null) return;
 
-            // Kursor pozostaje JitterMs za zegarem, aby krótkie opóźnienia urządzeń
-            // pokrywać prawdziwymi próbkami bez zmiany relacji audio do PTS obrazu.
             long targetFrames = Math.Max(0, sw.ElapsedMilliseconds - JitterMs) * SampleRate / 1000;
-            // Twarda resynchronizacja jest potrzebna dopiero po dużej przerwie, np. uśpieniu.
+
             if (targetFrames - emittedFrames > SampleRate * 30L)
                 emittedFrames = targetFrames;
             int frames = (int)Math.Min(targetFrames - emittedFrames, (long)SampleRate);
@@ -180,7 +170,6 @@ internal sealed class AudioPump : IDisposable
 
     public void Dispose()
     {
-        // ReplayService wcześniej kończy FFmpeg, co odblokowuje ewentualny zapis do stdin.
         _stop = true;
         _stdin = null;
         try { _pumpThread?.Join(2000); } catch { }

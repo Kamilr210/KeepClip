@@ -3,8 +3,6 @@ using System.Windows.Forms;
 
 namespace KeepClip.Infrastructure;
 
-// Globalny skrót działa niezależnie od aktywnego okna. W trybie samego serwera nie ma
-// uchwytu okna, więc zapis pozostaje dostępny wyłącznie z interfejsu.
 internal static class HotkeyManager
 {
     [DllImport("user32.dll")] private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint mods, uint vk);
@@ -27,7 +25,6 @@ internal static class HotkeyManager
         Refresh();
     }
 
-    // Rejestracja musi odbyć się w wątku UI, do którego należy uchwyt okna.
     public static void Refresh()
     {
         var form = _form;
@@ -53,8 +50,6 @@ internal static class HotkeyManager
     public static bool HandleMessage(ref Message m)
         => m.Msg == WM_HOTKEY && (int)m.WParam == HotkeyId;
 
-    // Wymagany jest co najmniej jeden modyfikator, aby nie przechwytywać zwykłego
-    // wpisywania tekstu w całym systemie.
     public static bool TryParse(string combo, out uint mods, out uint vk)
     {
         mods = 0; vk = 0;
@@ -68,7 +63,7 @@ internal static class HotkeyManager
                 case "shift": mods |= MOD_SHIFT; continue;
                 case "win" or "meta": mods |= MOD_WIN; continue;
             }
-            if (vk != 0) return false; // Nie zezwala na dwa klawisze niemodyfikujące.
+            if (vk != 0) return false;
             var token = raw.Length == 1 ? raw.ToUpperInvariant() : raw;
             if (!Enum.TryParse<Keys>(token, ignoreCase: true, out var key)) return false;
             vk = (uint)key;

@@ -3,12 +3,9 @@ namespace KeepClip;
 #if KEEPCLIP_DEV
 using System.Text;
 
-// W trybie deweloperskim przechwytuje stderr do ograniczonego bufora kołowego.
-// W wydaniu publicznym implementację zastępują puste metody, dzięki czemu miejsca
-// wywołań nie wymagają dyrektyw #if.
 public static class DevLog
 {
-    private const int MaxLines = 4000;   // Po przekroczeniu limitu usuwa najstarsze wpisy.
+    private const int MaxLines = 4000;
     private static readonly object Gate = new();
     private static readonly LinkedList<(long Seq, string Line)> _lines = new();
     private static long _seq;
@@ -46,7 +43,6 @@ public static class DevLog
         Add("— log wyczyszczony —");
     }
 
-    // Buforowanie do końca wiersza zapobiega dzieleniu wpisów przez częściowe zapisy.
     private sealed class TeeWriter : TextWriter
     {
         private readonly TextWriter _inner;
@@ -75,7 +71,7 @@ public static class DevLog
         public override void WriteLine(string? value)
         {
             _inner.WriteLine(value);
-            if (_buf.Length > 0) FlushLine();              // Najpierw zapisuje oczekujący fragment.
+            if (_buf.Length > 0) FlushLine();
             if (!string.IsNullOrEmpty(value)) DevLog.Add(value);
         }
 

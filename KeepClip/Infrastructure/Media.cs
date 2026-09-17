@@ -55,7 +55,7 @@ public static class Media
             try { proc.Kill(entireProcessTree: true); } catch { }
             return new RunResult(true, -1, so.ToString(), se.ToString());
         }
-        proc.WaitForExit(); // Pozwala zakończyć asynchroniczny odczyt obu strumieni.
+        proc.WaitForExit();
         return new RunResult(false, proc.ExitCode, so.ToString(), se.ToString());
     }
 
@@ -214,8 +214,6 @@ public static class Media
         return (false, $"Nie udało się przygotować podglądu: {lastError}");
     }
 
-    // Klipy DVR bywają uszkodzone na początku; przeglądarki odrzucają błędne jednostki
-    // NAL, choć odtwarzacze desktopowe często je tolerują.
     public static int ProbeDecodeErrors(string path, double seconds = 5.0)
     {
         var r = Run(Config.Ffprobe, new[]
@@ -252,8 +250,6 @@ public static class Media
         catch { return false; }
     }
 
-    // Najpierw wykonuje remuks, a potem stopniowo pomija uszkodzony początek,
-    // dopóki ffprobe nie przestanie zgłaszać błędów dekodowania.
     public static (bool Ok, string? Output, string Message, double Trimmed) FixBrokenClip(
         string src, string? tmpOut = null)
     {
@@ -310,7 +306,7 @@ public static class Media
             {
                 "-y", "-hide_banner", "-loglevel", "error",
                 "-progress", "pipe:1", "-nostats",
-                // Ustawienie pozycji przed parametrem -i jest szybkie i przy kodowaniu pozostaje dokładne.
+
                 "-ss", start.ToString("F3", CultureInfo.InvariantCulture),
                 "-to", end.ToString("F3", CultureInfo.InvariantCulture),
                 "-i", src,
@@ -329,7 +325,6 @@ public static class Media
             }
             else
             {
-                // Stała jakość zachowuje obraz, ale rozmiar zależy od ilości ruchu.
                 args.AddRange(new[] { "-rc", "vbr", "-cq", "19", "-b:v", "0" });
             }
 

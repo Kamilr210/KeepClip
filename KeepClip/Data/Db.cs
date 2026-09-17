@@ -6,8 +6,6 @@ public static class Db
 {
     public static string DbPath => Config.DbPath;
 
-// Wyzwalacze utrzymują indeks FTS5 w zgodzie z tabelą segmentów, a analizator tekstu
-    // ignoruje znaki diakrytyczne podczas wyszukiwania.
     private const string Schema = @"
 CREATE TABLE IF NOT EXISTS clips (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,8 +108,6 @@ END;
         return con;
     }
 
-// Warunkowe tworzenie tabeli nie dodaje kolumn do istniejących baz, dlatego
-    // migracje kolumn muszą być idempotentne.
     private static void Migrate(SqliteConnection con)
     {
         var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -119,7 +115,7 @@ END;
         {
             cmd.CommandText = "PRAGMA table_info(clips)";
             using var r = cmd.ExecuteReader();
-        while (r.Read()) cols.Add(r.GetString(1)); // Kolumna 1 zawiera nazwę.
+        while (r.Read()) cols.Add(r.GetString(1));
         }
 
         void AddColumn(string name, string ddl)
@@ -131,7 +127,7 @@ END;
         }
 
         AddColumn("favorite", "favorite INTEGER NOT NULL DEFAULT 0");
-// Informacja, czy plik jest lokalny, czy przeniesiony na Dysk Google.
+
         AddColumn("storage", "storage TEXT NOT NULL DEFAULT 'local'");
         AddColumn("remote_id", "remote_id TEXT");
         AddColumn("remote_uploaded_at", "remote_uploaded_at TEXT");

@@ -40,7 +40,6 @@ public static class CloudService
         con.Exec("UPDATE clips SET storage='cloud', remote_id=$rid, remote_uploaded_at=$ts WHERE id=$id",
             ("$rid", remoteId), ("$ts", NowIso()), ("$id", clipId));
 
-        // Lokalny plik trafia do Kosza, ale miniatura zostaje do podglądu klipu w chmurze.
         Trash.SendWithRetry(filepath);
         OAuthService.InvalidateAbout();
         return false;
@@ -141,7 +140,6 @@ public static class CloudService
         var token = await OAuthService.GetAccessTokenAsync();
         Directory.CreateDirectory(Path.GetDirectoryName(filepath)!);
 
-        // Pobieranie do pliku tymczasowego chroni ścieżkę docelową przed niepełnym plikiem.
         string tmp = filepath + ".part";
         try
         {
@@ -154,7 +152,6 @@ public static class CloudService
         con.Exec("UPDATE clips SET storage='local', remote_id=NULL, remote_uploaded_at=NULL WHERE id=$id",
             ("$id", clipId));
 
-// Plik jest już bezpiecznie lokalnie, więc błąd Kosza Dysku Google nie może cofnąć operacji.
         try { await GoogleDrive.TrashAsync(token, remoteId); } catch { }
         OAuthService.InvalidateAbout();
         return false;
@@ -192,7 +189,6 @@ public static class CloudService
         OAuthService.InvalidateAbout();
     }
 
-    // Nagłówek HTTP Range i odpowiedź 206 są przekazywane, aby umożliwić przewijanie.
     public static async Task ProxyVideoAsync(HttpContext http, string remoteId)
     {
         string token;
@@ -223,7 +219,6 @@ public static class CloudService
         }
         catch (OperationCanceledException) { }
     }
-
 
     private static async Task<string> EnsureFolderAsync(string token)
     {

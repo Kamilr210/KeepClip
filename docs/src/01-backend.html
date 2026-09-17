@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>KeepClip — Backend</title>
+<style>
+@page { size: A4; margin: 16mm 15mm 18mm 15mm;
+  @bottom-right { content: counter(page) " / " counter(pages); font: 9pt "Segoe UI", sans-serif; color: #888; }
+  @bottom-left { content: "KeepClip 2.3.0 — dokumentacja backendu"; font: 9pt "Segoe UI", sans-serif; color: #888; } }
+body { font: 10.5pt/1.5 "Segoe UI", Calibri, sans-serif; color: #1a1a1a; margin: 0; }
+h1 { font-size: 26pt; margin: 0 0 4pt; }
+.subtitle { color: #555; font-size: 12pt; margin-bottom: 14pt; }
+.meta { font-size: 9.5pt; color: #666; margin-bottom: 24pt; }
+h2 { font-size: 17pt; margin: 22pt 0 8pt; padding-bottom: 4pt; border-bottom: 2px solid #7c5cff; break-before: page; }
+h3 { font-size: 13pt; margin: 16pt 0 6pt; color: #3b2d80; }
+h4 { font-size: 11pt; margin: 12pt 0 4pt; }
+.num { color: #7c5cff; }
+code { font: 9.5pt Consolas, "Courier New", monospace; background: #f3f2f8; padding: 0 3px; border-radius: 3px; }
+pre { font: 8.8pt/1.4 Consolas, "Courier New", monospace; background: #f6f6fa; border: 1px solid #ddd; padding: 8pt; white-space: pre-wrap; word-break: break-word; border-radius: 4px; break-inside: avoid; }
+pre code { background: none; padding: 0; font-size: inherit; }
+table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; font-size: 9.5pt; }
+th, td { border: 1px solid #ccc; padding: 4pt 6pt; vertical-align: top; text-align: left; }
+th { background: #ece9f8; }
+tr { break-inside: avoid; }
+.ep { border: 1px solid #d9d6ea; border-left: 4px solid #7c5cff; border-radius: 4px; padding: 8pt 10pt; margin: 10pt 0; break-inside: avoid; }
+.ep h4 { margin-top: 0; font-size: 11.5pt; }
+.m { display: inline-block; font: bold 9pt Consolas, monospace; color: #fff; padding: 1px 6px; border-radius: 3px; margin-right: 4px; }
+.get { background: #2e7d32 } .post { background: #1565c0 } .patch { background: #ef6c00 } .delete { background: #c62828 } .head { background: #6a1b9a }
+.note { background: #fff8e1; border-left: 4px solid #f5a524; padding: 6pt 10pt; margin: 8pt 0; }
+.warn { background: #fdecea; border-left: 4px solid #c62828; padding: 6pt 10pt; margin: 8pt 0; }
+.toc { list-style: none; padding-left: 0; margin: 0; }
+.toc li { margin: 2pt 0; }
+.toc li.h3 { padding-left: 18pt; font-size: 9.5pt; }
+.toc a { text-decoration: none; color: #1a1a1a; }
+.toc-title { font-size: 17pt; font-weight: 600; margin: 0 0 8pt; }
+nav#toc { break-after: page; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 3pt 12pt; margin: 6pt 0; }
+dt { font-weight: 600; } dd { margin: 0; }
+ul, ol { margin: 4pt 0 8pt; }
+li { margin: 2pt 0; }
+.diagram { font: 8.5pt/1.35 Consolas, monospace; background: #fafafa; border: 1px dashed #bbb; padding: 8pt; white-space: pre; }
+</style>
+</head>
+<body>
+
+<h1>KeepClip — dokumentacja backendu</h1>
+<div class="subtitle">Serwer HTTP w procesie aplikacji, baza danych, endpointy i procesy w tle</div>
+<div class="meta">Wersja aplikacji 2.3.0 · gałąź <code>csharp</code> · stan na 17 września 2026 · .NET 10, C# 14</div>
+
+<p>Ten dokument opisuje wszystko, co dzieje się „pod spodem" KeepClip: jak uruchamia się proces, jak wygląda baza danych, jakie endpointy udostępnia serwer i jakie usługi działają w tle. Jest pisany dla osoby, która nie zna aktualnego stanu aplikacji i ma ją dalej rozwijać. Interfejs użytkownika opisuje osobny dokument <em>Frontend</em>, a narzędzia zewnętrzne (ffmpeg, Whisper, Google Drive, instalator, testy) dokument <em>Infrastruktura</em>.</p>
+
+<nav id="toc"></nav>
+
+<h2>Czym jest KeepClip i jak działa jako proces</h2>
+
+<h3>Zadanie aplikacji</h3>
+<p>KeepClip to aplikacja desktopowa dla Windows dla graczy. Obserwuje folder, do którego NVIDIA ShadowPlay, AMD ReLive lub własny bufor powtórek KeepClip zapisują nagrania z gier. Każde nagranie trafia do lokalnej biblioteki, dostaje miniaturę, a po transkrypcji mową (Whisper) można je wyszukać po wypowiedzianych słowach. Klipy można przycinać i kompresować pod limit Discorda, grupować w foldery, oznaczać jako ulubione, naprawiać uszkodzone nagrania oraz przenosić na własny Dysk Google, żeby zwolnić miejsce na dysku.</p>
+
+<h3>Jeden proces, dwie role</h3>
+<p>Plik <code>KeepClip.exe</code> uruchamia w jednym procesie dwie rzeczy:</p>
+<ul>
+<li><b>Serwer HTTP</b> — ASP.NET Core (Kestrel, minimal API) nasłuchujący wyłącznie na <code>127.0.0.1</code> i losowym wolnym porcie. Nie ma uwierzytelniania, bo serwer nigdy nie jest widoczny spoza komputera.</li>
+<li><b>Okno</b> — formularz WinForms bez ramki systemowej, w którym kontrolka WebView2 (silnik Edge/Chromium) ładuje adres serwera. Interfejs to zwykłe pliki HTML/JS/CSS z katalogu <code>frontend/</code>.</li>
+</ul>
+<div class="diagram">KeepClip.exe
+ ├─ wątek główny: ASP.NET Core / Kestrel  →  http://127.0.0.1:&lt;losowy port&gt;/
+ │    ├─ /static/*        pliki z frontend/
+ │    ├─ /api/*           endpointy JSON (ten dokument)
+ │    ├─ /video, /thumb   strumienie wideo i miniatury
+ │    └─ workery: skaner, miniatury, transkrypcja, bufor powtórek, proxy odtwarzania
+ └─ wątek UI (STA): WinForms ShellForm + WebView2
+      ├─ most JS ⇄ C# (okno, wybór folderu, przeciąganie)
+      ├─ ikona w zasobniku, globalny skrót klawiszowy, powiadomienie o powtórce
+      └─ zamknięcie okna → zatrzymanie serwera</div>
+<p>Tryb <b>samego serwera</b> (argument <code>server-only</code> albo zmienna <code>KEEPCLIP_SERVER_ONLY=1</code>) uruchamia tylko serwer na stałym porcie 8770, bez okna i bez blokady pojedynczej instancji. Korzystają z niego testy integracyjne i praca deweloperska w zwykłej przeglądarce.</p>
+
+<h3>Technologie</h3>
+<table>
+<tr><th>Obszar</th><th>Technologia</th><th>Uwagi</th></tr>
+<tr><td>Platforma</td><td>.NET 10, C# 14, <code>net10.0-windows</code></td><td>Projekt typu <code>Microsoft.NET.Sdk.Web</code> z <code>OutputType=WinExe</code> i WinForms.</td></tr>
+<tr><td>HTTP</td><td>ASP.NET Core minimal API</td><td>Bez kontrolerów; każdy plik w <code>Endpoints/</code> to metoda rozszerzająca <code>Map…Endpoints</code>.</td></tr>
+<tr><td>Baza</td><td>SQLite przez <code>Microsoft.Data.Sqlite</code> + <code>SQLitePCLRaw.bundle_e_sqlite3</code></td><td>Surowy SQL, bez ORM. FTS5 do wyszukiwania pełnotekstowego.</td></tr>
+<tr><td>Mowa → tekst</td><td>Whisper.net 1.9.1 (+ Runtime, + Runtime.Vulkan)</td><td>Modele GGML pobierane do <code>models/</code> przy pierwszym użyciu.</td></tr>
+<tr><td>Wideo</td><td>ffmpeg / ffprobe w <code>tools/bin</code></td><td>Uruchamiane jako procesy potomne; nie ma bibliotek ffmpeg w procesie.</td></tr>
+<tr><td>Dźwięk</td><td>NAudio 2.2.1 (WASAPI)</td><td>Miks wyjść i mikrofonu dla bufora powtórek.</td></tr>
+<tr><td>Okno</td><td>WinForms + Microsoft.Web.WebView2</td><td>Pakiet WebView2 ciągnie też WPF, który jest usuwany celem <code>DropWebView2Wpf</code> w csproj.</td></tr>
+<tr><td>Chmura</td><td>Google Drive API v3 + OAuth 2.0 PKCE</td><td>Własny klient HTTP, bez SDK Google.</td></tr>
+</table>
+
+<h2>Uruchomienie krok po kroku (Program.cs)</h2>
+<p>Plik <code>Program.cs</code> używa instrukcji najwyższego poziomu. Kolejność ma znaczenie, dlatego opisana jest krok po kroku.</p>
+<ol>
+<li><b><code>CrashLog.Install()</code></b> — jeszcze przed zbudowaniem hosta rejestruje obsługę <code>AppDomain.UnhandledException</code> i <code>TaskScheduler.UnobservedTaskException</code>. Każdy nieobsłużony wyjątek trafia do <code>data/crash.log</code>. W wydaniu publicznym nie ma konsoli ani panelu logów, więc to jedyny ślad po awarii.</li>
+<li><b>Tryb pracy</b> — <code>serverOnly</code> jest prawdą przy argumencie <code>server-only</code> lub zmiennej <code>KEEPCLIP_SERVER_ONLY=1</code>.</li>
+<li><b>Pojedyncza instancja</b> — w trybie okienkowym tworzony jest muteks <code>Local\KeepClip-SingleInstance</code>. Jeśli już istnieje, nowy proces wywołuje <code>DesktopShell.FocusExistingInstance()</code> (sygnalizuje zdarzenie <code>Local\KeepClip-ShowRequest</code>, a w ostateczności szuka okna po nazwie procesu) i kończy się. Dwie instancje walczyłyby o mechanizm Desktop Duplication i psuły bufor powtórek.</li>
+<li><b><code>DevLog.Install()</code></b> — w buildach ze stałą <code>KEEPCLIP_DEV</code> przechwytuje <code>Console.Error</code> do bufora kołowego (4000 wierszy) czytanego przez panel logów w interfejsie. W wydaniu publicznym to pusta metoda.</li>
+<li><b>Filtry logów</b> — logi hostingu i routingu ASP.NET są podniesione do poziomu Warning, bo interfejs odpytuje status co kilka sekund.</li>
+<li><b>Adres</b> — tryb okienkowy: <code>http://127.0.0.1:{wolny port}</code> (port z <code>TcpListener</code> na porcie 0). Tryb serwera: konfiguracja <code>urls</code> albo <code>http://127.0.0.1:8770</code>.</li>
+<li><b>Opcje JSON</b> — <code>PropertyNamingPolicy = null</code>, <code>DictionaryKeyPolicy = null</code>, <code>DefaultIgnoreCondition = Never</code>. Nazwy pól są wysyłane dokładnie tak, jak zapisano je w kodzie (snake_case), a wartości <code>null</code> nie są pomijane.</li>
+<li><b>Rejestracja usług</b> — singletony: <code>ClipRepository</code>, <code>SegmentRepository</code>, <code>FolderRepository</code>, <code>StatsRepository</code>, <code>PlaybackProxyService</code>, <code>ClipService</code>. Reszta serwisów to klasy statyczne.</li>
+<li><b><code>Db.InitDb()</code></b> i katalogi <code>data/thumbs</code>, <code>data/tmp</code>, <code>data/playback</code>.</li>
+<li><b>Pliki statyczne</b> — <code>frontend/</code> pod ścieżką <code>/static</code>, z <code>ServeUnknownFileTypes</code> (ikony SVG, dźwięki WAV).</li>
+<li><b>Mapowanie endpointów</b> w kolejności: Config, Stats, Clip, Segment, Folder, Search, Transcribe, Replay, Cloud, Media, Update, Onboarding.</li>
+<li><b><code>StartIdleWatcher()</code></b> — wątek tła, który co 15 s sprawdza, czy interfejs daje znak życia (patrz <em>Heartbeat</em>). Wyłącza go zmienna <code>KEEPCLIP_IDLE_EXIT=0</code>.</li>
+<li><b><code>ReplayService.ApplyConfig()</code></b> — jeśli w ustawieniach bufor powtórek jest włączony, startuje ffmpeg. <code>ProcessExit</code> gwarantuje, że ffmpeg nie przeżyje procesu.</li>
+<li><b>Start</b> — tryb serwera: <code>app.Run()</code> blokuje do zamknięcia. Tryb okienkowy: <code>app.StartAsync()</code>, potem wątek <code>KeepClip-UI</code> (STA) z <code>DesktopShell.Run(baseUrl)</code>; po zamknięciu okna <code>ReplayService.Shutdown()</code> i <code>app.StopAsync()</code>.</li>
+</ol>
+<p>Na końcu pliku jest deklaracja <code>public partial class Program { }</code>. Dzięki niej testy integracyjne mogą uruchomić cały program przez <code>WebApplicationFactory&lt;Program&gt;</code>.</p>
+
+<h3>Heartbeat i samozamykanie</h3>
+<p>Klasa <code>Heartbeat</code> trzyma znacznik czasu ostatniej aktywności interfejsu. Prawie każdy endpoint wywołuje <code>Heartbeat.Touch()</code>, a strona wysyła dodatkowo <code>POST /api/heartbeat</code> co 30 s. Wątek <code>KeepClip-Idle</code> kończy proces (<code>Environment.Exit(0)</code>), gdy cisza trwa dłużej niż 5 minut, chyba że trwa transkrypcja albo bufor powtórek pracuje w tle. Przy starcie obowiązuje 60 s karencji. Mechanizm istnieje po to, żeby proces nie został w pamięci, gdy okno WebView2 zniknie w nietypowy sposób.</p>
+
+<h2>Struktura katalogów i warstwy</h2>
+<table>
+<tr><th>Katalog / plik</th><th>Rola</th></tr>
+<tr><td><code>KeepClip/Program.cs</code></td><td>Start procesu, rejestracja usług, mapowanie endpointów.</td></tr>
+<tr><td><code>KeepClip/Config.cs</code></td><td>Stałe ścieżki i parametry (odnajdywanie katalogu aplikacji, katalog danych, modele Whispera).</td></tr>
+<tr><td><code>KeepClip/Settings.cs</code></td><td>Odczyt i zapis <code>data/settings.json</code>.</td></tr>
+<tr><td><code>KeepClip/ReplayService.cs</code></td><td>Bufor natychmiastowej powtórki (ffmpeg + segmenty MPEG-TS).</td></tr>
+<tr><td><code>KeepClip/TranscribeState.cs</code></td><td>Współdzielony stan transkrypcji zbiorczej.</td></tr>
+<tr><td><code>KeepClip/DevLog.cs</code></td><td>Bufor logów dla panelu deweloperskiego (tylko <code>KEEPCLIP_DEV</code>).</td></tr>
+<tr><td><code>KeepClip/GlobalUsings.cs</code></td><td>Globalne <code>using</code> dla wszystkich przestrzeni nazw projektu.</td></tr>
+<tr><td><code>Endpoints/</code></td><td>Warstwa HTTP. Walidacja wejścia, tłumaczenie wyników na kody HTTP. Zero logiki domenowej poza prostymi przypadkami.</td></tr>
+<tr><td><code>Services/</code></td><td>Logika: <code>ClipService</code> (naprawa, wycinanie, usuwanie, ponowna transkrypcja), <code>CloudService</code>, <code>UpdateService</code>, <code>PlaybackProxyService</code>, <code>OnboardingService</code>.</td></tr>
+<tr><td><code>Data/</code></td><td>Repozytoria na surowym SQL: <code>Db</code>, <code>DbExtensions</code>, <code>ClipRepository</code>, <code>SegmentRepository</code>, <code>FolderRepository</code>, <code>StatsRepository</code>.</td></tr>
+<tr><td><code>Domain/</code></td><td>Rekordy danych (<code>Clip</code>, <code>Segment</code>, <code>OnboardingState</code>, <code>Result&lt;T&gt;</code> i inne).</td></tr>
+<tr><td><code>Infrastructure/</code></td><td>Świat zewnętrzny: ffmpeg (<code>Media</code>), Whisper (<code>Transcriber</code>), Google (<code>OAuthService</code>, <code>GoogleDrive</code>, <code>CredentialStore</code>), okno (<code>DesktopShell</code>, <code>HotkeyManager</code>, <code>ReplayToast</code>), sprzęt (<code>GpuInfo</code>, <code>DisplayHelper</code>, <code>AudioPump</code>), <code>Trash</code>, <code>Strings</code>, <code>Heartbeat</code>, <code>CrashLog</code>, <code>SingleOperationProgress</code>.</td></tr>
+<tr><td><code>Workers/</code></td><td>Procesy w tle: <code>Scanner</code>, <code>ThumbnailWorker</code>, <code>TranscribeWorker</code>.</td></tr>
+<tr><td><code>frontend/</code></td><td>Interfejs (osobny dokument).</td></tr>
+<tr><td><code>tests/</code></td><td>Projekt xUnit i skrypt kontroli tłumaczeń (dokument Infrastruktura).</td></tr>
+<tr><td><code>installer/</code>, <code>setup.ps1</code>, <code>tools/bin</code></td><td>Budowanie instalatora, pobieranie ffmpeg.</td></tr>
+<tr><td><code>data/</code>, <code>models/</code></td><td>Dane użytkownika i modele. Nie trafiają do gita. Wszystkie konfiguracje kompilacji dzielą ten sam katalog.</td></tr>
+</table>
+<p><b>Reguła zależności:</b> Endpoints → Services → Data. Infrastructure jest używane przez Services i Workers. Endpoints nie powinny wywoływać ffmpeg ani Google bezpośrednio, choć w kilku miejscach (np. <code>/thumb</code>, <code>/video</code>) robią to dla prostoty.</p>
+
+<h2>Konfiguracja: Config, settings.json, zmienne środowiskowe</h2>
+
+<h3>Klasa Config</h3>
+<p>Pola statyczne, inicjalizowane przy pierwszym użyciu klasy. Z tego powodu zmienne środowiskowe muszą być ustawione, zanim cokolwiek dotknie <code>Config</code> (testy robią to w inicjalizatorze modułu).</p>
+<table>
+<tr><th>Pole</th><th>Wartość</th></tr>
+<tr><td><code>AppRoot</code></td><td>Pierwszy katalog w górę od <code>AppContext.BaseDirectory</code>, który zawiera <code>frontend/index.html</code>. Działa zarówno w instalacji (exe obok <code>frontend/</code>), jak i w repozytorium (<code>KeepClip/bin/Release/net10.0-windows/</code> → korzeń repo).</td></tr>
+<tr><td><code>DataDir</code></td><td><code>KEEPCLIP_DATA_DIR</code>, a gdy brak — <code>AppRoot/data</code>.</td></tr>
+<tr><td><code>ThumbsDir</code>, <code>TmpDir</code>, <code>PlaybackDir</code></td><td><code>data/thumbs</code>, <code>data/tmp</code>, <code>data/playback</code>.</td></tr>
+<tr><td><code>DbPath</code></td><td><code>data/klipy.db</code>.</td></tr>
+<tr><td><code>ToolsBin</code>, <code>Ffmpeg</code>, <code>Ffprobe</code></td><td><code>AppRoot/tools/bin/ffmpeg.exe</code> i <code>ffprobe.exe</code>.</td></tr>
+<tr><td><code>FrontendDir</code></td><td><code>AppRoot/frontend</code>.</td></tr>
+<tr><td><code>ModelsDir</code>, <code>WhisperModelPath(typ)</code></td><td><code>AppRoot/models/ggml-{typ}.bin</code>.</td></tr>
+<tr><td><code>DefaultClipsRoot</code></td><td>Systemowy folder Wideo użytkownika.</td></tr>
+<tr><td><code>CutsSubdir</code></td><td><code>Wycinki</code> — domyślny podfolder na wycięte fragmenty.</td></tr>
+<tr><td><code>VideoExts</code></td><td><code>.mp4 .mkv .mov .avi .webm</code> (bez rozróżniania wielkości liter).</td></tr>
+<tr><td><code>GoogleClientPath</code></td><td><code>data/google_client.json</code> — klient OAuth wbudowany przez instalator.</td></tr>
+<tr><td><code>DriveFolderName</code></td><td><code>KeepClip</code> — folder na Dysku Google.</td></tr>
+<tr><td><code>DriveTokenTarget</code></td><td><code>KeepClip:GoogleDriveRefreshToken</code> — nazwa wpisu w Menedżerze poświadczeń Windows.</td></tr>
+<tr><td><code>UiLanguages</code>, <code>DefaultLanguage</code></td><td><code>pl en ru uk</code>; domyślnie <code>en</code> (aplikacja trafia do wielu krajów).</td></tr>
+<tr><td><code>WhisperModelLadder</code></td><td><code>large-v3 → large-v3-turbo → small</code>.</td></tr>
+<tr><td><code>WhisperModelMinVram</code></td><td>large-v3: 6 GB, large-v3-turbo: 3 GB, small: 0. Zmierzone zużycie to ok. 4,3 GB i 2,3 GB; progi zostawiają zapas na grę w tle.</td></tr>
+<tr><td><code>WhisperModelOverride</code></td><td>Z <code>KEEPCLIP_WHISPER_MODEL</code>; wyłącza automatyczny dobór modelu.</td></tr>
+<tr><td><code>WhisperSplitGapSeconds</code></td><td>1,5 s — cisza, po której wypowiedź jest dzielona na osobne segmenty.</td></tr>
+</table>
+
+<h3>Plik settings.json</h3>
+<p>Płaski obiekt JSON w <code>data/settings.json</code>. Klasa <code>Settings</code> czyta go przy każdym wywołaniu (bez pamięci podręcznej) i zapisuje pod blokadą. Uszkodzony plik jest traktowany jak pusty, a pierwszy zapis go naprawia.</p>
+<table>
+<tr><th>Klucz</th><th>Typ</th><th>Znaczenie</th></tr>
+<tr><td><code>clips_root</code></td><td>string</td><td>Folder biblioteki. Ustawienie go ustawia też <code>configured=true</code>.</td></tr>
+<tr><td><code>configured</code></td><td>bool</td><td>Czy świeża instalacja przeszła wybór folderu. <code>GET /api/config</code> ustawia go także wtedy, gdy baza ma już klipy (stare instalacje).</td></tr>
+<tr><td><code>cuts_root</code></td><td>string</td><td>Folder wycinków; domyślnie <code>clips_root/Wycinki</code>.</td></tr>
+<tr><td><code>ui_language</code></td><td>string</td><td>Język interfejsu i transkrypcji. Zapisany po stronie serwera, bo transkrypcja działa bez okna.</td></tr>
+<tr><td><code>accent_theme</code></td><td><code>purple</code> | <code>green</code></td><td>Kolor akcentów.</td></tr>
+<tr><td><code>window_state</code></td><td><code>max;x;y;w;h</code></td><td>Położenie okna. Przywracane tylko, gdy przecina podłączony ekran.</td></tr>
+<tr><td><code>replay_enabled</code>, <code>replay_background</code>, <code>replay_mic</code></td><td><code>"1"</code> / <code>"0"</code></td><td>Bufor powtórek: włączony, praca w zasobniku po zamknięciu okna, mikrofon.</td></tr>
+<tr><td><code>replay_duration_s</code>, <code>replay_fps</code>, <code>replay_quality</code>, <code>replay_hotkey</code></td><td>string</td><td>15–600 s (domyślnie 120), 30/60/90 (60), low/medium/high (high), skrót (Alt+F10).</td></tr>
+<tr><td><code>replay_audio_output</code>, <code>replay_audio_input</code></td><td>string</td><td>Identyfikatory urządzeń WASAPI; pusty = domyślne / wszystkie wyjścia.</td></tr>
+<tr><td><code>whisper_model</code></td><td>string</td><td>Ostatnio załadowany model.</td></tr>
+<tr><td><code>whisper_model_probe</code></td><td>string</td><td>Znacznik „właśnie ładuję model X". Jeśli po restarcie nadal tam jest, poprzedni proces zginął przy ładowaniu (brak pamięci GPU) i model trafia do <code>whisper_model_blocked</code>.</td></tr>
+<tr><td><code>whisper_model_blocked</code></td><td>string</td><td>Model wyłączony na tym komputerze.</td></tr>
+<tr><td><code>cloud_folder_id</code></td><td>string</td><td>Identyfikator folderu KeepClip na Dysku Google.</td></tr>
+<tr><td><code>onboarding</code></td><td>obiekt</td><td>Stan samouczka: <code>started, completed, skipped, current_step, completed_version, seen_hints[]</code>.</td></tr>
+</table>
+
+<h3>Zmienne środowiskowe</h3>
+<table>
+<tr><th>Zmienna</th><th>Działanie</th></tr>
+<tr><td><code>KEEPCLIP_DATA_DIR</code></td><td>Osobny katalog danych. Testy ustawiają go na katalog w Temp, żeby nie dotykać biblioteki użytkownika.</td></tr>
+<tr><td><code>KEEPCLIP_SERVER_ONLY=1</code></td><td>Tylko serwer na porcie 8770, bez okna i muteksu.</td></tr>
+<tr><td><code>KEEPCLIP_IDLE_EXIT=0</code></td><td>Wyłącza samozamykanie po 5 minutach ciszy.</td></tr>
+<tr><td><code>KEEPCLIP_WHISPER_MODEL</code></td><td>Wymusza model transkrypcji (np. <code>small</code>).</td></tr>
+<tr><td><code>KEEPCLIP_CAPTURE_GDI=1</code></td><td>Wymusza przechwytywanie ekranu przez GDI zamiast Desktop Duplication.</td></tr>
+</table>
+<p>Stała kompilacji <code>KEEPCLIP_DEV</code> jest zdefiniowana we <b>wszystkich</b> konfiguracjach poza <code>-p:PublicRelease=true</code>. Lokalny <code>-c Release</code> nadal ma panel logów i endpoint <code>/api/logs</code>. Build taki, jaki dostają użytkownicy, robi <code>installer\build.ps1 -PublicRelease</code>.</p>
+
+<h2>Baza danych</h2>
+<p>Jedna baza SQLite <code>data/klipy.db</code>. Schemat tworzy <code>Db.InitDb()</code> (idempotentne <code>CREATE … IF NOT EXISTS</code>), a metoda <code>Migrate</code> dokłada kolumny, których nie ma w starszych bazach (<code>favorite</code>, <code>storage</code>, <code>remote_id</code>, <code>remote_uploaded_at</code>). Każde otwarcie połączenia ustawia <code>ForeignKeys=true</code>, <code>DefaultTimeout=30</code> i <code>PRAGMA busy_timeout=30000</code>, więc równoległe zapisy z workerów czekają zamiast rzucać błąd.</p>
+
+<h3>Tabele</h3>
+<h4>clips</h4>
+<table>
+<tr><th>Kolumna</th><th>Znaczenie</th></tr>
+<tr><td><code>id</code></td><td>Klucz główny, AUTOINCREMENT (identyfikatory nie są ponownie używane).</td></tr>
+<tr><td><code>game</code></td><td>Nazwa gry = nazwa podfolderu, w którym leży plik; <code>_root</code> dla plików bezpośrednio w folderze biblioteki.</td></tr>
+<tr><td><code>filename</code>, <code>filepath</code></td><td>Nazwa i pełna ścieżka. <code>filepath</code> jest unikalna.</td></tr>
+<tr><td><code>size_bytes</code>, <code>mtime</code></td><td>Rozmiar i czas modyfikacji w sekundach Unix (z ułamkiem).</td></tr>
+<tr><td><code>duration</code></td><td>Czas trwania w sekundach; NULL, dopóki ffprobe go nie zmierzy.</td></tr>
+<tr><td><code>has_thumb</code></td><td>0 = brak / do zrobienia, 1 = jest, 2 = nie udało się (nie ponawiać, dopóki skan nie wyzeruje).</td></tr>
+<tr><td><code>transcribed_at</code>, <code>language</code></td><td>Znacznik ISO 8601 i język ostatniej transkrypcji.</td></tr>
+<tr><td><code>favorite</code></td><td>0/1.</td></tr>
+<tr><td><code>storage</code></td><td><code>local</code> albo <code>cloud</code>. Klip w chmurze nie ma pliku na dysku, ale zachowuje <code>filepath</code> jako zarezerwowaną ścieżkę docelową.</td></tr>
+<tr><td><code>remote_id</code>, <code>remote_uploaded_at</code></td><td>Identyfikator pliku na Dysku Google i czas wysłania.</td></tr>
+</table>
+<h4>segments</h4>
+<p>Wersy transkrypcji: <code>id</code>, <code>clip_id</code> (kaskadowe usuwanie), <code>start_s</code>, <code>end_s</code>, <code>text</code>. Indeks po <code>clip_id</code>.</p>
+<h4>segments_fts</h4>
+<p>Wirtualna tabela FTS5 z zewnętrzną treścią (<code>content='segments'</code>). Trzy wyzwalacze (<code>segments_ai</code>, <code>segments_ad</code>, <code>segments_au</code>) utrzymują indeks przy INSERT/DELETE/UPDATE. Tokenizer <code>unicode61 remove_diacritics 2</code> sprawia, że „gesla" znajduje „gęślą". Uwaga: litera <code>ł</code> nie jest w Unicode znakiem z diakrytykiem, więc „zazolc" nie znajdzie „zażółć" przez <code>ł</code>.</p>
+<h4>folders, folder_clips</h4>
+<p>Foldery użytkownika (nazwa unikalna, <code>created_at</code>) i tabela łącząca z kluczem złożonym <code>(folder_id, clip_id)</code>, obie relacje kaskadowe. Indeksy po <code>clip_id</code> i po <code>(folder_id, added_at DESC)</code>.</p>
+
+<h3>Pomocnicze rozszerzenia (DbExtensions)</h3>
+<p>Wszystkie repozytoria zwracają <code>Dictionary&lt;string, object?&gt;</code> zamiast klas, żeby JSON miał dokładnie te nazwy kolumn, których oczekuje interfejs. <code>DBNull</code> jest zamieniane na <code>null</code>. Metody: <code>Query</code> (lista wierszy), <code>QueryOne</code>, <code>Scalar</code>, <code>ScalarLong</code>, <code>Exec</code>. Parametry przekazuje się jako krotki <code>("$nazwa", wartość)</code>.</p>
+
+<h3>Repozytoria</h3>
+<table>
+<tr><th>Klasa</th><th>Metody i zachowanie</th></tr>
+<tr><td><code>ClipRepository</code></td><td><code>List(game, sort, limit, favoritesOnly)</code> — sortowania <code>newest</code> (domyślne), <code>oldest</code>, <code>largest</code>, <code>smallest</code>; nieznane wraca do <code>newest</code>. <code>GetRow</code> (wszystkie kolumny), <code>GetById</code> (rekord <code>Clip</code>), <code>Count</code>, <code>ToggleFavorite</code> (null gdy brak klipu), <code>Insert</code>, <code>UpdateAfterFix</code>, <code>SetTranscribed</code>, <code>SetThumbState</code>, <code>Delete</code>.</td></tr>
+<tr><td><code>SegmentRepository</code></td><td><code>ListByClipId</code> (posortowane po <code>start_s</code>), <code>UpdateText</code>, <code>DeleteByClipId</code>, <code>Insert</code>, <code>ReplaceAll</code> (w transakcji), <code>ShiftTimestamps(clipId, offset)</code> — po przycięciu początku klipu przesuwa czasy, kasuje segmenty kończące się przed zerem i przycina start do 0. <code>Search(ftsQuery, sort, limit)</code> — zapytanie FTS z <code>bm25</code>, fragment <code>snippet(…, '&lt;mark&gt;', '&lt;/mark&gt;', '...', 12)</code>; sortowania: <code>relevance</code>, <code>newest</code>, <code>oldest</code>, <code>largest</code>, <code>smallest</code>.</td></tr>
+<tr><td><code>FolderRepository</code></td><td><code>List</code> (z <code>clip_count</code> i do 4 ostatnio dodanych <code>sample_clip_ids</code>, sortowanie po nazwie bez wielkości liter), <code>Create</code> (null przy duplikacie — kod SQLite 19), <code>Rename</code> → <code>FolderWrite {Ok, NotFound, Duplicate}</code>, <code>Delete</code> (zwraca nazwę albo null), <code>ListClips</code> (sortowania <code>newest</code>, <code>oldest</code>, <code>largest</code>, <code>smallest</code>, <code>added</code>), <code>AddClip</code> → <code>AddClipResult {Ok, NoFolder, NoClip}</code> (INSERT OR IGNORE), <code>RemoveClip</code>, <code>GetFolderIdsForClip</code>.</td></tr>
+<tr><td><code>StatsRepository</code></td><td><code>Get(diskTotal, diskFree)</code> — liczby klipów, transkrypcji, segmentów, bajty łącznie / lokalne / w chmurze, ulubione, lista gier z liczbą klipów i transkrypcji.</td></tr>
+</table>
+
+<h2>Konwencje API</h2>
+<ul>
+<li><b>Adres bazowy</b>: <code>http://127.0.0.1:&lt;port&gt;</code>. Port zna tylko okno WebView2 (i <code>netstat -ano</code> po PID procesu).</li>
+<li><b>Format</b>: JSON w obie strony; ciała żądań to rekordy C# z nazwami pól w snake_case (<code>clips_root</code>, <code>target_size_mb</code>). Wiązanie nie rozróżnia wielkości liter.</li>
+<li><b>Błędy</b>: <code>Api.Detail(kod, komunikat, error?)</code> zwraca <code>{ "detail": "tekst w języku użytkownika", "error": "kodBledu" | null }</code>. Interfejs najpierw próbuje przetłumaczyć <code>errors.&lt;kod&gt;</code> we własnym słowniku, a gdy klucza nie ma, pokazuje <code>detail</code>. Nowy błąd powinien dostać kod, jeśli interfejs ma go tłumaczyć inaczej niż serwer.</li>
+<li><b>Teksty serwera</b>: klasa <code>Strings</code> z 56 kluczami w czterech językach (język z <code>Settings.GetLanguage()</code>, zapas <code>en</code>, brak klucza zwraca sam klucz). Argumenty przez <code>string.Format</code>. Testy pilnują, żeby każdy klucz użyty w kodzie istniał we wszystkich językach.</li>
+<li><b>Heartbeat</b>: endpointy wywoływane przez użytkownika robią <code>Heartbeat.Touch()</code>; czysto statusowe (<code>/api/stats</code>, <code>/api/transcribe/status</code>) nie zawsze.</li>
+<li><b>Logowanie</b>: <code>DevLog.Add</code> po ważnych akcjach; działa tylko w buildzie deweloperskim.</li>
+<li><b>Bezpieczeństwo</b>: brak uwierzytelniania i CORS — serwer nasłuchuje wyłącznie na pętli zwrotnej. Ścieżki plików z żądań są używane tylko po sprawdzeniu istnienia (<code>/api/config</code>, <code>/api/show-in-explorer</code>).</li>
+</ul>
+<table>
+<tr><th>Kod <code>error</code></th><th>Gdzie</th><th>HTTP</th></tr>
+<tr><td><code>clipNotFound</code>, <code>transcriptEmpty</code></td><td>transcript.txt</td><td>404</td></tr>
+<tr><td><code>folderDuplicate</code>, <code>folderNameTooLong</code></td><td>foldery</td><td>409, 400</td></tr>
+<tr><td><code>segmentTextEmpty</code></td><td>edycja segmentu</td><td>422</td></tr>
+<tr><td><code>configPathRequired</code>, <code>configBadTheme</code>, <code>configBadLanguage</code>, <code>configTranscribeBusy</code></td><td>konfiguracja</td><td>400, 400, 400, 409</td></tr>
+<tr><td><code>cloudNotConnected</code>, <code>cloudExpired</code></td><td>chmura</td><td>400, 401</td></tr>
+<tr><td><code>replayBadDuration</code>, <code>replayBadFps</code>, <code>replayBadQuality</code>, <code>replayBadHotkey</code></td><td>powtórki</td><td>400</td></tr>
+<tr><td><code>updateInProgress</code></td><td>aktualizacja</td><td>409</td></tr>
+</table>
+
+<h2>Referencja endpointów</h2>
+<p>Poniżej wszystkie 57 tras zmapowanych w <code>Program.cs</code>, pogrupowane jak pliki w <code>Endpoints/</code>. Przy każdym: co robi, parametry, odpowiedź, błędy, skutki uboczne i kto z niego korzysta w interfejsie.</p>
+
+<h3>System i konfiguracja (ConfigEndpoints)</h3>
+
+<div class="ep"><h4><span class="m get">GET</span> <code>/</code></h4>
+<p>Serwuje <code>frontend/index.html</code>. Przed wysłaniem: dopisuje <code>data-accent-theme="purple|green"</code> do <code>&lt;html&gt;</code>, dla motywu zielonego podmienia favicon, a do odnośników <code>/static/styles.css</code>, <code>app.js</code>, <code>onboarding.css</code>, <code>onboarding.js</code> dokleja <code>?v=&lt;czas modyfikacji&gt;</code>, żeby przeglądarka nie użyła starej wersji po aktualizacji. Brak pliku → HTML z kodem 500.</p></div>
+
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/ping</code></h4>
+<p>Odpowiada <code>{"ok":true}</code>. Używany przez testy i diagnostykę.</p></div>
+
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/config</code></h4>
+<p>Bieżąca konfiguracja. Skutek uboczny: gdy <code>configured</code> jest fałszem, a baza ma klipy (stare instalacje sprzed pliku ustawień), zapisuje <code>clips_root</code> i oznacza konfigurację jako gotową.</p>
+<pre><code>{ "clips_root": "F:\\NVIDIA", "clips_root_exists": true, "configured": true,
+  "dev": true, "accent_theme": "green", "language": "pl", "version": "2.3.0" }</code></pre>
+<p><b>Kto używa:</b> start strony (<code>bootstrap</code>), modal wyboru folderu, panel logów (pole <code>dev</code>), samouczek (pole <code>configured</code>).</p></div>
+
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/config</code></h4>
+<p>Ustawia folder biblioteki. Ciało: <code>{"clips_root": "C:\\..."}</code>. Ścieżka jest przycinana z białych znaków i cudzysłowów (użytkownicy wklejają ścieżkę z Eksploratora).</p>
+<table><tr><th>Warunek</th><th>Odpowiedź</th></tr>
+<tr><td>trwa transkrypcja</td><td>409 <code>configTranscribeBusy</code></td></tr>
+<tr><td>pusta ścieżka</td><td>400 <code>configPathRequired</code></td></tr>
+<tr><td>ścieżka nie istnieje / to plik</td><td>400 (tekst z nazwą ścieżki)</td></tr>
+<tr><td>OK</td><td><code>{"ok":true,"clips_root":"…","scan":{found,added,removed,updated}}</code></td></tr></table>
+<p><b>Skutki:</b> zapis ustawień, natychmiastowy skan (<code>Scanner.Scan</code>) i start workera miniatur.</p></div>
+
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/accent-theme</code></h4>
+<p>Ciało <code>{"theme":"purple"|"green"}</code>. Inna wartość → 400 <code>configBadTheme</code>. Odpowiedź <code>{"ok":true,"theme":"green"}</code>. Motyw wpływa na <code>GET /</code>.</p></div>
+
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/language</code></h4>
+<p>Ciało <code>{"language":"pl"}</code> (wielkość liter nieistotna). Spoza <code>pl en ru uk</code> → 400 <code>configBadLanguage</code>. Interfejs zgłasza tu język przy starcie i przy zmianie w ustawieniach, bo od tego zależy język rozpoznawania mowy.</p></div>
+
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/heartbeat</code></h4>
+<p>Sygnał życia od strony (co 30 s). Odpowiedź <code>{"ok":true}</code>.</p></div>
+
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/scan</code></h4>
+<p>Uruchamia skan folderu biblioteki i workera miniatur. Odpowiedź: <code>{"found":n,"added":n,"removed":n,"updated":n}</code>, a przy braku folderu dodatkowo <code>"error"</code>. Interfejs woła go przy starcie, co 2,5 s w tle (auto-sync), przed transkrypcją i przyciskiem „Skanuj".</p></div>
+
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/shutdown</code></h4>
+<p>Kończy proces po 500 ms (żeby odpowiedź zdążyła wyjść). Podczas transkrypcji odpowiada <code>{"ok":false,"reason":"transcription_running"}</code> i nie zamyka.</p></div>
+
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/logs?since=N</code> · <span class="m post">POST</span> <code>/api/logs/clear</code></h4>
+<p>Tylko w buildzie z <code>KEEPCLIP_DEV</code> (blok <code>#if</code>). Zwraca <code>{"seq":ostatniNumer,"lines":[…]}</code> z wpisami nowszymi niż <code>since</code>. Panel logów odpytuje co 1,5 s.</p></div>
+
+<h3>Statystyki (StatsEndpoints)</h3>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/stats</code></h4>
+<p>Liczby dla paska bocznego i filtra gier. Miejsce na dysku bierze z <code>DriveInfo</code> dysku, na którym leży folder biblioteki (błąd → <code>null</code>).</p>
+<pre><code>{ "clips": 235, "transcribed": 74, "segments": 5120, "total_bytes": …, "local_bytes": …,
+  "cloud_bytes": …, "disk_total": …, "disk_free": …, "favorites": 3,
+  "games": [ { "game": "Counter-Strike 2", "clips": 120, "done": 60 }, … ] }</code></pre></div>
+
+<h3>Klipy (ClipEndpoints)</h3>
+
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/clips?game=&amp;sort=&amp;limit=&amp;favorite=</code></h4>
+<p>Lista klipów. <code>sort</code>: <code>newest</code> (domyślnie), <code>oldest</code>, <code>largest</code>, <code>smallest</code>. <code>limit</code> domyślnie 200. <code>favorite=1</code> zawęża do ulubionych. Każdy wiersz: <code>id, game, filename, duration, size_bytes, mtime, has_thumb, transcribed_at, favorite, storage</code>. Widok Klipy pobiera 120 najnowszych, widok Ulubione 500.</p></div>
+
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/single-operation/status</code></h4>
+<p>Postęp jednej operacji na klipie (wycinanie albo ponowna transkrypcja): <code>{id, kind: "cut"|"transcription", stage, clip_id, progress 0–1, active, success, error}</code>. Interfejs odpytuje co 300 ms podczas operacji. Jednocześnie śledzona jest tylko jedna operacja (<code>SingleOperationProgress</code>).</p></div>
+
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/clips/{id}/favorite</code></h4>
+<p>Przełącza gwiazdkę. Odpowiedź <code>{"ok":true,"id":…,"favorite":true|false}</code>; 404 gdy brak klipu.</p></div>
+
+<div class="ep"><h4><span class="m get">GET</span> / <span class="m head">HEAD</span> <code>/api/clips/{id}/transcript.txt</code></h4>
+<p>Transkrypcja jako plik tekstowy do pobrania. Nagłówek <code>Content-Disposition: attachment; filename="&lt;nazwa klipu&gt;.txt"</code> sprawia, że WebView2 zapisuje plik zamiast go wyświetlać. Treść: nazwa pliku, wiersz <code>gra · data</code>, pusty wiersz, potem <code>[mm:ss] tekst</code> (lub <code>[h:mm:ss]</code> po godzinie). Zaczyna się znacznikiem BOM, żeby Notatnik pokazał polskie znaki (<code>GetBytes</code> sam go nie dodaje, więc jest doklejany z <code>GetPreamble</code>). HEAD pozwala interfejsowi sprawdzić dostępność bez pobierania. Błędy: 404 <code>clipNotFound</code>, 404 <code>transcriptEmpty</code>.</p></div>
+
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/clips/{id}/retranscribe</code></h4>
+<p>Transkrybuje jeden klip od nowa (synchronicznie — żądanie trwa tyle, ile transkrypcja). Postęp raportuje przez <code>SingleOperationProgress</code>. Odpowiedź <code>{"ok":true,"segments":n,"seconds":s}</code>. Błędy: 409 gdy trwa transkrypcja zbiorcza, 404 brak klipu lub pliku, 500 błąd Whispera. Zapisuje segmenty, <code>transcribed_at</code> i język.</p></div>
+
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/clips/{id}/fix</code></h4>
+<p>Naprawa klipu z uszkodzonym początkiem (typowe dla NVIDIA ShadowPlay): kolejno remuks bez zmian, potem pominięcie 1, 3, 7, 15, 25, 35, 60 s, aż ffprobe przestanie zgłaszać błędy dekodowania w pierwszych 3 s. Oryginał idzie do Kosza Windows, naprawiony plik wchodzi na jego miejsce z zachowaną datą modyfikacji, miniatura jest robiona od nowa, segmenty przesuwane o przycięty czas, proxy odtwarzania unieważniane. Odpowiedź: <code>{ok, message, trimmed_seconds, new_duration, new_size_bytes, segments_shifted, segments_dropped}</code>. Błędy 404/422/500.</p></div>
+
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/clips/{id}/cut</code></h4>
+<p>Wycina fragment. Ciało <code>{"start": s, "end": s, "target_size_mb": null | liczba}</code>. Plik wynikowy <code>&lt;nazwa&gt;_cut_&lt;start&gt;-&lt;koniec&gt;[_&lt;MB&gt;MB].mp4</code> trafia do folderu wycinków (kolizje dostają <code>_2</code>, <code>_3</code>…). Jeśli folder wycinków leży wewnątrz biblioteki, wycinek jest od razu dodawany do bazy (<code>clip_id</code>, <code>in_library</code>). Ograniczenia: długość 0,1 s – 30 min. Przy limicie rozmiaru serwer liczy przepływność wideo z budżetu (limit − 100 kB marginesu − audio 128 kb/s − 50 kB kontenera), koduje NVENC H.264 i przy przekroczeniu limitu ponawia do 3 razy z obniżoną przepływnością. Bez limitu: stała jakość <code>cq 19</code>. Odpowiedź zawiera <code>output_path, output_directory, output_name, cuts_root, clip_id, in_library, duration_s, size_bytes, size_mb</code>.</p>
+<div class="note">Wycinanie wymaga enkodera <code>h264_nvenc</code> (karta NVIDIA). Na innych kartach ffmpeg zwróci błąd 422 z ostatnią linią stderr.</div></div>
+
+<div class="ep"><h4><span class="m delete">DELETE</span> <code>/api/clips/{id}?delete_file=true|false</code></h4>
+<p>Usuwa klip z bazy (kaskadowo segmenty i powiązania z folderami), miniaturę i proxy. Z <code>delete_file=true</code> (domyślnie) plik lokalny idzie do Kosza z ponawianiem (6 prób co 250 ms, bo odtwarzacz może jeszcze trzymać uchwyt), a klip w chmurze jest przenoszony do kosza Dysku Google. Odpowiedź <code>{deleted_clip_id, filename, file_sent_to_trash, cloud_deleted, trash_error}</code>. Błędy: 404, 409 (klip w chmurze bez <code>remote_id</code>), 502 (błąd Google).</p></div>
+
+<div class="ep"><h4><span class="m get">GET</span> <code>/thumb/{id}</code></h4>
+<p>Miniatura JPEG (1280 px szerokości, klatka z 5. sekundy albo z połowy krótszego klipu). Generowana leniwie przy pierwszym żądaniu; nieudana próba zapisuje <code>has_thumb=2</code>, żeby nie ponawiać przy każdym przewinięciu listy. Skan zeruje ten znacznik. 404, gdy klipu nie ma albo ffmpeg nie dał rady.</p></div>
+
+<h3>Segmenty transkrypcji (SegmentEndpoints)</h3>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/segments/{clipId}</code></h4>
+<p>Otwarcie odtwarzacza: <code>{"clip": {wszystkie kolumny klipu}, "segments": [{id,start_s,end_s,text}, …]}</code>. 404 gdy brak klipu.</p></div>
+<div class="ep"><h4><span class="m patch">PATCH</span> <code>/api/segments/{segmentId}</code></h4>
+<p>Ręczna poprawka wersu. Ciało <code>{"text":"…"}</code> (przycinane). Pusty tekst → 422 <code>segmentTextEmpty</code>; brak segmentu → 404. Wyzwalacz FTS aktualizuje indeks wyszukiwania. Odpowiedź <code>{"ok":true,"id":…,"text":"…"}</code>.</p></div>
+
+<h3>Wyszukiwanie (SearchEndpoints)</h3>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/search?q=&amp;sort=&amp;limit=</code></h4>
+<p>Wyszukiwanie po słowach z transkrypcji. Brak parametru <code>q</code> → 400 (wiązanie), pusty <code>q</code> → 422. Zapytanie użytkownika jest tłumaczone na składnię FTS5 metodą <code>ToFtsQuery</code>: każde słowo (litery, cyfry, podkreślenie, znaki łacińskie z diakrytykami) staje się tokenem prefiksowym w cudzysłowie, a tokeny łączy <code>AND</code>: <code>"headshot"* AND "smoke"*</code>. Dzięki cudzysłowom słowa <code>OR</code>, <code>NOT</code>, <code>NEAR</code> nie działają jak operatory. Same znaki interpunkcyjne dają pustą listę wyników. Odpowiedź: <code>{"query": q, "fts": "…", "results": [{segment_id, start_s, end_s, text, clip_id, game, filename, duration, size_bytes, mtime, has_thumb, favorite, storage, snippet, score}]}</code>. <code>snippet</code> zawiera znaczniki <code>&lt;mark&gt;</code>; interfejs koduje resztę HTML. Domyślny <code>limit</code> 100, interfejs prosi o 200 i filtruje po grze po swojej stronie.</p></div>
+
+<h3>Foldery (FolderEndpoints)</h3>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/folders</code></h4><p>Lista folderów: <code>[{id, name, created_at, clip_count, sample_clip_ids:[…do 4]}]</code>.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/folders</code></h4><p>Ciało <code>{"name":"…"}</code>. Pusta nazwa → 400, ponad 100 znaków → 400 <code>folderNameTooLong</code>, duplikat → 409 <code>folderDuplicate</code>. Odpowiedź: wiersz <code>{id, name, created_at}</code>.</p></div>
+<div class="ep"><h4><span class="m patch">PATCH</span> <code>/api/folders/{id}</code></h4><p>Zmiana nazwy; 404 / 409 jak wyżej; odpowiedź <code>{"ok":true,"id":…,"name":"…"}</code>.</p></div>
+<div class="ep"><h4><span class="m delete">DELETE</span> <code>/api/folders/{id}</code></h4><p>Usuwa folder i powiązania (klipy zostają). Odpowiedź <code>{"ok":true,"deleted_name":"…"}</code>, 404 gdy nie istnieje.</p></div>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/folders/{id}/clips?sort=&amp;limit=</code></h4><p><code>{"folder": {id,name,created_at}, "clips": [ … ]}</code>. Sortowania jak w repozytorium; interfejs używa <code>added</code> (ostatnio dodane pierwsze). Domyślny limit 500.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> / <span class="m delete">DELETE</span> <code>/api/folders/{folderId}/clips/{clipId}</code></h4><p>Dodaje (idempotentnie) lub usuwa klip z folderu. 404 przy braku folderu lub klipu. Odpowiedź <code>{"ok":true}</code>.</p></div>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/clips/{clipId}/folders</code></h4><p><code>{"folder_ids":[…]}</code> — foldery, w których jest klip (pusta lista dla nieznanego klipu).</p></div>
+
+<h3>Transkrypcja zbiorcza (TranscribeEndpoints)</h3>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/transcribe/status</code></h4>
+<p>Migawka <code>TranscribeState</code>: <code>{running, total, done, current: {id, filename, game} | null, error, finished_at, log_tail: [ostatnie 8 wpisów]}</code>.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/transcribe/start?force=true|false</code></h4>
+<p>Startuje worker dla klipów bez transkrypcji (albo wszystkich przy <code>force</code>), od najnowszych. Odpowiedź <code>{"started":true,"force":…,"total":n}</code> albo <code>{"started":false,"reason":"already_running"}</code>. Lista klipów jest liczona synchronicznie, żeby odpowiedź znała dokładną liczbę.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/transcribe/cancel</code></h4>
+<p>Ustawia flagę anulowania; worker zatrzymuje się po bieżącym klipie. <code>{"cancelled":true}</code> albo <code>{"cancelled":false,"reason":"not_running"}</code>.</p></div>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/transcribe/stream</code></h4>
+<p>Server-Sent Events (<code>text/event-stream</code>). Co 500 ms serializuje migawkę i wysyła ramkę <code>data: {…}</code> tylko wtedy, gdy zmieniła się względem poprzedniej. Po zakończeniu (<code>running=false</code> i <code>finished_at</code>) wysyła stan końcowy i zamyka strumień. Własny serializator zachowuje snake_case, bo ręczny zapis omija opcje JSON z DI.</p></div>
+
+<h3>Natychmiastowa powtórka (ReplayEndpoints)</h3>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/replay/status</code></h4>
+<p>Celowo bez blokady, żeby działał także podczas problemów z ffmpeg: <code>{enabled, background, running, saving, duration_s, fps, quality, hotkey, hotkey_active, encoder, capture, audio, mic_enabled, mic_active, audio_output, audio_input, error}</code>. Interfejs odpytuje co 15 s stale i co 3 s przy otwartym oknie ustawień powtórki.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/replay/config</code></h4>
+<p>Ciało (wszystkie pola opcjonalne): <code>{enabled, background, duration_s 15–600, fps 30|60|90, quality low|medium|high, hotkey "Alt+F10", mic, audio_output, audio_input}</code>. Walidacja → 400 z kodami <code>replayBad*</code>; skrót jest sprawdzany przez <code>HotkeyManager.TryParse</code> (co najmniej jeden modyfikator + jeden klawisz). Puste <code>audio_*</code> oznaczają powrót do domyślnych. Po zapisie: <code>ReplayService.ApplyConfig()</code> (start/stop/restart bufora, gdy zmienił się podpis ustawień) i <code>HotkeyManager.Refresh()</code>. Odpowiedź: status jak wyżej.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/replay/save</code></h4>
+<p>Zapisuje ostatnie N sekund bufora do <code>&lt;biblioteka&gt;/&lt;gra&gt;/&lt;gra&gt; yyyy-MM-dd HH-mm-ss.mp4</code>. Odpowiedź <code>{"ok":true,"file":…,"game":…,"path":…}</code>; 409 gdy bufor nie działa lub zapis trwa; 500 przy błędzie łączenia. Ten sam kod uruchamia globalny skrót klawiszowy.</p></div>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/replay/audio-devices</code></h4>
+<p><code>{"outputs":[{id,name}],"inputs":[{id,name}]}</code> z NAudio (aktywne urządzenia WASAPI).</p></div>
+
+<h3>Chmura — Google Drive (CloudEndpoints)</h3>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/cloud/status</code></h4>
+<p><code>{configured, connected, name, email, photo, usage, limit, error}</code>. <code>configured</code> = istnieje <code>data/google_client.json</code>; <code>connected</code> = jest token odświeżania w Menedżerze poświadczeń. Dane konta z pamięci podręcznej 20 s. Błąd przejściowy zostawia <code>connected=true</code> z polem <code>error</code>, żeby panel nie migał; cofnięta zgoda (<code>invalid_grant</code>) rozłącza lokalnie.</p></div>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/cloud/avatar</code></h4><p>Zdjęcie profilowe pobrane przez serwer (tylko z domen googleusercontent.com / ggpht.com, do 1 MB, typ <code>image/*</code>). <code>Cache-Control: private, max-age=300</code>. 404 przy braku.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/cloud/connect</code></h4><p>Rozpoczyna OAuth PKCE: uruchamia lokalny <code>HttpListener</code> na losowym porcie, zwraca <code>{"auth_url":"https://accounts.google.com/…"}</code>, który interfejs otwiera w przeglądarce systemowej. Zgoda ważna 5 minut. 400 gdy brak pliku klienta.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/cloud/disconnect</code></h4><p>Usuwa token lokalnie i unieważnia go u Google. <code>{"ok":true}</code>.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/cloud/sync</code></h4><p>Pobiera listę plików z folderu KeepClip na Dysku i uzgadnia z bazą (import brakujących, aktualizacja istniejących). Odpowiedź <code>{imported, updated, found, skipped}</code>. 400 <code>cloudNotConnected</code>, 401 <code>cloudExpired</code>, 500.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/clips/{id}/upload</code> · <code>/api/clips/{id}/download</code></h4><p>Wysyła klip do chmury (plik lokalny idzie do Kosza) albo ściąga go z powrotem (plik na Dysku idzie do kosza Google). <code>{"ok":true,"already":bool}</code> — <code>already</code>, gdy klip był już w docelowym stanie. 404 brak pliku, 401 <code>cloudExpired</code>, 500.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/folders/{id}/upload</code></h4><p>Wysyła wszystkie klipy folderu: <code>{uploaded, total, skipped, failed}</code>.</p></div>
+
+<h3>Media i odtwarzanie (MediaEndpoints)</h3>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/playback/{id}?start=true|false</code></h4>
+<p>Pyta, jak odtworzyć klip. Klipy do 120 FPS i klipy w chmurze dostają od razu <code>{"ready":true,"url":"/video/{id}?v=rozmiar","proxy":false,"source_fps":…}</code>. Klipy powyżej 120 FPS (WebView2 nie dekoduje ich płynnie) dostają jednorazową kopię podglądową 1080p60 generowaną w tle: odpowiedź <code>{ready:false, preparing:true, progress, stage:"preparing"|"converting"}</code>, a po zakończeniu <code>{ready:true, url:"/playback/{id}?v=&lt;odcisk&gt;", proxy:true}</code>. <code>start=false</code> tylko sprawdza, bez uruchamiania konwersji (podgląd po najechaniu). Odcisk = rozmiar + czas modyfikacji pliku, więc zmiana oryginału unieważnia kopię.</p></div>
+<div class="ep"><h4><span class="m get">GET</span> <code>/playback/{id}</code></h4><p>Strumień gotowej kopii podglądowej (MP4, obsługa <code>Range</code>). 404 gdy kopia nie istnieje.</p></div>
+<div class="ep"><h4><span class="m get">GET</span> <code>/video/{id}</code></h4><p>Oryginalny plik z obsługą <code>Range</code> (przewijanie). Klip w chmurze jest przekazywany strumieniowo z Dysku Google z zachowaniem nagłówków <code>Range</code>/<code>Content-Range</code>/206. Typ MIME po rozszerzeniu.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/show-in-explorer</code></h4><p>Ciało <code>{"path":"…"}</code>. Otwiera Eksplorator: dla pliku z <code>/select,</code> (zaznaczony plik), dla folderu sam folder. 404 gdy ścieżka nie istnieje.</p></div>
+
+<h3>Aktualizacje (UpdateEndpoints)</h3>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/update/check</code></h4><p>Sprawdza najnowsze wydanie na GitHubie (<code>releases/latest</code>, limit 15 s). Wynik trzymany 6 h (sukces) albo 30 min (błąd). <code>{ok, current, latest, available, url, notes_url}</code>; <code>available</code> tylko gdy wersja jest nowsza i wydanie ma plik <code>KeepClip-Setup.exe</code>.</p></div>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/update/status</code></h4><p><code>{phase: "idle"|"downloading"|"starting"|"error", percent, error}</code>.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/update/install</code></h4><p>Pobiera instalator do <code>%TEMP%\KeepClip-Setup.exe</code>, uruchamia go i po 1,5 s kończy aplikację. Plik pobrany przez <code>HttpClient</code> nie ma znacznika Mark-of-the-Web, więc SmartScreen go nie blokuje. 409 <code>updateInProgress</code>, gdy instalacja już trwa.</p></div>
+
+<h3>Samouczek (OnboardingEndpoints)</h3>
+<div class="ep"><h4><span class="m get">GET</span> <code>/api/onboarding</code></h4><p>Stan: <code>{started, completed, skipped, current_step, completed_version, current_version, seen_hints[]}</code>.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/onboarding</code></h4><p>Częściowa zmiana: <code>{started?, completed?, skipped?, current_step?, seen_hint?}</code>. Ukończenie stempluje <code>completed_version</code>, kasuje <code>skipped</code> i <code>current_step</code>; pominięcie kasuje krok. Podpowiedzi są deduplikowane, lista ma limit 200 (najstarsze wypadają). Pusty/biały <code>current_step</code> nie zmienia poprzedniego. Niepoprawny JSON → 400.</p></div>
+<div class="ep"><h4><span class="m post">POST</span> <code>/api/onboarding/restart</code></h4><p>Ręczne uruchomienie z ustawień: <code>started=true</code>, <code>skipped=false</code>, <code>current_step=null</code>, ale <code>completed</code> zostaje.</p></div>
+
+<h2>Serwisy i procesy w tle</h2>
+
+<h3>Scanner (Workers/Scanner.cs)</h3>
+<p>Uzgadnia bazę z dyskiem. Pod blokadą: (1) <code>Db.InitDb()</code>; (2) brak folderu → wynik z <code>error</code>; (3) przegląd rekurencyjny plików o dozwolonych rozszerzeniach; pliki zmodyfikowane w ostatnich 1,5 s są traktowane jako „jeszcze zapisywane" i pomijane do następnego skanu (liczą się w <code>found</code>, ale nie w <code>added</code>); (4) w jednej transakcji: <code>has_thumb=2 → 0</code> (ponowna szansa dla miniatur), klipy lokalne bez pliku są usuwane wraz z miniaturą (<code>removed</code>), klipy w chmurze zostają zawsze, zmiana rozmiaru/czasu istniejącego pliku zeruje miniaturę (<code>updated</code>), nowe pliki są wstawiane z grą = nazwa folderu nadrzędnego albo <code>_root</code>. Ścieżki zajęte przez klipy chmurowe nie tworzą duplikatów.</p>
+
+<h3>ThumbnailWorker</h3>
+<p><code>Ensure()</code> uruchamia (jeśli nie działa) zadanie, które w pętli bierze pierwszy klip z <code>has_thumb=0</code> lub bez <code>duration</code>, mierzy czas ffprobe i robi miniaturę ffmpeg. Każdy identyfikator jest próbowany raz na przebieg (uszkodzony plik nie zapętla workera). Brak pliku → <code>has_thumb=2</code>. Bez ffmpeg każda próba kończy się szybko wartością 2.</p>
+
+<h3>TranscribeWorker i TranscribeState</h3>
+<p><code>TranscribeState</code> to statyczne pola pod jedną blokadą (<code>Running, Cancel, Total, Done, Current, Error, FinishedAt</code>) plus dziennik do 100 wpisów. <code>TranscribeWorker.Start</code> wybiera klipy, ustawia stan i uruchamia zadanie, które dla każdego klipu: sprawdza anulowanie, pomija klipy w chmurze, usuwa z bazy klipy bez pliku, mierzy czas trwania i robi miniaturę, woła <code>Transcriber.Transcribe</code>, zapisuje segmenty w miejsce starych oraz <code>transcribed_at</code> i język. Błąd jednego klipu nie przerywa reszty; na końcu <code>Running=false</code> i <code>FinishedAt</code>.</p>
+
+<h3>Transcriber (Whisper)</h3>
+<ol>
+<li><b>Audio</b>: ffmpeg dekoduje plik do mono 16 kHz s16le z filtrem <code>dynaudnorm=f=150:g=15</code> (wyrównanie głośności), limit 300 s; próbki są przeliczane na float.</li>
+<li><b>Dobór modelu</b> (<code>CandidateModels</code>): jeśli <code>KEEPCLIP_WHISPER_MODEL</code> — tylko on. Inaczej drabinka od pierwszego modelu, którego próg VRAM (<code>GpuInfo</code> przez DXGI) jest spełniony, z pominięciem modelu zablokowanego. Przed załadowaniem zapisuje <code>whisper_model_probe</code>; jeśli proces zginie w trakcie (brak pamięci GPU zabija proces bez wyjątku), następny start zobaczy znacznik i zablokuje ten model na stałe.</li>
+<li><b>Fabryka</b>: <code>WhisperFactory.FromPath</code>, model pobierany do <code>models/</code> przez <code>WhisperGgmlDownloader</code> z plikiem <code>.part</code> (przerwane pobieranie nie udaje gotowego modelu). Zapisuje w logu użyty silnik (Vulkan/CUDA/CPU).</li>
+<li><b>Przetwarzanie</b>: język z ustawień, beam search 5, bez kontekstu między segmentami, znaczniki czasu tokenów, próg braku mowy 0,85. Postęp 0,15–0,95 po czasie segmentu.</li>
+<li><b>Dzielenie</b>: segment Whispera jest dzielony po ciszy ≥ 1,5 s między tokenami, ale tylko gdy zegary tokenów zgadzają się z segmentem (±1 s); inaczej zostaje w całości.</li>
+<li><b>Schodzenie w dół</b>: wyjątek w trakcie (np. brak pamięci zgłoszony jako wyjątek) zwalnia fabrykę i próbuje lżejszego modelu; jawny wybór użytkownika nigdy nie jest podmieniany.</li>
+</ol>
+
+<h3>ClipService</h3>
+<p>Operacje na jednym klipie zwracające <code>Result&lt;Dictionary&gt;</code> (<code>IsSuccess</code>, <code>Code</code>, <code>Error</code>), które endpointy tłumaczą na HTTP: <code>Fix</code>, <code>Cut</code>, <code>DeleteAsync</code>, <code>Retranscribe</code> — opisane przy endpointach. Zależy od repozytoriów i <code>PlaybackProxyService</code> (unieważnianie kopii podglądowej).</p>
+
+<h3>PlaybackProxyService</h3>
+<p>Dla klipów powyżej 120 FPS trzyma zadania konwersji (<code>ConcurrentDictionary</code> po id klipu) i pamięć podręczną wyników ffprobe. Kopia: skalowanie do maks. 1920 px szerokości, 60 FPS CFR, najpierw NVENC (<code>h264_nvenc</code> z dekodowaniem CUDA), a gdy się nie uda, <code>libx264 veryfast crf 23</code>; audio AAC 160 kb/s; <code>+faststart</code>. Postęp czytany z <code>-progress pipe:1</code>. Pliki w <code>data/playback/&lt;id&gt;_&lt;odcisk&gt;.mp4</code>; stare odciski tego samego klipu są usuwane. Oryginał nigdy nie jest modyfikowany.</p>
+
+<h3>CloudService</h3>
+<ul>
+<li><b>UploadClipAsync</b>: wysyłka wznawialna z metadanymi <code>appProperties {keepclip:"1", game, duration, mtime}</code> do folderu KeepClip; potem <code>storage='cloud'</code>, <code>remote_id</code>, plik lokalny do Kosza (miniatura zostaje).</li>
+<li><b>SyncFromCloudAsync</b> (pod semaforem): lista plików wideo z folderu; dopasowanie po <code>remote_id</code> (aktualizacja nazwy, rozmiaru, czasu), potem po nazwie dla rekordów chmurowych bez <code>remote_id</code>, w końcu import nowych z grą z <code>appProperties</code> lub wyciągniętą z nazwy pliku (wzorzec <code>Gra yyyy-MM-dd HH-mm-ss</code>, <code>cs2</code> → Counter-Strike 2, inaczej „Chmura"). Ścieżka docelowa jest unikalna (<code>_cloud_&lt;8 znaków id&gt;</code> przy kolizji).</li>
+<li><b>DownloadClipAsync</b>: pobranie do <code>.part</code>, podmiana, <code>storage='local'</code>, kosz Google (błąd kosza nie cofa operacji).</li>
+<li><b>ProxyVideoAsync</b>: przekazuje strumień z Dysku do odpowiedzi HTTP z nagłówkami zakresu.</li>
+<li><b>TrashRemoteAsync</b>, <b>UploadFolderAsync</b>.</li>
+</ul>
+
+<h3>UpdateService, OnboardingService, SingleOperationProgress</h3>
+<p><code>UpdateService</code> — opisany przy endpointach; jedna instalacja naraz (<code>Interlocked</code>). <code>OnboardingService</code> — czyta i zapisuje obiekt <code>onboarding</code> w ustawieniach pod blokadą; <code>CurrentVersion = 1</code>, a jego podbicie <em>nie</em> uruchamia samouczka ponownie u dotychczasowych użytkowników (od tego są podpowiedzi <code>seen_hints</code>). <code>SingleOperationProgress</code> — jeden zestaw pól statycznych opisujący bieżącą operację; <code>Report</code> ignoruje raporty ze starym identyfikatorem.</p>
+
+<h3>ReplayService (bufor powtórek) — skrót</h3>
+<p>Pełny opis potoku ffmpeg jest w dokumencie Infrastruktura. W skrócie: ffmpeg przechwytuje pulpit (<code>ddagrab</code> na GPU, <code>ddagrab</code>+<code>hwdownload</code> albo <code>gdigrab</code>) i koduje H.264 (NVENC/AMF/QuickSync/x264) do 2-sekundowych segmentów MPEG-TS w <code>data/tmp/replay</code>. <code>AudioPump</code> miksuje wyjścia WASAPI i mikrofon do potoku stdin. Wątek-dozorca kasuje stare segmenty (zostaje długość powtórki + 2 segmenty). Watchdog restartuje ffmpeg po awarii (po 2 szybkich awariach schodzi na zgodniejszą metodę przechwytywania, po 6 zatrzymuje bufor). Zapis (<code>SaveAsync</code>) łączy segmenty bez ponownego kodowania obrazu (<code>-c:v copy</code>), a audio koduje ponownie, żeby zszyć segmenty; wynik ląduje w folderze wykrytej gry (nazwa procesu okna na pierwszym planie).</p>
+
+<h2>Wątki, blokady i stabilność</h2>
+<table>
+<tr><th>Wątek / zadanie</th><th>Kto tworzy</th><th>Ochrona</th></tr>
+<tr><td>Kestrel (pula wątków)</td><td>ASP.NET Core</td><td>Wyjątek w endpoincie → 500; proces żyje.</td></tr>
+<tr><td><code>KeepClip-UI</code> (STA)</td><td><code>Program.cs</code></td><td><code>Application.ThreadException</code> → <code>CrashLog</code>, aplikacja pracuje dalej.</td></tr>
+<tr><td><code>KeepClip-Idle</code></td><td><code>StartIdleWatcher</code></td><td>Tylko odczyty; brak ryzyka wyjątku.</td></tr>
+<tr><td><code>KeepClip-AudioPump</code></td><td><code>AudioPump.Start</code></td><td>Cała pętla w try/catch; awaria = ciche nagranie, wpis w logu.</td></tr>
+<tr><td><code>KeepClip-ReplayWatchdog</code></td><td><code>StartWatchdog</code></td><td>Logika restartu w try/catch; wyjątek zatrzymuje tylko bufor i trafia do <code>crash.log</code>.</td></tr>
+<tr><td><code>KeepClip-ReplayJanitor</code></td><td><code>StartJanitor</code></td><td>try/catch w każdej iteracji.</td></tr>
+<tr><td><code>KeepClip-ShowSignal</code></td><td><code>ShellForm</code></td><td>try/catch.</td></tr>
+<tr><td>Zadania <code>Task.Run</code> (miniatury, transkrypcja, proxy, aktualizacja, OAuth)</td><td>różne</td><td>Nieobserwowany wyjątek nie zamyka procesu; <code>UnobservedTaskException</code> loguje go do <code>crash.log</code>.</td></tr>
+</table>
+<p><b>Blokady</b>: <code>TranscribeState.Lock</code> (stan transkrypcji), <code>ReplayService.Gate</code> (start/stop bufora), <code>Settings.Gate</code> (zapis pliku), <code>OnboardingService.Gate</code>, <code>CloudService.SyncGate</code> (jedna synchronizacja naraz), <code>OAuthService.TokenGate</code> (odświeżanie tokenu), <code>Scanner.ScanLock</code>, <code>Transcriber.ModelLock</code>. Wszystkie są krótkie; blokad nie zagnieżdża się poza <code>ReplayService</code> (Gate → _stderrTail).</p>
+<p><b>Nieodwracalność</b>: operacje na plikach użytkownika zawsze idą przez Kosz (<code>Trash.Send</code> = <code>SHFileOperation</code> z <code>FOF_ALLOWUNDO</code>), nigdy przez <code>File.Delete</code>. Wyjątek: pliki tymczasowe aplikacji.</p>
+
+<h2>Jak rozszerzać backend</h2>
+<h3>Nowy endpoint</h3>
+<ol>
+<li>Dodaj metodę w odpowiednim pliku <code>Endpoints/*.cs</code> (albo nowy plik z metodą <code>Map…Endpoints</code> i wywołaniem w <code>Program.cs</code>).</li>
+<li>Ciało żądania jako <code>record</code> z polami snake_case na końcu pliku.</li>
+<li>Walidację i błędy zwracaj przez <code>Api.Detail(kod, Strings.Get("klucz"), "kodBledu")</code>. Dodaj klucz do <code>Strings.cs</code> w czterech językach i <code>errors.kodBledu</code> do <code>frontend/i18n.js</code>, jeśli interfejs ma tłumaczyć.</li>
+<li>Logikę umieść w <code>Services/</code>, dostęp do bazy w <code>Data/</code>.</li>
+<li>Wywołaj <code>Heartbeat.Touch()</code>, jeśli endpoint jest efektem działania użytkownika.</li>
+<li>Dodaj test w <code>tests/KeepClip.Tests/Api/</code> (wzorzec: klasa w kolekcji <code>"api"</code>, reset bazy i ustawień w konstruktorze).</li>
+</ol>
+<h3>Nowe ustawienie</h3>
+<p>Czytaj przez <code>Settings.GetString</code>/<code>GetObject</code>, zapisuj przez <code>SetString</code>/<code>SetObject</code>. Nie dodawaj pamięci podręcznej — plik jest mały, a prostota chroni przed niespójnością między wątkami.</p>
+<h3>Nowa kolumna w bazie</h3>
+<p>Dopisz do schematu w <code>Db.Schema</code> <em>oraz</em> do <code>Migrate</code> jako <code>AddColumn</code>, bo <code>CREATE TABLE IF NOT EXISTS</code> nie zmienia istniejących baz.</p>
+<h3>Zasady</h3>
+<ul>
+<li>Kod jest bez komentarzy; wiedza o „dlaczego" żyje w tych dokumentach (<code>docs/src/*.html</code>). Zmieniając zachowanie, zaktualizuj odpowiedni rozdział i przebuduj PDF (<code>node docs/build-pdf.js</code>).</li>
+<li>Nie wołaj ffmpeg ani Google w wątku UI. Długie operacje przez <code>Task.Run</code> z raportowaniem postępu.</li>
+<li>Nigdy nie kasuj plików użytkownika bez Kosza.</li>
+<li>Wersja aplikacji jest w dwóch miejscach: <code>KeepClip.csproj</code> i <code>installer/KeepClip.iss</code>.</li>
+</ul>
+
+</body>
+</html>

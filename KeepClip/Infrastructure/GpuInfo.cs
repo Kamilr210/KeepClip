@@ -2,15 +2,11 @@ using System.Runtime.InteropServices;
 
 namespace KeepClip.Infrastructure;
 
-// Rozmiar pamięci karty graficznej decyduje o doborze modelu transkrypcji. DXGI podaje go
-// dla kart NVIDIA, AMD i Intel, w odróżnieniu od WMI, gdzie AdapterRAM jest 32-bitowe
-// i zatrzymuje się na 4 GB.
 internal static class GpuInfo
 {
     private const uint AdapterFlagSoftware = 2;
     private const int DxgiErrorNotFound = unchecked((int)0x887A0002);
 
-    // Zwraca pamięć najmocniejszej karty albo 0, gdy nie da się jej ustalić.
     public static long LargestDedicatedVideoMemory()
     {
         try
@@ -42,7 +38,6 @@ internal static class GpuInfo
         }
         catch
         {
-            // Brak DXGI nie może blokować transkrypcji — wyżej zadziała ostrożny wariant.
             return 0;
         }
     }
@@ -53,8 +48,6 @@ internal static class GpuInfo
     [DllImport("dxgi.dll", ExactSpelling = true)]
     private static extern int CreateDXGIFactory1(in Guid riid, out IntPtr ppFactory);
 
-    // Metody przed tymi używanymi muszą zostać zadeklarowane, aby zgadzały się pozycje
-    // w tablicy wirtualnej COM; nigdy nie są wywoływane.
     [ComImport, Guid("770aae78-f26f-4dba-a829-253c83d1b387"),
      InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IDXGIFactory1

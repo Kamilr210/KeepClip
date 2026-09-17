@@ -439,7 +439,7 @@
       </div>
     </div>
 
-    <!-- Ustawienia jako pełny widok (redesign w duchu zakładki Chmura) -->
+
     <div id="view-settings" hidden>
       <div class="setx-head">
         <span class="setx-head-ic" aria-hidden="true">
@@ -786,7 +786,7 @@
       </div>
       <button id="player-close" class="btn ghost" data-i18n-title="ui.playerClose" title="Zamknij (Esc)">✕</button>
     </header>
-    
+
     <div id="custom-player-container">
       <div class="video-center-wrapper">
         <video id="player" preload="auto" playsinline></video>
@@ -889,8 +889,7 @@
 </div>
 
 <script src="/static/i18n.js"></script>
-<script>
-(function() {
+<script>(function() {
   var SUPPORTED = ['en', 'uk', 'pl', 'ru', ];
 
   var lang = null;
@@ -915,12 +914,10 @@
     if (SUPPORTED.indexOf(bl) !== -1) lang = bl;
   }
 
-  // Nieobsługiwany język systemu oznacza start po angielsku.
   if (!lang) lang = 'en';
 
   window.LANG = lang;
-  // Znacznik dokumentu musi zgadzać się z wybranym językiem, bo z niego korzystają
-  // czytniki ekranu i sprawdzanie pisowni.
+
   document.documentElement.lang = lang;
 
   if (!window.i18n && typeof i18n !== 'undefined') window.i18n = i18n;
@@ -994,8 +991,7 @@
       var chosen = langSel.value;
       try { localStorage.setItem('keepclip_lang', chosen); } catch(e) {}
       var url = window.location.href.split('?')[0];
-      // Zapis na serwerze musi się zakończyć przed przeładowaniem strony, bo od niego
-      // zależy język transkrypcji. Błąd zapisu nie może zablokować zmiany interfejsu.
+
       fetch('/api/language', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1010,8 +1006,7 @@
 <script src="/static/app.js"></script>
 <script src="/static/onboarding.js"></script>
 
-<script>
-(function() {
+<script>(function() {
   var orbsOn = true;
   var orb1 = document.getElementById('orb1');
   var orb2 = document.getElementById('orb2');

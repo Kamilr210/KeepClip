@@ -1,6 +1,5 @@
 namespace KeepClip.Endpoints;
 
-/// <summary>Sprawdzanie i instalacja aktualizacji aplikacji (GitHub Releases).</summary>
 public static class UpdateEndpoints
 {
     public static void MapUpdateEndpoints(this WebApplication app)

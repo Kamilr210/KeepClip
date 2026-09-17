@@ -21,9 +21,6 @@ public static class ClipEndpoints
             return Results.Json(new { ok = true, id = clipId, favorite = state.Value });
         });
 
-        // Transkrypcja jako zwykły plik tekstowy. Nagłówek `Content-Disposition` sprawia,
-        // że przeglądarka pobiera go zamiast wyświetlać.
-        // HEAD pozwala interfejsowi sprawdzić dostępność pliku bez pobierania go dwa razy.
         app.MapMethods("/api/clips/{clipId:long}/transcript.txt", new[] { "GET", "HEAD" },
             (long clipId, ClipRepository clips, SegmentRepository segments) =>
         {
@@ -47,7 +44,6 @@ public static class ClipEndpoints
                 text.AppendLine($"[{stamp}] {(row["text"] as string ?? "").Trim()}");
             }
 
-            // Znacznik BOM pozwala Notatnikowi rozpoznać kodowanie i pokazać polskie znaki.
             var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true).GetBytes(text.ToString());
             var name = Path.GetFileNameWithoutExtension(clip.Filename);
             return Results.File(bytes, "text/plain; charset=utf-8",
@@ -99,7 +95,6 @@ public static class ClipEndpoints
         app.MapDelete("/api/clips/{clipId:long}", async (long clipId, bool? delete_file, ClipService clips) =>
             Respond(await clips.DeleteAsync(clipId, delete_file ?? true)));
 
-        // Miniatury są generowane leniwie, a nieudane próby zapamiętywane w bazie.
         app.MapGet("/thumb/{clipId:long}", (long clipId, ClipRepository clips) =>
         {
             var p = Config.ThumbPath(clipId);
@@ -110,7 +105,7 @@ public static class ClipEndpoints
                     return Api.Detail(404, "no thumbnail");
                 if (!Media.MakeThumbnail(clipId, row["filepath"] as string ?? ""))
                 {
-            clips.SetThumbState(clipId, 2);   // Nie ponawia próby przy każdym przewinięciu.
+            clips.SetThumbState(clipId, 2);
                     return Api.Detail(404, "no thumbnail");
                 }
                 clips.SetThumbState(clipId, 1);

@@ -1,9 +1,5 @@
 namespace KeepClip.Infrastructure;
 
-// Komunikaty widoczne dla użytkownika, które powstają poza przeglądarką: powiadomienia
-// pulpitu, menu w zasobniku oraz treści błędów odsyłane przez API. Interfejs ma własne
-// tłumaczenia w `frontend/i18n.js`; tutaj są wyłącznie teksty, których nie da się tam
-// przenieść, bo powstają bez udziału otwartego okna.
 internal static class Strings
 {
     public static string Get(string key, params object?[] args)

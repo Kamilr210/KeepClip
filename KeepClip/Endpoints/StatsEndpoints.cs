@@ -17,7 +17,7 @@ public static class StatsEndpoints
                     diskFree = di.AvailableFreeSpace;
                 }
             }
-            catch { /* Brak informacji o dysku nie blokuje statystyk. */ }
+            catch {  }
 
             return Results.Json(stats.Get(diskTotal, diskFree));
         });

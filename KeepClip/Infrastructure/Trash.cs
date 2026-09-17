@@ -2,7 +2,6 @@ using System.Runtime.InteropServices;
 
 namespace KeepClip.Infrastructure;
 
-// SHFileOperation z FOF_ALLOWUNDO przenosi plik do Kosza zamiast usuwać go trwale.
 public static class Trash
 {
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -29,7 +28,6 @@ public static class Trash
 
     public static void Send(string path)
     {
-        // Mechanizm konwersji struktur dodaje drugi znak końca wymagany przez pFrom.
         var op = new SHFILEOPSTRUCT
         {
             wFunc = FO_DELETE,
@@ -41,8 +39,6 @@ public static class Trash
             throw new IOException(Strings.Get("trash.moveFailed", rc));
     }
 
-    // Po zamknięciu odtwarzacza uchwyt pliku może pozostać chwilowo otwarty,
-    // dlatego błąd współdzielenia jest ponawiany przez krótki czas.
     public static string? SendWithRetry(string path, int attempts = 6, int delayMs = 250)
     {
         string? last = null;

@@ -5,23 +5,18 @@ using System.Text.Json;
 
 namespace KeepClip.Infrastructure;
 
-// Wspólny klient OAuth jest dostarczany z instalatorem, a token odświeżania konkretnego
-// użytkownika trafia wyłącznie do Menedżera poświadczeń Windows.
 public static class OAuthService
 {
-    // SemaphoreSlim chroni asynchroniczne odświeżanie tokenu przed równoległymi żądaniami.
     private static readonly SemaphoreSlim TokenGate = new(1, 1);
     private static string? _accessToken;
     private static DateTimeOffset _accessExpiry = DateTimeOffset.MinValue;
 
-    // Krótka pamięć podręczna chroni Dysk Google przed częstymi zapytaniami interfejsu.
     private static readonly object AboutGate = new();
     private static GoogleDrive.AboutInfo? _about;
     private static DateTimeOffset _aboutAt = DateTimeOffset.MinValue;
     private static readonly TimeSpan AboutTtl = TimeSpan.FromSeconds(20);
     private static string? _lastError;
 
-    // Jednocześnie może trwać tylko jeden przepływ PKCE z lokalnym adresem zwrotnym.
     private static readonly object ConnectGate = new();
     private static HttpListener? _listener;
     private static CancellationTokenSource? _connectCts;
@@ -35,7 +30,7 @@ public static class OAuthService
     {
         using var doc = JsonDocument.Parse(File.ReadAllText(Config.GoogleClientPath));
         var root = doc.RootElement;
-    // Google opakowuje dane klienta w obiekt `installed` albo `web`.
+
         var creds = root.TryGetProperty("installed", out var ins) ? ins
                   : root.TryGetProperty("web", out var web) ? web
                   : root;
@@ -68,14 +63,11 @@ public static class OAuthService
         }
         catch (GoogleDrive.GoogleApiException ex) when (ex.IsInvalidGrant)
         {
-            // Cofnięta lub wygasła zgoda wymaga ponownego połączenia konta.
             DisconnectLocal();
             st["connected"] = false;
         }
         catch (Exception ex)
         {
-            // Błąd przejściowy nie rozłącza konta; zachowujemy ostatnie dane, aby panel
-            // nie migał pustym stanem.
             _lastError = ex.Message;
             st["connected"] = true;
             st["error"] = ex.Message;
@@ -106,9 +98,9 @@ public static class OAuthService
             {
                 var tok = await GoogleDrive.RefreshAsync(id, secret, refresh);
                 _accessToken = tok.AccessToken;
-                // Minuta zapasu zapobiega użyciu tokenu wygasającego w trakcie żądania.
+
                 _accessExpiry = DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, tok.ExpiresInSeconds - 60));
-        if (!string.IsNullOrEmpty(tok.RefreshToken)) // Aktualizuje token, jeżeli Google go zmieniło.
+        if (!string.IsNullOrEmpty(tok.RefreshToken))
                     CredentialStore.Write(Config.DriveTokenTarget, tok.RefreshToken!);
                 return _accessToken;
             }
@@ -148,7 +140,7 @@ public static class OAuthService
 
     public static string BeginConnect()
     {
-        var (clientId, _) = LoadClient(); // Sprawdza konfigurację przed rozpoczęciem operacji.
+        var (clientId, _) = LoadClient();
 
         int port = FreeLoopbackPort();
         string redirectUri = $"http://127.0.0.1:{port}/";
@@ -160,7 +152,7 @@ public static class OAuthService
         listener.Prefixes.Add(redirectUri);
         listener.Start();
 
-        var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5)); // Zgodne z limitem odpytywania interfejsu.
+        var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
         lock (ConnectGate)
         {
             _connectCts?.Cancel();
@@ -180,8 +172,8 @@ public static class OAuthService
             "code_challenge="       + challenge,
             "code_challenge_method=S256",
             "state="                + state,
-            "access_type=offline",  // Prosi o token odświeżania.
-            "prompt=consent",       // Wymusza jego wydanie także przy ponownej zgodzie.
+            "access_type=offline",
+            "prompt=consent",
         });
     }
 
@@ -195,7 +187,7 @@ public static class OAuthService
             {
                 var ctxTask = listener.GetContextAsync();
                 var done = await Task.WhenAny(ctxTask, Task.Delay(Timeout.Infinite, ct));
-            if (done != ctxTask) break; // Operację anulowano albo przekroczono czas oczekiwania.
+            if (done != ctxTask) break;
                 var ctx = await ctxTask;
 
                 var q = ctx.Request.QueryString;
@@ -203,7 +195,6 @@ public static class OAuthService
                 string? state = q["state"];
                 string? error = q["error"];
 
-    // Żądanie ikony strony nie może zakończyć oczekiwania na odpowiedź OAuth.
                 if (code is null && error is null) { ctx.Response.StatusCode = 204; ctx.Response.Close(); continue; }
 
                 if (error is null && code is not null && state == expectedState)
@@ -215,7 +206,6 @@ public static class OAuthService
                         if (string.IsNullOrEmpty(tok.RefreshToken))
                             throw new InvalidOperationException(Strings.Get("drive.noRefreshToken"));
 
-                        // E-mail opisuje wpis w Menedżerze poświadczeń, ale nie jest wymagany.
                         string? email = null;
                         try
                         {
@@ -247,7 +237,7 @@ public static class OAuthService
                 {
                     WriteHtml(ctx, "Logowanie anulowane", error ?? "Brak kodu autoryzacji.");
                 }
-            break; // Pierwsze właściwe przekierowanie kończy próbę, niezależnie od wyniku.
+            break;
             }
         }
         catch (Exception ex) { _lastError = ex.Message; }
@@ -300,7 +290,6 @@ public static class OAuthService
             _connectCts = null;
         }
     }
-
 
     private static int FreeLoopbackPort()
     {

@@ -1,25 +1,14 @@
-/* Samouczek KeepClip.
-   Silnik prowadzi użytkownika po prawdziwym interfejsie: przyciemnia aplikację,
-   podświetla wskazany element i pokazuje przy nim małą kartę z opisem.
-   Kroki są opisane deklaratywnie (STEPS), a elementy wyszukiwane przez rejestr
-   celów (TARGETS), więc dodanie kroku nie wymaga zmian w samym silniku. */
 (function () {
   "use strict";
 
-  var VERSION = 1;                 // Musi zgadzać się z OnboardingService.CurrentVersion.
+  var VERSION = 1;
   var LOCAL_KEY = "keepclip_onboarding";
-  var GAP = 14;                    // Odstęp karty od podświetlonego elementu.
-  var MARGIN = 16;                 // Minimalny margines od krawędzi okna.
-  var FADE = 200;                  // Czas pojawienia się karty (ms).
-  var STEP_GAP = 150;              // Przerwa między krokami (ms).
-  var MAX_SPOT = 0.4;              // Element wyższy niż ta część okna zostaje podświetlony tylko u góry.
+  var GAP = 14;
+  var MARGIN = 16;
+  var FADE = 200;
+  var STEP_GAP = 150;
+  var MAX_SPOT = 0.4;
 
-  /* ------------------------------------------------------------------ */
-  /* Teksty                                                              */
-  /* ------------------------------------------------------------------ */
-
-  // window.t zwraca klucz, gdy tłumaczenia brak — zamieniamy to na pusty tekst,
-  // dzięki czemu brakująca wskazówka po prostu znika zamiast wyświetlać klucz.
   function txt(key, fallback) {
     var full = "onboarding." + key;
     var value = typeof window.t === "function" ? window.t(full) : full;
@@ -30,12 +19,6 @@
     return txt("steps." + id + "." + part, "");
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Rejestr celów                                                       */
-  /* ------------------------------------------------------------------ */
-
-  // Każdy cel to lista kandydatów — wygrywa pierwszy widoczny. Dzięki temu krok
-  // działa też przy pustej bibliotece, gdy element pierwszego wyboru nie istnieje.
   var TARGETS = {
     ClipLibrary:         ["#results", "#view-clips .search-bar"],
     ClipsRootSetting:    ["#view-settings [data-action='change-folder']"],
@@ -68,10 +51,6 @@
     return null;
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Nawigacja między widokami                                           */
-  /* ------------------------------------------------------------------ */
-
   var VIEW_BUTTON = {
     clips:     ".side-nav .nav-item[data-view='clips']",
     folders:   ".side-nav .nav-item[data-view='folders']",
@@ -85,8 +64,6 @@
     return current ? current.dataset.view : "clips";
   }
 
-  // Klikamy prawdziwy przycisk nawigacji, żeby wykonała się cała logika widoku
-  // (wczytanie folderów, stanu chmury, ulubionych) zamiast samego przełączenia klas.
   function gotoView(view) {
     if (!view || currentView() === view) return false;
     var btn = document.querySelector(VIEW_BUTTON[view] || "");
@@ -95,8 +72,6 @@
     return true;
   }
 
-  // Okna modalne aplikacji mogą zawierać niezapisane dane (wycinanie fragmentu,
-  // wybór folderu, edycja wersu transkrypcji). Nie przechodzimy wtedy nigdzie sami.
   function appIsBusy() {
     var blockers = ["#player-overlay", "#cut-overlay", "#config-overlay", "#replay-overlay", "#confirm-overlay"];
     for (var i = 0; i < blockers.length; i++) {
@@ -106,13 +81,6 @@
     return !!document.querySelector(".seg.editing");
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Kroki                                                               */
-  /* ------------------------------------------------------------------ */
-
-  // `when` pozwala pominąć krok w konfiguracji, w której nie ma sensu.
-  // `placement` to preferowana strona karty — silnik zmieni ją, gdy zabraknie miejsca.
-  // `allowTargetInteraction` / `allowBackgroundInteraction` odblokowują klikanie.
   var STEPS = [
     { id: "welcome", kind: "modal" },
 
@@ -133,16 +101,6 @@
     { id: "done", kind: "modal", view: "clips" }
   ];
 
-  /* ------------------------------------------------------------------ */
-  /* Zapis stanu                                                         */
-  /* ------------------------------------------------------------------ */
-
-  // Stan trzyma serwer (settings.json). Gdy punkt końcowy jest niedostępny —
-  // na przykład przy nieprzebudowanym backendzie — silnik korzysta z localStorage,
-  // ale tylko na czas trwania sesji: okno aplikacji dostaje przy każdym starcie
-  // losowy port, a localStorage jest przypisany do adresu razem z portem, więc
-  // po restarcie zapas awaryjny jest pusty. Dlatego bez serwera samouczek
-  // nie uruchamia się sam (patrz maybeAutoStart).
   var store = {
     state: null,
     remote: true,
@@ -158,7 +116,7 @@
       try {
         var raw = window.localStorage.getItem(LOCAL_KEY);
         if (raw) return Object.assign(this.empty(), JSON.parse(raw));
-      } catch (e) { /* Pusty stan jest poprawnym wynikiem. */ }
+      } catch (e) {  }
       return this.empty();
     },
 
@@ -217,11 +175,7 @@
     }
   };
 
-  /* ------------------------------------------------------------------ */
-  /* Warstwa nakładki                                                    */
-  /* ------------------------------------------------------------------ */
-
-  var dom = null;          // { veil, spot, card }
+  var dom = null;
   var active = false;
   var steps = [];
   var index = -1;
@@ -229,7 +183,7 @@
   var lastRect = null;
   var rafId = 0;
   var lastLookup = 0;
-  var token = 0;           // Unieważnia trwające przejście, gdy użytkownik kliknie szybciej.
+  var token = 0;
   var skipOpen = false;
   var context = { configured: true };
 
@@ -285,20 +239,13 @@
     return new Promise(function (resolve) { setTimeout(resolve, reduceMotion ? 0 : ms); });
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Pozycjonowanie                                                      */
-  /* ------------------------------------------------------------------ */
-
-  // Element wyższy niż okno (np. cała siatka klipów) zostaje przycięty do widoku,
-  // żeby obwódka reflektora nie uciekała poza ekran.
   function viewportRect(el) {
     var r = el.getBoundingClientRect();
     var top = Math.max(r.top, MARGIN);
     var left = Math.max(r.left, 0);
     var bottom = Math.min(r.bottom, window.innerHeight - 4);
     var right = Math.min(r.right, window.innerWidth);
-    // Bardzo wysoki element (cała siatka klipów) dostaje reflektor tylko na górnej
-    // części — inaczej podświetlenie zajęłoby cały ekran i nie zostałoby miejsca na kartę.
+
     var limit = window.innerHeight * MAX_SPOT;
     if (bottom - top > limit) bottom = top + limit;
     return {
@@ -328,8 +275,6 @@
     dom.spot.style.borderRadius = radius + "px";
   }
 
-  // Wybiera pierwszą stronę z wystarczającą ilością miejsca; gdy żadna nie mieści
-  // karty, bierze tę z największym zapasem i dosuwa kartę do krawędzi okna.
   function placeCard(rect, preferred) {
     var card = dom.card;
     var cw = card.offsetWidth;
@@ -373,7 +318,6 @@
     card.style.left = left + "px";
     card.style.top = top + "px";
 
-    // Strzałka pokazuje kierunek celu tylko wtedy, gdy karta faktycznie stoi obok niego.
     card.classList.toggle("kc-ob-noarrow", !fits);
     var arrow = card.querySelector(".kc-ob-arrow");
     if (arrow && fits) {
@@ -401,8 +345,6 @@
     placeCard(lastRect, step.placement);
   }
 
-  // Pętla śledzi układ: przewijanie, zmianę rozmiaru okna, inne skalowanie systemu
-  // oraz podmianę zawartości (np. odświeżenie siatki klipów po skanie).
   function track() {
     rafId = requestAnimationFrame(track);
     if (!active || !dom) return;
@@ -437,8 +379,6 @@
     dom.card.classList.remove("kc-ob-modal");
   }
 
-  // Cel zniknął albo nigdy się nie pojawił — krok zostaje pokazany jako mała karta
-  // na środku, bez reflektora. Samouczek nigdy nie przerywa się z tego powodu.
   function detachToCenter() {
     releaseTarget();
     if (!dom) return;
@@ -450,8 +390,6 @@
     dom.card.style.top = "";
   }
 
-  // Wysoki element wystarczy przewinąć tak, aby jego góra weszła w kadr; centrowanie
-  // zaprowadziłoby w środek długiej listy, daleko od tego, co krok opisuje.
   function scrollIntoViewIfNeeded(el) {
     var r = el.getBoundingClientRect();
     var visible = Math.min(r.bottom, window.innerHeight - MARGIN) - Math.max(r.top, MARGIN);
@@ -466,9 +404,6 @@
     return true;
   }
 
-  // Zwraca kandydata o najwyższym priorytecie. Gdy znajdzie tylko zapasowy, czeka
-  // jeszcze chwilę — panel z pierwszego wyboru może się dopiero renderować
-  // (np. widok chmury czeka na odpowiedź o stanie połączenia).
   function waitForTarget(name, timeout, stillValid) {
     var list = TARGETS[name] || [];
     var deadline = Date.now() + timeout;
@@ -490,10 +425,6 @@
     });
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Rysowanie karty                                                     */
-  /* ------------------------------------------------------------------ */
-
   function spotlightSteps() {
     return steps.filter(function (s) { return s.kind !== "modal"; });
   }
@@ -502,7 +433,6 @@
     dom.card.innerHTML = '<span class="kc-ob-arrow"></span>' + html;
   }
 
-  // Pusty tekst oznacza element opcjonalny — znika zamiast zostawiać pustą linię.
   function setText(selector, value) {
     var el = dom.card.querySelector(selector);
     if (!el) return;
@@ -597,10 +527,6 @@
     if (primary) primary.focus({ preventScroll: true });
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Przejścia między krokami                                            */
-  /* ------------------------------------------------------------------ */
-
   function show(i) {
     if (!dom) return Promise.resolve();
     index = i;
@@ -668,10 +594,6 @@
     teardown();
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Pominięcie                                                          */
-  /* ------------------------------------------------------------------ */
-
   function askSkip() {
     if (!dom || skipOpen) return;
     skipOpen = true;
@@ -706,10 +628,6 @@
     focusPrimary();
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Klawiatura                                                          */
-  /* ------------------------------------------------------------------ */
-
   function focusable() {
     return Array.prototype.filter.call(
       dom.card.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])"),
@@ -725,7 +643,7 @@
       if (!skipOpen) askSkip();
       return;
     }
-    // Skupienie nie może uciec pod nakładkę.
+
     if (e.key === "Tab") {
       var items = focusable();
       if (!items.length) return;
@@ -737,12 +655,11 @@
       return;
     }
     if (skipOpen) return;
-    // Krok z klikalnym celem może zawierać pole tekstowe — tam klawisze należą do niego.
+
     var focused = document.activeElement;
     if (focused && !dom.card.contains(focused) &&
         (focused.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(focused.tagName))) return;
     if (e.key === "Enter") {
-      // Enter na przycisku wywołuje jego własne kliknięcie — nie dublujemy akcji.
       if (focused && dom.card.contains(focused) && focused.tagName === "BUTTON") return;
       e.preventDefault(); next();
       return;
@@ -750,10 +667,6 @@
     if (e.key === "ArrowRight") { e.preventDefault(); next(); }
     else if (e.key === "ArrowLeft") { e.preventDefault(); back(); }
   }
-
-  /* ------------------------------------------------------------------ */
-  /* Uruchamianie i kończenie                                            */
-  /* ------------------------------------------------------------------ */
 
   function loadContext() {
     return fetch("/api/config")
@@ -799,10 +712,6 @@
     setTimeout(function () { if (!active) unmount(); }, reduceMotion ? 0 : FADE);
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Wznowienie                                                          */
-  /* ------------------------------------------------------------------ */
-
   function askResume(stepId) {
     active = true;
     steps = STEPS.filter(function (s) { return !s.when || s.when(context); });
@@ -840,19 +749,6 @@
     });
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Podpowiedzi o nowych funkcjach                                      */
-  /* ------------------------------------------------------------------ */
-
-  // Onboarding = pierwsze zapoznanie z aplikacją. Podpowiedzi = pojedyncze nowości
-  // w kolejnych wydaniach; nowa funkcja NIE uruchamia całego samouczka od nowa.
-  //
-  //   KeepClipOnboarding.registerFeatureHint({
-  //     id: "share-v1", target: "ShareButton", placement: "left",
-  //     title: "Udostępnianie", description: "Możesz teraz wysłać klip jednym kliknięciem."
-  //   });
-  //
-  // Cel musi istnieć w TARGETS. Zobaczoną podpowiedź zapamiętuje seen_hints.
   var hints = [];
 
   function registerFeatureHint(hint) {
@@ -906,7 +802,7 @@
 
   function showPendingHints() {
     if (active || !store.state) return Promise.resolve();
-    // Nowy użytkownik ma najpierw przejść (lub pominąć) samouczek.
+
     if (!store.state.completed && !store.state.skipped) return Promise.resolve();
     return hints.filter(function (h) { return !seenHint(h.id); })
       .reduce(function (chain, hint) {
@@ -914,11 +810,6 @@
       }, Promise.resolve());
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Wejście z ustawień                                                  */
-  /* ------------------------------------------------------------------ */
-
-  // Ręczne uruchomienie nie kasuje informacji, że ktoś już przeszedł samouczek.
   function restart() {
     if (active) return Promise.resolve();
     return store.restart().then(function () { return begin(null); });
@@ -931,23 +822,17 @@
     btn.addEventListener("click", function () { restart(); });
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Start                                                               */
-  /* ------------------------------------------------------------------ */
-
   function maybeAutoStart() {
     var s = store.state;
     if (!s || active) return;
-    // Gdy serwer nie potrafi zapisać stanu, samouczek nie miałby jak zapamiętać,
-    // że ktoś go już widział, i wracałby przy każdym uruchomieniu. Zostaje wtedy
-    // wyłącznie ręczne uruchomienie z Ustawień.
+
     if (!store.remote) {
       console.warn("KeepClip: /api/onboarding nie odpowiada — samouczek nie uruchomi " +
                    "się automatycznie. Przebuduj aplikację (dotnet build -c Release).");
       return;
     }
     if (s.completed || s.skipped) { showPendingHints(); return; }
-    // Otwarte okno modalne aplikacji może zawierać niezapisane dane — czekamy.
+
     if (appIsBusy()) { setTimeout(maybeAutoStart, 1500); return; }
     if (s.started && s.current_step) askResume(s.current_step);
     else begin(null);
@@ -960,7 +845,7 @@
       .then(function (ctx) {
         context = ctx;
         if (ctx.configured) { setTimeout(maybeAutoStart, 500); return; }
-        // Świeża instalacja najpierw prosi o folder z klipami — samouczek czeka.
+
         document.addEventListener("keepclip:configured", function () {
           loadContext().then(function (fresh) {
             context = fresh;

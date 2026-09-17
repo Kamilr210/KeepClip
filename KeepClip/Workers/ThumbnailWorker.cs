@@ -16,8 +16,6 @@ public static class ThumbnailWorker
 
     private static void Work()
     {
-        // Uszkodzony plik może stale zwracać brak czasu trwania i zapętlić wybieranie tego
-        // samego rekordu, dlatego jeden przebieg próbuje każdy identyfikator tylko raz.
         var attempted = new HashSet<long>();
 
         while (true)
@@ -36,7 +34,7 @@ public static class ThumbnailWorker
                 durationObj = row["duration"];
             }
 
-            if (!attempted.Add(cid)) return; // Kolejna próba tego rekordu nie przyniosłaby postępu.
+            if (!attempted.Add(cid)) return;
 
             if (!File.Exists(filepath))
             {

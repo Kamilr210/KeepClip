@@ -24,13 +24,11 @@ public class ClipService
         var src = clip.Filepath ?? "";
         if (!File.Exists(src)) return Fail(404, "file missing on disk");
 
-        // Plik naprawiony przez ffmpeg ma zachować datę nagrania oryginału.
         var originalMtime = ((DateTimeOffset)File.GetLastWriteTimeUtc(src)).ToUnixTimeMilliseconds() / 1000.0;
 
         var (ok, fixedPath, message, trimmed) = Media.FixBrokenClip(src);
         if (!ok || fixedPath is null) return Fail(422, message);
 
-        // Oryginał pozostaje możliwy do odzyskania z Kosza.
         try { Trash.Send(src); }
         catch (Exception ex)
         {
@@ -131,7 +129,7 @@ public class ClipService
             ["clip_id"] = newClipId,
             ["in_library"] = newClipId is not null,
         };
-        foreach (var kv in stats) resp[kv.Key] = kv.Value; // Dołącza pola statystyk do odpowiedzi.
+        foreach (var kv in stats) resp[kv.Key] = kv.Value;
         progress?.Invoke(0.99, "saving");
         return Ok(resp);
     }
@@ -169,7 +167,7 @@ public class ClipService
         if (File.Exists(tp)) { try { File.Delete(tp); } catch (IOException) { } }
 
         _playback.Invalidate(clipId);
-        _clips.Delete(clipId); // Usunięcie kaskadowe obejmuje również segmenty.
+        _clips.Delete(clipId);
 
         string deleteTarget = cloudDeleted
             ? " — usunięty z Google Drive"

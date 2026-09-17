@@ -52,8 +52,6 @@ public class SegmentRepository
         tx.Commit();
     }
 
-    // Po przycięciu uszkodzonego początku klipu przesuwa znaczniki czasu i usuwa
-    // segmenty, które znalazły się całkowicie przed zerem.
     public (int shifted, int dropped) ShiftTimestamps(long clipId, double offset)
     {
         using var con = Db.Open();

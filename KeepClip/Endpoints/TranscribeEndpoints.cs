@@ -4,7 +4,6 @@ namespace KeepClip.Endpoints;
 
 public static class TranscribeEndpoints
 {
-    // Ręcznie zapisany SSE omija opcje JSON z DI, więc musi zachować nazwy snake_case.
     private static readonly JsonSerializerOptions SseJson =
         new() { PropertyNamingPolicy = null, DictionaryKeyPolicy = null };
 
@@ -29,18 +28,17 @@ public static class TranscribeEndpoints
             {
                 if (!TranscribeState.Running)
                     return Results.Json(new { cancelled = false, reason = "not_running" });
-        TranscribeState.Cancel = true;   // Proces roboczy sprawdza flagę pomiędzy klipami.
+        TranscribeState.Cancel = true;
             }
             DevLog.Add("Transkrypcja: anulowano (zatrzyma się po bieżącym klipie)");
             return Results.Json(new { cancelled = true });
         });
 
-        // Strumień wysyła ramkę po każdej zmianie i jedną końcową po zakończeniu.
         app.MapGet("/api/transcribe/stream", async (HttpContext ctx) =>
         {
             ctx.Response.Headers.ContentType = "text/event-stream";
             ctx.Response.Headers.CacheControl = "no-cache";
-        ctx.Response.Headers["X-Accel-Buffering"] = "no";   // Wyłącza buforowanie pośrednika.
+        ctx.Response.Headers["X-Accel-Buffering"] = "no";
 
             var ct = ctx.RequestAborted;
             string? last = null;
@@ -56,12 +54,12 @@ public static class TranscribeEndpoints
                         await ctx.Response.Body.FlushAsync(ct);
                         last = payload;
                     }
-                    // Stan końcowy został już wysłany, więc można zamknąć strumień.
+
                     if (!snap.running && snap.finished_at is not null) break;
                     await Task.Delay(500, ct);
                 }
             }
-            catch (OperationCanceledException) { /* Rozłączenie klienta jest normalne. */ }
+            catch (OperationCanceledException) {  }
         });
     }
 }

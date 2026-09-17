@@ -2,17 +2,12 @@ using System.Text.Json.Nodes;
 
 namespace KeepClip.Services;
 
-// Samouczek przechowuje stan w settings.json, w jednym obiekcie "onboarding".
-// Nie ma własnej tabeli, bo to kilka pól czytanych raz przy starcie interfejsu.
 public static class OnboardingService
 {
-    // Podbicie tej liczby NIE uruchamia samouczka ponownie u dotychczasowych
-    // użytkowników — służy migracjom i temu, żeby wiedzieć, którą wersję ktoś przeszedł.
-    // Nowe pojedyncze funkcje pokazuje mechanizm podpowiedzi (seen_hints).
     public const int CurrentVersion = 1;
 
     private const string Key = "onboarding";
-    private const int MaxSeenHints = 200;   // Lista widzianych podpowiedzi nie może rosnąć bez końca.
+    private const int MaxSeenHints = 200;
     private static readonly object Gate = new();
 
     public static OnboardingState Get()
@@ -35,8 +30,8 @@ public static class OnboardingService
             if (isCompleted)
             {
                 completedVersion = CurrentVersion;
-                isSkipped = false;      // Ukończenie unieważnia wcześniejsze pominięcie.
-                step = null;            // Nie ma czego wznawiać.
+                isSkipped = false;
+                step = null;
             }
             else if (isSkipped)
             {
@@ -56,7 +51,6 @@ public static class OnboardingService
         }
     }
 
-    // Ręczne uruchomienie z ustawień nie kasuje informacji, że ktoś już przeszedł samouczek.
     public static OnboardingState Restart()
     {
         lock (Gate)

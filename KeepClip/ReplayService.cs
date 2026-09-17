@@ -4,8 +4,6 @@ using NAudio.CoreAudioApi;
 
 namespace KeepClip;
 
-// Bufor zapisuje krótkie segmenty MPEG-TS, które można odczytać także podczas zapisu
-// i połączyć bez ponownego kodowania obrazu.
 public static class ReplayService
 {
     private const int SegmentSeconds = 2;
@@ -18,7 +16,6 @@ public static class ReplayService
     private static bool _audioOn;
     private static string? _encoder;
 
-    // Kolejne poziomy zwiększają zgodność: GPU, transfer przez CPU, a na końcu gdigrab.
     private const int TierGpu = 0, TierCpu = 1, TierGdi = 2;
     private static int _captureTier = -1;
     private static string? _error;
@@ -60,7 +57,6 @@ public static class ReplayService
     private static string SettingsSig()
         => $"{DurationS}|{Fps}|{Quality}|{MicEnabled}|{AudioOutputId}|{AudioInputId}";
 
-    // Celowo bez blokady: punkt stanu ma pozostać dostępny podczas problemów FFmpeg lub audio.
     public static object Status()
     {
         var ff = _ff;
@@ -118,7 +114,7 @@ public static class ReplayService
             }
             if (running && _runningSig == SettingsSig()) return;
             if (running) StopLocked();
-            // Nowa konfiguracja zeruje eskalację po wcześniejszych awariach przechwytywania.
+
             _consecFails = 0;
             _captureTier = -1;
             StartLocked(freshRing: true);
@@ -130,7 +126,6 @@ public static class ReplayService
         lock (Gate) StopLocked();
     }
 
-    // Dźwięk jest odtwarzany od razu, bo nakładka nie zawsze pojawia się nad grą pełnoekranową.
     public static void PlayCue(bool ok)
     {
         try
@@ -146,7 +141,6 @@ public static class ReplayService
 
     public static async Task<Dictionary<string, object?>> SaveAsync(string source)
     {
-        // Daje mechanizmowi naprawczemu chwilę na restart po zmianie trybu wyświetlania.
         for (int i = 0; Enabled && _ff is not { HasExited: false } && i < 8; i++)
             await Task.Delay(500);
         if (_ff is not { HasExited: false })
@@ -156,7 +150,6 @@ public static class ReplayService
 
         var game = DisplayHelper.ForegroundGameName() ?? "Pulpit";
 
-        // Potwierdza skrót natychmiast, zanim zakończy się składanie dużego pliku.
         PlayCue(ok: true);
         try { Notifier?.Invoke(true, Strings.Get("replay.savingTitle"), Strings.Get("replay.savingSubtitle")); } catch { }
 
@@ -169,7 +162,6 @@ public static class ReplayService
             if (files.Count == 0)
                 throw new InvalidOperationException(Strings.Get("replay.bufferEmpty"));
 
-            // Kopiuje także aktualnie zapisywany TS, aby zachować najnowsze sekundy.
             var current = files[^1];
             var completed = files.Take(files.Count - 1).ToList();
 
@@ -190,7 +182,6 @@ public static class ReplayService
             if (take.Count == 0)
                 throw new InvalidOperationException(Strings.Get("replay.bufferEmpty"));
 
-        // Demukser łączenia wymaga ukośników i specjalnego zapisu apostrofów.
             listPath = Path.Combine(Config.TmpDir, $"replay_list_{Guid.NewGuid():N}.txt");
             var sb = new StringBuilder();
             foreach (var f in take)
@@ -204,9 +195,6 @@ public static class ReplayService
             var outPath = AvailableReplayPath(outDir, $"{game} {DateTime.Now:yyyy-MM-dd HH-mm-ss}");
             var outName = Path.GetFileName(outPath);
 
-            // Obraz jest kopiowany bez utraty jakości, a audio kodowane ponownie, aby naprawić
-            // szczeliny między segmentami. Plik tymczasowy leży w folderze docelowym, dzięki
-            // czemu końcowe przeniesienie jest szybkim przemianowaniem na tym samym woluminie.
             tmpOut = Path.Combine(outDir, $"replay_out_{Guid.NewGuid():N}.mp4.part");
             bool hevc = _encoder?.StartsWith("hevc", StringComparison.Ordinal) == true;
             var args = new List<string>
@@ -223,7 +211,6 @@ public static class ReplayService
             if (code != 0 || !File.Exists(tmpOut) || new FileInfo(tmpOut).Length < 10_000)
                 throw new Exception(Strings.Get("replay.muxFailed", Tail(err)));
 
-            // Antywirus lub indeksator może chwilowo blokować plik tuż po zamknięciu FFmpeg.
             for (int attempt = 0; ; attempt++)
             {
                 try { File.Move(tmpOut, outPath, overwrite: true); break; }
@@ -260,7 +247,7 @@ public static class ReplayService
                 throw new Exception(Strings.Get("replay.ffmpegMissing"));
 
             Directory.CreateDirectory(SegDir);
-            // Restart po awarii zachowuje segmenty i kontynuuje numerację, aby nie tracić bufora.
+
             if (freshRing && _saving == 0)
             {
                 WipeRing();
@@ -273,13 +260,10 @@ public static class ReplayService
 
             (_grabW, _grabH, _capW, _capH) = DisplayHelper.MeasurePrimary();
             _encoder ??= ProbeEncoder();
-            // Windows Sandbox i sesje zdalne używają wirtualnego obrazu. Desktop Duplication może
-            // wtedy zakłócać kursor nawet bez dodawania go do nagrania, dlatego startują od GDI.
-            // Zwykły pulpit nadal używa szybszego przechwytywania DXGI z transferem przez CPU.
+
             if (_captureTier < 0)
                 _captureTier = DisplayHelper.PreferGdiCapture() ? TierGdi : TierCpu;
 
-            // Brak działającego urządzenia audio nie powinien blokować nagrywania obrazu.
             _audio = AudioPump.TryCreate(MicEnabled, AudioOutputId, AudioInputId);
             _audioOn = _audio is not null;
 
@@ -305,17 +289,15 @@ public static class ReplayService
     {
         _stopRequested = true;
 
-        // Najpierw kończy FFmpeg, aby przerwać blokujący zapis audio do stdin i uniknąć zakleszczenia.
         if (_ff is not null)
         {
             try { if (!_ff.HasExited) _ff.Kill(entireProcessTree: true); } catch { }
-            // Czeka na końcowy zapis segmentu, zanim inny kod zacznie czyścić bufor.
+
             try { _ff.WaitForExit(2000); } catch { }
             try { _ff.Dispose(); } catch { }
             _ff = null;
         }
 
-        // Wadliwy sterownik audio nie może bezterminowo blokować wyłączenia bufora.
         var audio = _audio;
         _audio = null;
         if (audio is not null)
@@ -326,7 +308,6 @@ public static class ReplayService
         }
 
         _runningSig = null;
-        // Nie czyści tutaj segmentów, bo mogą być używane przez restart lub trwający zapis.
     }
 
     private static Process SpawnCapture(int tier)
@@ -347,16 +328,11 @@ public static class ReplayService
 
         if (_audioOn)
         {
-            // Audio używa czasu próbek od zera. Znaczniki zegara rzeczywistego miały inną skalę niż
-            // ddagrab, przez co FFmpeg przestawał czytać potok i nagrania były nieme.
             Add("-f", _audio!.SampleFormat, "-ar", _audio.SampleRate.ToString(),
                 "-ac", _audio.Channels.ToString(),
                 "-thread_queue_size", "2048", "-i", "pipe:0");
         }
 
-        // Stały, parzysty rozmiar ekranu głównego chroni enkoder przed zmianą trybu gry
-        // i limitem szerokości NVENC. Nie normalizuje PTS: ddagrab używa czasu rzeczywistego,
-        // który utrzymuje synchronizację z audio także przy zgubionych klatkach.
         string normCpu = $"scale={_capW}:{_capH}:force_original_aspect_ratio=decrease," +
                          $"pad={_capW}:{_capH}:(ow-iw)/2:(oh-ih)/2,format=nv12[v]";
         if (tier == TierGdi)
@@ -369,8 +345,6 @@ public static class ReplayService
         }
         else if (tier == TierCpu)
         {
-            // Kopiowanie sprzętowego kursora przez mechanizmy przechwytywania Windows może
-            // powodować jego migotanie na pulpicie. Kursory renderowane przez gry nadal są widoczne.
             Add("-filter_complex",
                 $"ddagrab=framerate={Fps}:draw_mouse=0,hwdownload,format=bgra,{normCpu}");
         }
@@ -382,12 +356,10 @@ public static class ReplayService
         Add("-map", "[v]");
         if (_audioOn)
         {
-            // Korekcja synchronizacji audio odbywa się dopiero podczas zapisu powtórki.
             Add("-map", "0:a");
             Add("-c:a", "aac", "-b:a", "192k");
         }
 
-        // Stały kwantyzator utrzymuje jakość szybkiego ruchu lepiej niż ograniczona przepływność VBR.
         int qp = Quality switch { "low" => 28, "medium" => 24, _ => 20 };
         int gop = Fps;
         switch (_encoder)
@@ -415,7 +387,6 @@ public static class ReplayService
         var proc = new Process { StartInfo = psi };
         if (!proc.Start()) throw new Exception(Strings.Get("replay.ffmpegStart"));
 
-        // Opróżnia strumień błędów, aby nie zablokować procesu, i zachowuje końcówkę do diagnostyki.
         _ = Task.Run(async () =>
         {
             try
@@ -433,8 +404,6 @@ public static class ReplayService
         return proc;
     }
 
-    // ddagrab może stracić dostęp po zmianie trybu ekranu; kolejne szybkie awarie
-    // powodują przejście na zgodniejszą metodę, a po sześciu próbach zatrzymanie bufora.
     private static int _consecFails;
 
     private static void StartWatchdog(Process proc)
@@ -463,7 +432,6 @@ public static class ReplayService
                     return;
                 }
 
-                // Pierwsza próba jest szybka; kolejne zwiększają opóźnienie.
                 int delayMs = _consecFails == 0 ? 700 : 1_500 * _consecFails;
                 Console.Error.WriteLine(
                     $"Bufor: nieoczekiwany koniec po {uptime.TotalSeconds:F0}s ({Tail(tail)}) — " +
@@ -473,7 +441,6 @@ public static class ReplayService
                     await Task.Delay(delayMs);
                     lock (Gate)
                     {
-                        // W międzyczasie użytkownik mógł wyłączyć lub ponownie uruchomić bufor.
                         if (!Enabled || _ff is not null) return;
                         StartLocked(freshRing: false);
                     }
@@ -549,7 +516,6 @@ public static class ReplayService
         return path;
     }
 
-    // Krótki test kodowania sprawdza faktyczne uruchomienie sterownika, nie tylko obecność enkodera.
     private static string ProbeEncoder()
     {
         foreach (var enc in new[] { "h264_nvenc", "h264_amf", "h264_qsv" })

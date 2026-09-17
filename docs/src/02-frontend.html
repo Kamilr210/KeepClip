@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>KeepClip — Frontend</title>
+<style>
+@page { size: A4; margin: 16mm 15mm 18mm 15mm;
+  @bottom-right { content: counter(page) " / " counter(pages); font: 9pt "Segoe UI", sans-serif; color: #888; }
+  @bottom-left { content: "KeepClip 2.3.0 — dokumentacja frontendu"; font: 9pt "Segoe UI", sans-serif; color: #888; } }
+body { font: 10.5pt/1.5 "Segoe UI", Calibri, sans-serif; color: #1a1a1a; margin: 0; }
+h1 { font-size: 26pt; margin: 0 0 4pt; }
+.subtitle { color: #555; font-size: 12pt; margin-bottom: 14pt; }
+.meta { font-size: 9.5pt; color: #666; margin-bottom: 24pt; }
+h2 { font-size: 17pt; margin: 22pt 0 8pt; padding-bottom: 4pt; border-bottom: 2px solid #39a04a; break-before: page; }
+h3 { font-size: 13pt; margin: 16pt 0 6pt; color: #1f5d2b; }
+h4 { font-size: 11pt; margin: 12pt 0 4pt; }
+.num { color: #39a04a; }
+code { font: 9.5pt Consolas, "Courier New", monospace; background: #f1f6f2; padding: 0 3px; border-radius: 3px; }
+pre { font: 8.8pt/1.4 Consolas, "Courier New", monospace; background: #f5f8f5; border: 1px solid #ddd; padding: 8pt; white-space: pre-wrap; word-break: break-word; border-radius: 4px; break-inside: avoid; }
+pre code { background: none; padding: 0; font-size: inherit; }
+table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; font-size: 9.5pt; }
+th, td { border: 1px solid #ccc; padding: 4pt 6pt; vertical-align: top; text-align: left; }
+th { background: #e6f2e8; }
+tr { break-inside: avoid; }
+.note { background: #fff8e1; border-left: 4px solid #f5a524; padding: 6pt 10pt; margin: 8pt 0; }
+.warn { background: #fdecea; border-left: 4px solid #c62828; padding: 6pt 10pt; margin: 8pt 0; }
+.toc { list-style: none; padding-left: 0; margin: 0; }
+.toc li { margin: 2pt 0; }
+.toc li.h3 { padding-left: 18pt; font-size: 9.5pt; }
+.toc a { text-decoration: none; color: #1a1a1a; }
+.toc-title { font-size: 17pt; font-weight: 600; margin: 0 0 8pt; }
+nav#toc { break-after: page; }
+ul, ol { margin: 4pt 0 8pt; }
+li { margin: 2pt 0; }
+.diagram { font: 8.5pt/1.35 Consolas, monospace; background: #fafafa; border: 1px dashed #bbb; padding: 8pt; white-space: pre; }
+</style>
+</head>
+<body>
+
+<h1>KeepClip — dokumentacja frontendu</h1>
+<div class="subtitle">Interfejs w WebView2: struktura strony, widoki, odtwarzacz, samouczek, tłumaczenia</div>
+<div class="meta">Wersja aplikacji 2.3.0 · gałąź <code>csharp</code> · stan na 17 września 2026</div>
+
+<p>Interfejs KeepClip to zwykła strona internetowa bez frameworka: jeden plik HTML, dwa pliki skryptów, dwa arkusze stylów i słownik tłumaczeń. Ładuje ją kontrolka WebView2 (silnik Edge/Chromium) w oknie WinForms. Wszystkie dane pochodzą z lokalnego serwera HTTP opisanego w dokumencie <em>Backend</em>. Ten dokument opisuje, jak strona jest zbudowana, co robi każdy widok i jak ją rozszerzać.</p>
+
+<nav id="toc"></nav>
+
+<h2>Pliki i ich role</h2>
+<table>
+<tr><th>Plik</th><th>Rozmiar</th><th>Rola</th></tr>
+<tr><td><code>frontend/index.html</code></td><td>ok. 1050 wierszy</td><td>Cała struktura DOM: pasek tytułu, pasek boczny, pięć widoków, nakładki (odtwarzacz, wycinanie, konfiguracja, powtórki, potwierdzenie, logi), toast, baner aktualizacji. Na końcu skrypt wbudowany z wykrywaniem języka i funkcją <code>t()</code>, potem <code>app.js</code>, <code>onboarding.js</code> i drugi skrypt wbudowany (animowane tło, animacja przyciągania okna).</td></tr>
+<tr><td><code>frontend/app.js</code></td><td>ok. 3500 wierszy</td><td>Cała logika interfejsu (bez samouczka). Skrypt klasyczny, bez modułów; funkcje i stan w zakresie globalnym.</td></tr>
+<tr><td><code>frontend/onboarding.js</code>, <code>onboarding.css</code></td><td>ok. 990 + 190 wierszy</td><td>Silnik samouczka (reflektor na elementach interfejsu) i podpowiedzi o nowych funkcjach. Udostępnia <code>window.KeepClipOnboarding</code>.</td></tr>
+<tr><td><code>frontend/i18n.js</code></td><td>ok. 2180 wierszy</td><td>Obiekt <code>i18n</code> z czterema językami (<code>pl, ru, en, uk</code>), po 427 kluczy każdy. Eksportowany też jako moduł CommonJS dla skryptu kontrolnego.</td></tr>
+<tr><td><code>frontend/styles.css</code></td><td>ok. 1970 wierszy</td><td>Motyw (zmienne CSS), układ, komponenty, odtwarzacz, widoki, panel logów.</td></tr>
+<tr><td><code>frontend/icons/</code>, <code>frontend/sounds/</code></td><td></td><td>Ikony (favicon w dwóch kolorach, ikona aplikacji <code>icon.ico</code>), dźwięki potwierdzenia zapisu powtórki.</td></tr>
+</table>
+<p>Serwer podaje te pliki pod <code>/static/…</code> z dopiskiem <code>?v=&lt;czas modyfikacji&gt;</code> w <code>index.html</code>, więc po aktualizacji przeglądarka zawsze pobiera nową wersję. Bloki między znacznikami <code>DEV:START</code> / <code>DEV:END</code> (panel logów w HTML, JS i CSS) są wycinane z wydania publicznego przez <code>installer/build.ps1</code>. Te znaczniki to jedyne komentarze w kodzie interfejsu i muszą zostać.</p>
+
+<h2>Okno i most do aplikacji</h2>
+<h3>Okno bez ramki</h3>
+<p>Formularz WinForms ma <code>FormBorderStyle.None</code>, więc pasek tytułu rysuje strona (<code>#custom-titlebar</code>). Przeciąganie działa dzięki klasie <code>pywebview-drag-region</code>: skrypt mostu (wstrzykiwany przez C# do każdej strony) przechwytuje <code>mousedown</code> na takim elemencie i prosi okno o natywne przesuwanie (<code>WM_NCLBUTTONDOWN</code> z <code>HTCAPTION</code>). Krawędzie okna to niewidoczne uchwyty dodawane przez most (<code>data-keepclip-grips</code>), które zgłaszają kody trafienia Win32 do skalowania. Nowsze WebView2 obsługuje też regiony natywne (<code>IsNonClientRegionSupportEnabled</code>).</p>
+<h3>Interfejs <code>window.pywebview.api</code></h3>
+<p>Nazwa pochodzi z wcześniejszej wersji aplikacji w Pythonie; most C# odtwarza to samo API, więc strona nie musiała się zmieniać. Każde wywołanie to <code>postMessage</code> z <code>{__kc:true, id, method, args}</code> i odpowiedź <code>{__kcReply:true, id, result, error}</code>.</p>
+<table>
+<tr><th>Metoda</th><th>Działanie</th></tr>
+<tr><td><code>pick_folder()</code></td><td>Systemowe okno wyboru folderu; zwraca ścieżkę albo <code>null</code>.</td></tr>
+<tr><td><code>minimize_window()</code>, <code>close_window()</code></td><td>Przyciski paska tytułu. Zamknięcie przy włączonym nagrywaniu w tle chowa okno do zasobnika zamiast kończyć proces.</td></tr>
+<tr><td><code>toggle_maximize_window(w, h, left, top)</code></td><td>Maksymalizacja do obszaru roboczego ekranu podanego przez stronę (<code>screen.avail*</code>) i powrót.</td></tr>
+<tr><td><code>start_native_resize()</code></td><td>Skalowanie za prawy dolny róg.</td></tr>
+</table>
+<p>Funkcja <code>callWindowApi(method, …args)</code> w <code>app.js</code> opakowuje te wywołania i loguje brak mostu (np. w zwykłej przeglądarce w trybie serwera). Most wysyła też zdarzenie <code>pywebviewready</code>.</p>
+<h3>Klawisz F10</h3>
+<p>Windows traktuje F10 jako aktywację paska menu i WebView2 nie przekazuje go stronie. Okno przechwytuje F10 w <code>ProcessCmdKey</code> i wstrzykuje zdarzenie <code>keydown</code> do aktywnego elementu strony, dzięki czemu pole skrótu powtórki może ustawić np. <code>Alt+F10</code>.</p>
+
+<h2>Start strony i wykrywanie języka</h2>
+<h3>Skrypt wbudowany (uruchamia się przed app.js)</h3>
+<ol>
+<li>Język: parametr <code>?lang=</code> w adresie (zapisywany do <code>localStorage.keepclip_lang</code>) → zapisany w <code>localStorage</code> → język systemu (<code>navigator.language</code>) → <code>en</code>.</li>
+<li>Ustawia <code>window.LANG</code>, atrybut <code>lang</code> dokumentu i globalną funkcję <code>window.t(klucz)</code>, która schodzi po kropkach w obiekcie <code>i18n[lang]</code> i zwraca sam klucz, gdy tłumaczenia brak.</li>
+<li>Stosuje atrybuty: <code>data-i18n</code> (tekst), <code>data-i18n-html</code>, <code>data-i18n-title</code>, <code>data-i18n-aria</code>, <code>data-i18n-placeholder</code>; ustawia podpisy przycisków odtwarzacza, placeholder wyszukiwarki, opcje sortowania.</li>
+<li>Obsługuje listę <code>#lang-select</code>: zapisuje wybór, zgłasza go do <code>POST /api/language</code> (od tego zależy język transkrypcji) i przeładowuje stronę z <code>?lang=</code>.</li>
+</ol>
+<h3><code>app.js</code>: funkcja <code>bootstrap()</code></h3>
+<ol>
+<li><code>GET /api/config</code> → wersja w ustawieniach (<code>KeepClip • v2.3.0</code>); jeśli język serwera różni się od języka strony, zgłasza język strony; jeśli <code>configured=false</code>, otwiera modal wyboru folderu w trybie <em>pierwszego uruchomienia</em> (bez przycisku Anuluj) i kończy start — resztę uruchomi zapis folderu.</li>
+<li><code>POST /api/scan</code> (cichy), <code>GET /api/stats</code>.</li>
+<li><code>GET /api/cloud/status</code> → oznaczenie połączenia, a gdy połączono — cicha synchronizacja z Dyskiem.</li>
+<li><code>checkForUpdate()</code> (baner, gdy jest nowsze wydanie).</li>
+<li><code>GET /api/transcribe/status</code> → jeśli trwa transkrypcja, podpina strumień postępu.</li>
+<li><code>renderRecent("")</code> → lista klipów, potem <code>startAutoLibrarySync()</code>.</li>
+</ol>
+<h3>Zegary działające cały czas</h3>
+<table>
+<tr><th>Co</th><th>Interwał</th><th>Uwagi</th></tr>
+<tr><td><code>POST /api/heartbeat</code></td><td>30 s</td><td>Bez tego serwer zamknąłby się po 5 minutach.</td></tr>
+<tr><td><code>autoSyncLibrary</code> (skan + statystyki)</td><td>2,5 s</td><td>Pomijane, gdy karta jest ukryta lub otwarty jest modal konfiguracji; odświeża widoki tylko, gdy statystyki się zmieniły. Dodatkowo przy powrocie fokusu do okna.</td></tr>
+<tr><td><code>refreshReplayStatus</code></td><td>15 s (3 s przy otwartym oknie powtórek)</td><td>Kropka przy przycisku „Powtórka" w pasku bocznym.</td></tr>
+<tr><td>Wyszukiwanie</td><td>200 ms po ostatnim znaku</td><td>Debounce pola <code>#q</code>.</td></tr>
+<tr><td>Podgląd po najechaniu</td><td>250 ms</td><td>Dopiero po tym czasie karta prosi o źródło wideo.</td></tr>
+<tr><td>Wskaźnik aktywnego wersu</td><td>300 ms</td><td>Podświetla wers transkrypcji zgodny z czasem odtwarzania.</td></tr>
+<tr><td>Postęp pojedynczej operacji</td><td>300 ms</td><td><code>/api/single-operation/status</code> w czasie wycinania lub transkrypcji jednego klipu.</td></tr>
+<tr><td>Łączenie z Google</td><td>2 s, do 150 prób</td><td>Odpytuje <code>/api/cloud/status</code> po otwarciu zgody w przeglądarce.</td></tr>
+<tr><td>Panel logów</td><td>1,5 s</td><td>Tylko build deweloperski.</td></tr>
+</table>
+
+<h2>Układ strony i nawigacja</h2>
+<div class="diagram">#custom-titlebar (przeciąganie, 🗕 🗖 ✕)
+.app-shell
+ ├─ aside.sidebar  (#keepclip-sidebar, zwijany przyciskiem #sidebar-toggle)
+ │    logo · Główne: Klipy / Foldery / Ulubione / Chmura (kropka gdy połączono)
+ │    Narzędzia: Skanuj (#btn-scan) · Transkrybuj (#btn-transcribe) · Transkrybuj ponownie wszystko
+ │                Zmień folder · Powtórka (#btn-replay, kropka gdy nagrywa) · Logi (DEV) · Ustawienia (#btn-settings)
+ │    statystyki (#stat-clips, #stat-trans, #stat-fav), paski miejsca lokalnie / w chmurze,
+ │    mini-karta konta Google (#sidebar-cloud-card), pasek postępu transkrypcji (#progress)
+ └─ main
+      #view-clips     wyszukiwarka #q, filtr #game-filter, sortowanie #sort, przełącznik układu, siatka #results, pasek zaznaczania
+      #view-folders   #folders-index (kafle) / #folder-detail (klipy folderu, przyciski)
+      #view-favorites #fav-results
+      #view-cloud     #cloud-loading / #cloud-setup / #cloud-connect / #cloud-account
+      #view-settings  język, motyw, animowane tło, folder klipów, samouczek, wersja
+nakładki: #player-overlay, #cut-overlay, #config-overlay, #replay-overlay, #confirm-overlay, #logs-overlay
+inne: #toast, #single-progress, #update-banner, #snap-hint</div>
+<p><code>setView(nazwa)</code> przełącza atrybut <code>hidden</code> widoków i klasę <code>active</code> w pasku bocznym; wejście do Folderów, Ulubionych i Chmury ładuje ich dane. Ustawienia to pełny widok, nie modal. Stan zwinięcia paska bocznego jest pamiętany w <code>localStorage.keepclip_sidebar_collapsed</code>; w zwiniętym trybie przyciski dostają tooltipy z własnych etykiet.</p>
+
+<h2>Widok Klipy</h2>
+<h3>Lista i wyszukiwanie</h3>
+<ul>
+<li><code>doSearch()</code>: puste pole → <code>renderRecent(gra, sort)</code> pobiera <code>GET /api/clips?sort&amp;limit=120[&amp;game]</code>. Z tekstem → <code>GET /api/search?q&amp;sort&amp;limit=200</code> i filtrowanie po grze po stronie strony. Opcja sortowania „trafność" jest widoczna tylko z zapytaniem (<code>syncSortOptions</code>).</li>
+<li>Kartę klipu buduje <code>clipCard(c)</code>: miniatura <code>/thumb/{id}?v=rozmiar</code> (z zastępczą ikoną przy błędzie), czas trwania, znaczek chmury (<code>cloudChip</code>), pole zaznaczenia w trybie wyboru, gra, data (<code>fmtDate</code>), gwiazdka (<code>favStar</code>), rozmiar i informacja „nie transkrybowano". Atrybuty <code>data-size</code> i <code>data-duration</code> służą do szacowania rozmiaru wycinka.</li>
+<li>Wyniki wyszukiwania (<code>renderResults</code>) pokazują dodatkowo czas trafienia i fragment z podświetleniem (<code>safeSnippet</code> koduje HTML poza <code>&lt;mark&gt;</code>). Kliknięcie otwiera odtwarzacz od miejsca trafienia (0,5 s wcześniej).</li>
+<li>Układ: <code>grid</code> albo <code>mosaic</code> (<code>applyLayout</code>, pamiętane w <code>localStorage.keepclip_layout</code>, domyślnie mozaika). W mozaice ulubione idą na początek. <code>_repaint</code> pozwala przerysować bieżącą listę bez ponownego pobierania.</li>
+</ul>
+<h3>Gwiazdka, chmura, zaznaczanie</h3>
+<p>Trzy nasłuchy na fazie przechwytywania (<code>addEventListener(…, true)</code>) obsługują kliknięcia w gwiazdkę, znaczek chmury i kartę w trybie zaznaczania, zanim dojdzie do otwarcia odtwarzacza. <code>toggleFavorite</code> synchronizuje wszystkie karty tego klipu w DOM. <code>uploadClipToCloud</code> / <code>downloadClipFromCloud</code> blokują powtórne kliknięcie (<code>_busyClipIds</code>), podmieniają znaczek po sukcesie i odświeżają statystyki oraz limit chmury.</p>
+<h3>Podgląd po najechaniu</h3>
+<p>Po 250 ms na karcie strona pyta <code>GET /api/playback/{id}?start=false</code>. Jeśli źródło jest gotowe (klip ≤ 120 FPS albo gotowa kopia podglądowa), wstawia wyciszony element <code>&lt;video&gt;</code> z fragmentem <code>#t=…</code> (start od trafienia, od połowy krótkiego klipu albo od 5 s) i klasą <code>previewing</code>. Opuszczenie karty, przewinięcie lub tryb zaznaczania zatrzymują podgląd. Token <code>_previewToken</code> chroni przed spóźnionymi odpowiedziami.</p>
+
+<h2>Widok Foldery i tryb zaznaczania</h2>
+<ul>
+<li><code>loadFoldersIndex()</code>: kafle z kolażem do 4 miniatur ostatnio dodanych klipów, liczbą klipów i kaflem „nowy folder" (<code>promptNewFolder</code> używa <code>window.prompt</code>).</li>
+<li><code>openFolder(id)</code>: <code>GET /api/folders/{id}/clips?sort=added</code>, karty jak w Klipach; przyciski: wstecz, zmień nazwę (<code>PATCH</code>), dodaj klipy, wyślij folder do chmury (widoczny tylko po połączeniu), usuń (z potwierdzeniem).</li>
+<li><b>Tryb zaznaczania</b> (<code>startSelectionMode</code>): przenosi do widoku Klipy z paskiem <code>#selection-bar</code>; klikanie kart przełącza zaznaczenie i synchronizuje wszystkie karty tego samego klipu; „Dodaj" wysyła równolegle <code>POST /api/folders/{f}/clips/{c}</code> dla każdego zaznaczenia i wraca do folderu.</li>
+<li>Z odtwarzacza foldery obsługuje rozwijane menu <code>#player-folders-dropdown</code> (pola wyboru + tworzenie folderu w miejscu). Menu jest przenoszone do <code>body</code> (portal), żeby nie przycinał go odtwarzacz; pozycję liczy <code>positionFoldersDropdown</code>.</li>
+</ul>
+
+<h2>Widok Ulubione i Chmura</h2>
+<p><b>Ulubione</b>: <code>GET /api/clips?favorite=1&amp;limit=500</code>, liczba w nagłówku, te same karty.</p>
+<p><b>Chmura</b> (<code>loadCloud</code>) pokazuje jeden z paneli: ładowanie, <em>konfiguracja</em> (brak pliku klienta OAuth — instrukcja tworzenia własnego klienta; w instalatorze plik jest wbudowany, więc użytkownicy tego nie widzą), <em>połącz</em> (przycisk startujący <code>startCloudConnect</code>), <em>konto</em> (nazwa, e-mail, zdjęcie przez <code>/api/cloud/avatar</code> z inicjałami jako zapasem, pasek zajętości, rozłącz z potwierdzeniem). <code>startCloudConnect</code> otwiera adres zgody w nowej karcie (WebView2 przekazuje go do przeglądarki systemowej) i odpytuje status co 2 s; po połączeniu synchronizuje bibliotekę. Powrót fokusu do okna też odświeża panel. Paski miejsca w pasku bocznym (<code>renderStorage</code>) łączą statystyki lokalne z limitem Dysku; minimalna szerokość 0,5 % pozwala zobaczyć nawet mały udział klipów.</p>
+
+<h2>Odtwarzacz</h2>
+<h3>Otwieranie (<code>openPlayer(clipId, startAt)</code>)</h3>
+<ol>
+<li>Zatrzymuje podgląd, pobiera <code>GET /api/segments/{id}</code>. Klip w chmurze bez połączenia → toast i koniec.</li>
+<li>Wypełnia nagłówek, gwiazdkę, przycisk chmury (<code>updatePlayerCloudBtn</code>: strzałka w dół dla klipu w chmurze, w górę dla lokalnego, ukryty bez połączenia), plakat z miniatury (zapobiega czarnemu ekranowi), listę wersów z przyciskiem ✎ i przycisk „Pobierz .txt" (tylko gdy są segmenty).</li>
+<li>Buduje napisy WebVTT (<code>rebuildSubtitles</code>) i pokazuje nakładkę.</li>
+<li><code>resolvePlaybackSource</code> odpytuje <code>GET /api/playback/{id}</code> co 500 ms, pokazując pasek „Przygotowuję podgląd" z procentem dla klipów powyżej 120 FPS, aż dostanie adres; potem ustawia <code>video.src</code>, przewija do <code>startAt − 0,5 s</code> i odtwarza. Token <code>_playbackRequestToken</code> unieważnia poprzednie oczekiwanie przy szybkiej zmianie klipu.</li>
+</ol>
+<h3>Sterowanie</h3>
+<p>Własne przyciski (<code>#ctrl-*</code>): zrzut ekranu do JPEG (canvas), głośność w wyskakującym suwaku, początek/−5 s/odtwarzaj/+5 s/koniec, prędkość w cyklu 1 → 1,25 → 1,5 → 2 → 0,5 → 0,75 (nowy klip zawsze od 1×), napisy (stan w <code>localStorage.kc_subtitles</code>), pełny ekran całego <code>#player-box</code> (sterowanie znika po 2,5 s bezczynności, wraca przy pauzie). Spacja przełącza odtwarzanie, Esc zamyka (w pełnym ekranie pierwsze Esc obsługuje przeglądarka). Kliknięcie w wers przewija wideo; aktywny wers jest podświetlany i przewijany do widoku, chyba że trwa edycja.</p>
+<h3>Edycja wersu</h3>
+<p><code>enterSegEdit</code> zamienia wers w pole tekstowe (Ctrl+Enter zapisuje, Esc anuluje), wysyła <code>PATCH /api/segments/{id}</code>, aktualizuje tekst, napisy i pokazuje toast. W czasie edycji Esc nie zamyka odtwarzacza.</p>
+<h3>Akcje boczne</h3>
+<table>
+<tr><th>Przycisk</th><th>Co robi</th></tr>
+<tr><td>Ulubione</td><td><code>POST /api/clips/{id}/favorite</code>.</td></tr>
+<tr><td>Wytnij</td><td>Otwiera modal wycinania (niżej).</td></tr>
+<tr><td>Chmura</td><td>Wysyła lub ściąga klip; w trakcie etykieta „Wysyłam…/Pobieram…".</td></tr>
+<tr><td>Foldery</td><td>Rozwijane menu członkostwa.</td></tr>
+<tr><td>Transkrypcja</td><td><code>POST /api/clips/{id}/retranscribe</code> z paskiem postępu; po sukcesie odtwarzacz otwiera się ponownie.</td></tr>
+<tr><td>Pobierz .txt</td><td><code>HEAD</code> na <code>/api/clips/{id}/transcript.txt</code> (czytelny błąd zamiast pustego pliku), potem kliknięcie ukrytego odnośnika z <code>download</code>.</td></tr>
+<tr><td>Napraw</td><td>Potwierdzenie, <code>POST /api/clips/{id}/fix</code>, toast z liczbą przyciętych sekund.</td></tr>
+<tr><td>Usuń</td><td>Potwierdzenie (inne teksty dla klipu w chmurze), zamknięcie odtwarzacza i 200 ms przerwy (zwolnienie uchwytu pliku), <code>DELETE /api/clips/{id}?delete_file=true</code>.</td></tr>
+</table>
+
+<h2>Modal wycinania</h2>
+<p><code>openCutModal</code> kopiuje źródło wideo z odtwarzacza do <code>#cut-video</code>, ustawia zakres domyślnie od <code>bieżący czas − 5 s</code> na 10 s. Suwak zakresu (<code>#cut-range</code>) ma dwa uchwyty i wskaźnik odtwarzania; przeciąganie uchwytu przewija wideo do jego czasu, kliknięcie w tor przesuwa bliższy uchwyt. Presety rozmiaru: bez kompresji, 20 MB (Discord), 25, 50 (Nitro Basic), 100, 500 MB (Nitro) albo własna liczba. <code>updateCutEstimate</code> szacuje wynik: bez kompresji z przepływności pliku źródłowego (rozmiar/czas z atrybutów karty), z limitem odtwarza obliczenie serwera (limit − 100 kB − audio 128 kb/s − 50 kB → przepływność wideo) i opisuje jakość: &lt; 1500 kb/s słaba, &lt; 3000 średnia, &lt; 6000 dobra, wyżej świetna. Przycisk „Wytnij" wysyła <code>POST /api/clips/{id}/cut</code> z paskiem postępu; po sukcesie <code>showCutSuccess</code> pokazuje nazwę i rozmiar oraz przycisk otwierający folder w Eksploratorze (<code>POST /api/show-in-explorer</code>). Modal ma własny mini-odtwarzacz (skrypt na końcu <code>app.js</code>).</p>
+
+<h2>Transkrypcja zbiorcza i paski postępu</h2>
+<ul>
+<li><code>startTranscribe(force)</code>: najpierw <code>POST /api/scan</code>, potem <code>POST /api/transcribe/start</code>. Brak nowych klipów → toast. Sukces → <code>attachStream()</code>.</li>
+<li><code>attachStream</code>: <code>EventSource("/api/transcribe/stream")</code>; każda ramka aktualizuje pasek <code>#progress</code> (<code>done / total</code>, bieżący klip). Koniec strumienia odświeża statystyki i listę. Błąd strumienia przełącza na odpytywanie <code>/api/transcribe/status</code> co 1,5 s (<code>pollOnce</code>).</li>
+<li>„Transkrybuj ponownie wszystko" pokazuje potwierdzenie z liczbą klipów i używa <code>force=true</code>.</li>
+<li>Pasek <code>#single-progress</code> (<code>startSingleOperationProgress</code>) obsługuje wycinanie i transkrypcję jednego klipu; identyfikator operacji chroni przed pomyleniem z poprzednią; błąd zostawia pasek z komunikatem i przyciskiem zamknięcia.</li>
+</ul>
+
+<h2>Okno powtórek i przechwytywanie skrótu</h2>
+<p><code>openReplayModal</code> pobiera status, wypełnia formularz (włącz, w tle, mikrofon, długość, FPS, jakość, skrót, urządzenia audio z <code>/api/replay/audio-devices</code> albo z <code>navigator.mediaDevices</code> jako zapas) i odpytuje status co 3 s. <code>renderReplayStatus</code> opisuje stan (kodowanie: NVENC/AMF/QuickSync/x264, „bez audio"), ostrzega, gdy bufor działa, ale skrót nie jest aktywny (konflikt z inną aplikacją). „Zapisz ustawienia" → <code>POST /api/replay/config</code>; „Zapisz teraz" → <code>POST /api/replay/save</code>.</p>
+<p><b>Przechwytywanie skrótu</b>: kliknięcie w pole przełącza je w tryb nasłuchu; <code>winFormsKeyName(e)</code> tłumaczy <code>e.code</code> na nazwy z <code>System.Windows.Forms.Keys</code> (litery, <code>D0–D9</code>, <code>NumPad*</code>, <code>F1–F24</code>, klawisze <code>Oem*</code> dla interpunkcji, <code>Back</code> zamiast Backspace). Wymagany jest co najmniej jeden modyfikator (Ctrl/Alt/Shift/Win); sam klawisz przechwytywałby pisanie w całym systemie. Esc przywraca poprzedni skrót.</p>
+
+<h2>Modal konfiguracji folderu i ustawienia</h2>
+<p><code>openConfigModal({mode:"first"|"change"})</code> różni się tytułem i brakiem Anuluj przy pierwszym uruchomieniu. Przycisk folderu używa <code>pywebview.api.pick_folder</code>. Zapis → <code>POST /api/config</code>; sukces zamyka modal, pokazuje wynik skanu, odświeża widoki, uruchamia auto-sync i wysyła zdarzenie <code>keepclip:configured</code>, na które czeka samouczek.</p>
+<p><b>Ustawienia</b>: język (przeładowanie strony), motyw (<code>POST /api/accent-theme</code>, natychmiastowa zmiana <code>data-accent-theme</code> i favicon, cofnięcie przy błędzie), animowane tło (przełącznik w drugim skrypcie wbudowanym; kule <code>#orb1/#orb2</code> dostają klasę <code>paused</code>), zmiana folderu, uruchomienie samouczka, wersja.</p>
+
+<h2>Potwierdzenia, toasty, błędy</h2>
+<ul>
+<li><code>showConfirm({title, body, warning, warningClass, yesLabel, yesClass})</code> zwraca <code>Promise&lt;bool&gt;</code>; Esc i kliknięcie tła = odmowa; domyślne ostrzeżenie mówi o Koszu Windows.</li>
+<li><code>toast(msg, "ok"|"error")</code> — 3,5 s w prawym dolnym rogu.</li>
+<li><code>backendErrorMessage(payload, fallback)</code>: gdy serwer podał kod <code>error</code> i istnieje klucz <code>errors.&lt;kod&gt;</code>, używa tłumaczenia; inaczej <code>detail</code> (z jedną dodatkową regułą w <code>localizeBackendError</code> dla błędu dekodowania audio).</li>
+</ul>
+
+<h2>Aktualizacje w interfejsie</h2>
+<p><code>checkForUpdate</code> woła <code>GET /api/update/check</code>; przy nowszej wersji pokazuje <code>#update-banner</code> z numerem (odrzucenie na czas sesji w <code>sessionStorage.kc_upd_dismiss</code>). „Pobierz i zainstaluj" → <code>POST /api/update/install</code> i odpytywanie <code>/api/update/status</code> co 500 ms z procentem; faza <code>starting</code> oznacza, że aplikacja zaraz się zamknie, a instalator podmieni pliki w miejscu.</p>
+
+<h2>Samouczek (onboarding.js)</h2>
+<h3>Idea</h3>
+<p>Samouczek nie ma własnych ekranów: przyciemnia aplikację, wycina „reflektor" wokół prawdziwego elementu i pokazuje obok kartę z tekstem. Kroki są deklaratywne (<code>STEPS</code>), elementy odnajduje rejestr <code>TARGETS</code> (lista selektorów, wygrywa pierwszy widoczny, więc krok działa też przy pustej bibliotece).</p>
+<table>
+<tr><th>Krok</th><th>Widok</th><th>Cel</th><th>Warunek</th></tr>
+<tr><td><code>welcome</code></td><td>—</td><td>karta na środku</td><td></td></tr>
+<tr><td><code>automatic-clips</code></td><td>clips</td><td>biblioteka <code>#results</code></td><td>tylko gdy folder ustawiony</td></tr>
+<tr><td><code>clips-folder</code></td><td>settings</td><td>przycisk zmiany folderu</td><td>tylko gdy folder nieustawiony</td></tr>
+<tr><td><code>games-organized</code></td><td>clips</td><td><code>#game-filter</code></td><td></td></tr>
+<tr><td><code>clip-editing</code></td><td>clips</td><td>pierwsza karta klipu</td><td></td></tr>
+<tr><td><code>transcription</code></td><td>clips</td><td><code>#btn-transcribe</code></td><td></td></tr>
+<tr><td><code>transcript-edit</code></td><td>clips</td><td>karta klipu / nawigacja</td><td></td></tr>
+<tr><td><code>favorites</code></td><td>clips</td><td>gwiazdka / nawigacja Ulubione</td><td></td></tr>
+<tr><td><code>collections</code></td><td>folders</td><td>nowy folder / siatka</td><td></td></tr>
+<tr><td><code>cloud</code></td><td>cloud</td><td>przycisk łączenia / karta konta</td><td></td></tr>
+<tr><td><code>done</code></td><td>clips</td><td>karta na środku</td><td></td></tr>
+</table>
+<h3>Silnik</h3>
+<ul>
+<li><b>Nakładka</b>: <code>.kc-ob-veil</code> (blokuje klikanie; zaczyna 32 px od góry, żeby pasek tytułu dalej działał), <code>.kc-ob-spot</code> (cień 9999 px rysuje przyciemnienie z otworem; element wyższy niż 40 % okna dostaje reflektor tylko u góry), <code>.kc-ob-card</code> (karta, tryb <code>kc-ob-modal</code> dla powitania i zakończenia).</li>
+<li><b>Przejście</b> (<code>show(i)</code>): 150 ms przerwy, przełączenie widoku przez kliknięcie prawdziwego przycisku nawigacji (żeby wykonała się logika widoku), oczekiwanie na cel do 1,4 s (z 0,5 s karencji, gdy widać tylko cel zapasowy), przewinięcie, render karty, zapis <code>current_step</code>. Otwarte okna modalne aplikacji (odtwarzacz, wycinanie, konfiguracja, powtórki, potwierdzenie, edycja wersu) wstrzymują automatyczną nawigację.</li>
+<li><b>Śledzenie</b>: pętla <code>requestAnimationFrame</code> przelicza pozycję reflektora i karty przy przewijaniu, zmianie rozmiaru i podmianie DOM; zniknięcie celu przenosi kartę na środek bez reflektora (samouczek nigdy nie przerywa się z tego powodu).</li>
+<li><b>Karta</b>: wybiera pierwszą stronę z miejscem (preferowana, potem prawo, dół, lewo, góra), strzałka tylko gdy karta stoi obok celu; klawiatura: Enter/→ dalej, ← wstecz, Esc pytanie o pominięcie, Tab zamknięty w karcie.</li>
+<li><b>Stan</b>: <code>GET/POST /api/onboarding</code>; gdy serwer nie odpowiada (stary backend), zapas w <code>localStorage</code> tylko na czas sesji i bez automatycznego startu (port jest losowy, więc <code>localStorage</code> nie przetrwa restartu).</li>
+<li><b>Start</b>: po załadowaniu strony, jeśli nie ukończono i nie pominięto: z zapisanym krokiem → pytanie „Kontynuuj / Od początku / Pomiń", inaczej od początku. Świeża instalacja czeka na zdarzenie <code>keepclip:configured</code>. Przycisk w ustawieniach woła <code>POST /api/onboarding/restart</code>.</li>
+</ul>
+<h3>Podpowiedzi o nowych funkcjach</h3>
+<pre><code>KeepClipOnboarding.registerFeatureHint({
+  id: "share-v1", target: "ShareButton", placement: "left",
+  title: "Udostępnianie", description: "Możesz teraz wysłać klip jednym kliknięciem."
+});</code></pre>
+<p>Cel musi istnieć w <code>TARGETS</code>. Podpowiedzi pokazują się tylko osobom, które ukończyły lub pominęły samouczek; zobaczone identyfikatory trafiają do <code>seen_hints</code>. Nowa funkcja nie uruchamia całego samouczka od nowa i nie wymaga podbicia <code>VERSION</code> (który musi zgadzać się z <code>OnboardingService.CurrentVersion</code>).</p>
+<p>API publiczne: <code>start(stepId)</code>, <code>restart()</code>, <code>stop()</code>, <code>isActive()</code>, <code>state()</code>, <code>registerFeatureHint()</code>, <code>showPendingHints()</code>, <code>targets</code>, <code>steps</code>. Teksty kroków to klucze <code>onboarding.steps.&lt;id&gt;.{title, body, hint, note, primary, secondary}</code>; brakujący tekst po prostu znika z karty.</p>
+
+<h2>Tłumaczenia (i18n.js)</h2>
+<ul>
+<li>Cztery języki, identyczny zestaw kluczy. Grupy: <code>nav, replay, orb, errors, progress, clipCount, selection, search, clip, player, playerActions, toast, confirm, cutSuccess, cutEstimate, storage, cloud, folders, folderDetail, config, titlebar, plural, stat, storageTitle, storageLabel, cloudPanel, cloudx, cutOverlay, confirmDefault, configLabel, ui, update, settings, onboarding</code>.</li>
+<li>Symbole w tekstach: <code>{n}</code>, <code>{word}</code>, <code>{error}</code>, <code>{path}</code>… podstawiane przez <code>.replace</code>. Angielski celowo nie ma <code>{word}</code> w kilku kluczach (<code>clip(s)</code>).</li>
+<li>Liczebniki: <code>clipsWord(n)</code> używa <code>Intl.PluralRules</code> i kluczy <code>clipCount.one/few/many/other</code>.</li>
+<li>Kontrola: <code>node tests/i18n-check.js</code> sprawdza komplet kluczy, puste teksty i klucze użyte w kodzie bez tłumaczenia; różnice w symbolach są ostrzeżeniem. Uruchamia się w CI.</li>
+<li>Dodając tekst: klucz w czterech językach, użycie przez <code>t("grupa.klucz")</code> albo atrybut <code>data-i18n</code> w HTML.</li>
+</ul>
+
+<h2>Style</h2>
+<p>Motyw definiują zmienne w <code>:root</code>: tła (<code>--bg</code>, <code>--card</code>, <code>--card-2</code>), teksty (<code>--text</code>, <code>--muted</code>), akcenty (<code>--accent</code>, <code>--accent-primary</code>, <code>--accent-vivid</code>, <code>--accent-2</code>, <code>--accent-folder</code>, <code>--accent-cloud</code>, <code>--accent-pale</code>, <code>--accent-stat</code>…) oraz składowe RGB do przezroczystości (<code>--accent-rgb</code>, <code>--accent-border-rgb</code>). Motyw zielony nadpisuje je selektorem <code>:root[data-accent-theme="green"]</code>, więc nowe komponenty powinny używać zmiennych, a nie kolorów wprost — dzięki temu działają w obu motywach (samouczek korzysta wyłącznie ze zmiennych). Szerokość paska bocznego: <code>--sidebar-width</code> 280 px / <code>--sidebar-collapsed-width</code> 92 px. Elementy z klasą <code>pywebview-drag-region</code> nie mogą zawierać przycisków, bo pasek tytułu przejmuje mysz. Rozmiar napisów WebVTT zostaje domyślny, żeby skalował się w pełnym ekranie.</p>
+
+<h2>Pamięć przeglądarki</h2>
+<table>
+<tr><th>Klucz</th><th>Gdzie</th><th>Znaczenie</th></tr>
+<tr><td><code>keepclip_lang</code></td><td>localStorage</td><td>Język interfejsu.</td></tr>
+<tr><td><code>keepclip_sidebar_collapsed</code></td><td>localStorage</td><td>Zwinięty pasek boczny.</td></tr>
+<tr><td><code>keepclip_layout</code></td><td>localStorage</td><td><code>grid</code> / <code>mosaic</code>.</td></tr>
+<tr><td><code>kc_subtitles</code></td><td>localStorage</td><td>Napisy włączone.</td></tr>
+<tr><td><code>keepclip_onboarding</code></td><td>localStorage</td><td>Zapas stanu samouczka, gdy serwer nie ma endpointu.</td></tr>
+<tr><td><code>kc_upd_dismiss</code></td><td>sessionStorage</td><td>Odrzucony baner aktualizacji (wersja).</td></tr>
+</table>
+<div class="note">Okno aplikacji dostaje losowy port przy każdym starcie, a <code>localStorage</code> jest przypisany do adresu razem z portem. Dlatego nic ważnego nie może zależeć od pamięci przeglądarki — trwałe ustawienia idą na serwer.</div>
+
+<h2>Panel deweloperski</h2>
+<p>Przycisk „Logi" (<code>#btn-logs</code>) pokazuje się tylko, gdy <code>GET /api/config</code> zwraca <code>dev=true</code>. Panel odpytuje <code>/api/logs</code> co 1,5 s, ma auto-przewijanie, kopiowanie i czyszczenie. Cały kod jest między znacznikami <code>DEV:START</code>/<code>DEV:END</code> i znika z wydania publicznego.</p>
+
+<h2>Jak rozszerzać interfejs</h2>
+<ol>
+<li>Nowy element DOM dodaj w <code>index.html</code> z atrybutem <code>data-i18n</code> i domyślnym polskim tekstem; klucz w czterech językach w <code>i18n.js</code>.</li>
+<li>Uchwyt do elementu dopisz do obiektu <code>els</code> na początku <code>app.js</code>; nasłuchy rejestruj raz, na końcu odpowiedniej sekcji.</li>
+<li>Wywołania serwera przez <code>fetch</code>; błędy pokazuj przez <code>toast(backendErrorMessage(dane, r.statusText), "error")</code>.</li>
+<li>Jeśli element ma się znaleźć w samouczku, dodaj selektor do <code>TARGETS</code> i krok do <code>STEPS</code> oraz teksty <code>onboarding.steps.&lt;id&gt;</code>; nową funkcję dla istniejących użytkowników ogłoś przez <code>registerFeatureHint</code>.</li>
+<li>Kolory tylko przez zmienne CSS. Sprawdź oba motywy.</li>
+<li>Sprawdź stronę w trybie serwera (<code>KEEPCLIP_SERVER_ONLY=1</code>, port 8770) w zwykłej przeglądarce — most okna wtedy nie istnieje, a kod musi to znosić (<code>callWindowApi</code>).</li>
+<li>Uruchom <code>node tests/i18n-check.js</code> i testy backendu, jeśli zmieniło się API.</li>
+</ol>
+
+</body>
+</html>

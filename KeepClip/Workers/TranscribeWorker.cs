@@ -27,7 +27,6 @@ public static class TranscribeWorker
                 TranscribeState.Current = null;
             }
 
-        // Lista jest wyliczana synchronicznie, aby odpowiedź od razu znała dokładną liczbę.
             List<Dictionary<string, object?>> clips;
             using (var con = Db.Open())
             {
@@ -68,7 +67,6 @@ public static class TranscribeWorker
                 string fp = clip["filepath"] as string ?? "";
                 string name = Path.GetFileName(fp);
 
-                // Klipy w chmurze nie mają lokalnego pliku, ale nie wolno usuwać ich z bazy.
                 string storage = clip["storage"] as string ?? "local";
                 if (storage == "cloud")
                 {

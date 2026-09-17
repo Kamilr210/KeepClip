@@ -4,17 +4,14 @@ using System.Windows.Forms;
 
 namespace KeepClip.Infrastructure;
 
-// Okno powiadomienia nie może przejąć fokusu ani zmienić stanu po pierwszym wyświetleniu,
-// bo późniejsze ukrycie lub zamknięcie potrafi zminimalizować grę. Znika wyłącznie przez
-// animację Opacity do zera i pozostaje przezroczyste dla kliknięć. Używać w wątku UI.
 internal sealed class ReplayToast : Form
 {
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
-    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;  // W Windows 11 wartość 2 oznacza zaokrąglenie.
+    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
     private const int WS_EX_NOACTIVATE = 0x08000000;
-    private const int WS_EX_TOOLWINDOW = 0x00000080;       // Ukrywa okno na liście Alt+Tab.
-    private const int WS_EX_TRANSPARENT = 0x00000020;      // Przepuszcza kliknięcia myszy.
+    private const int WS_EX_TOOLWINDOW = 0x00000080;
+    private const int WS_EX_TRANSPARENT = 0x00000020;
 
     private static ReplayToast? _instance;
 
@@ -42,7 +39,7 @@ internal sealed class ReplayToast : Form
         ShowInTaskbar = false;
         TopMost = true;
         Opacity = 0;
-        BackColor = Color.FromArgb(0x14, 0x18, 0x22);   // Odpowiada kolorowi kart aplikacji.
+        BackColor = Color.FromArgb(0x14, 0x18, 0x22);
 
         _icon = new Label
         {
@@ -81,7 +78,7 @@ internal sealed class ReplayToast : Form
                 var fadeOut = _ageMs - FadeMs - LingerMs;
                 Opacity = Math.Max(0.0, 1.0 - (double)fadeOut / FadeMs);
                 if (Opacity <= 0)
-        _anim.Stop();   // Nie ukrywa ani nie zamyka okna; uzasadnienie znajduje się nad klasą.
+        _anim.Stop();
             }
         };
     }
@@ -100,7 +97,7 @@ internal sealed class ReplayToast : Form
 
         _ageMs = 0;
         Opacity = 0;
-        if (!Visible) Show();   // Wywoływane tylko raz, bez aktywowania okna.
+        if (!Visible) Show();
         _anim.Stop();
         _anim.Start();
     }
@@ -122,6 +119,6 @@ internal sealed class ReplayToast : Form
         base.OnHandleCreated(e);
         int round = 2;
         try { DwmSetWindowAttribute(Handle, DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int)); }
-        catch { /* Windows 10 pozostaje przy prostych narożnikach. */ }
+        catch {  }
     }
 }

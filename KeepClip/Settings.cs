@@ -75,8 +75,6 @@ public static class Settings
         }
     }
 
-    // Język interfejsu jest zapisywany po stronie serwera, ponieważ steruje także
-    // transkrypcją, która działa bez otwartego okna aplikacji.
     public static string GetLanguage()
     {
         var lang = StringOrNull(Load(), "ui_language");
@@ -87,8 +85,6 @@ public static class Settings
 
     public static void SetLanguage(string language) => SetString("ui_language", language);
 
-    // Samouczek trzyma kilka powiązanych ze sobą pól, więc zapisuje je jako jeden
-    // obiekt zamiast rozsypywać po kluczach najwyższego poziomu.
     public static JsonObject GetObject(string key)
     {
         var data = Load();

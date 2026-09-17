@@ -4,8 +4,6 @@ namespace KeepClip.Endpoints;
 
 public static class SearchEndpoints
 {
-// Każde słowo staje się tokenem prefiksowym połączonym logiczną koniunkcją, dzięki czemu
-    // wyszukiwanie toleruje odmianę słów i znaki diakrytyczne.
     private static readonly Regex FtsSafe = new(@"[\wÀ-ſ]+", RegexOptions.Compiled);
 
     private static string ToFtsQuery(string q)

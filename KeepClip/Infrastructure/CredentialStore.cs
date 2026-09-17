@@ -3,13 +3,11 @@ using System.Text;
 
 namespace KeepClip.Infrastructure;
 
-// Token odświeżania Google jest chroniony przez Menedżera poświadczeń Windows
-// i nigdy nie trafia jawnie do katalogu data ani repozytorium.
 public static class CredentialStore
 {
     private const int CRED_TYPE_GENERIC = 1;
-    private const int CRED_PERSIST_LOCAL_MACHINE = 2; // Zachowuje dane po wylogowaniu i restarcie tego użytkownika.
-    private const int CRED_MAX_CREDENTIAL_BLOB_SIZE = 5 * 512; // 2560 bajtów.
+    private const int CRED_PERSIST_LOCAL_MACHINE = 2;
+    private const int CRED_MAX_CREDENTIAL_BLOB_SIZE = 5 * 512;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct CREDENTIAL
@@ -18,7 +16,7 @@ public static class CredentialStore
         public int Type;
         public string TargetName;
         public string? Comment;
-        public long LastWritten;            // Wartość FILETIME, pomijana podczas zapisu.
+        public long LastWritten;
         public int CredentialBlobSize;
         public IntPtr CredentialBlob;
         public int Persist;
@@ -72,7 +70,7 @@ public static class CredentialStore
     public static string? Read(string target)
     {
         if (!CredReadW(target, CRED_TYPE_GENERIC, 0, out IntPtr ptr))
-            return null; // Brak wpisu lub dostępu jest traktowany jak brak tokenu.
+            return null;
         try
         {
             var cred = Marshal.PtrToStructure<CREDENTIAL>(ptr);

@@ -2,8 +2,6 @@ using Microsoft.Data.Sqlite;
 
 namespace KeepClip.Data;
 
-// Wiersze są zwracane jako słowniki z DBNull zamienionym na null, aby zachować
-// format JSON używany przez interfejs.
 public static class DbExtensions
 {
     public static SqliteCommand Cmd(this SqliteConnection con, string sql,

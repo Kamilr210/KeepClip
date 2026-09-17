@@ -4,13 +4,11 @@ public sealed record TranscribeSnapshot(
     bool running,
     int total,
     int done,
-    object? current,          // Obiekt z identyfikatorem, nazwą pliku i grą albo null.
+    object? current,
     string? error,
     string? finished_at,
     List<string> log_tail);
 
-// Stan jest współdzielony przez proces roboczy i punkty końcowe, dlatego wszystkie odczyty oraz
-// zapisy przechodzą przez jedną blokadę.
 public static class TranscribeState
 {
     public static readonly object Lock = new();
@@ -19,7 +17,7 @@ public static class TranscribeState
     public static bool Cancel;
     public static int Total;
     public static int Done;
-    public static object? Current;        // Identyfikator, nazwa pliku i gra albo null.
+    public static object? Current;
     public static string? Error;
     public static string? FinishedAt;
 

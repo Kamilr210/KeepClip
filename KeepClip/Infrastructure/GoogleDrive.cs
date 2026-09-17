@@ -4,7 +4,6 @@ using System.Text.Json;
 
 namespace KeepClip.Infrastructure;
 
-// Zakres uprawnień ogranicza dostęp do plików utworzonych przez aplikację.
 public static class GoogleDrive
 {
     public const string TokenEndpoint = "https://oauth2.googleapis.com/token";
@@ -12,8 +11,6 @@ public static class GoogleDrive
     public const string RevokeEndpoint = "https://oauth2.googleapis.com/revoke";
     public const string Scope = "https://www.googleapis.com/auth/drive.file";
 
-    // Transfery wielogigabajtowych klipów nie mogą mieć limitu czasu dla całej operacji,
-    // dlatego używają osobnego klienta HTTP bez takiego ograniczenia.
     private static readonly HttpClient Api = new() { Timeout = TimeSpan.FromSeconds(60) };
     private static readonly HttpClient Transfer = new() { Timeout = Timeout.InfiniteTimeSpan };
 
@@ -161,7 +158,6 @@ public static class GoogleDrive
         return cj.GetProperty("id").GetString()!;
     }
 
-    // Dane są strumieniowane, aby duży klip nie był buforowany w pamięci.
     public static async Task<string> UploadResumableAsync(
         string accessToken, string name, string parentId, string filePath, string mimeType,
         IReadOnlyDictionary<string, string>? appProperties = null)
@@ -262,7 +258,6 @@ public static class GoogleDrive
         await src.CopyToAsync(dst);
     }
 
-    // Nagłówek HTTP Range jest przekazywany do Dysku Google, aby umożliwić przewijanie.
     public static async Task<HttpResponseMessage> OpenMediaAsync(
         string accessToken, string fileId, string? range, CancellationToken ct)
     {
@@ -281,7 +276,6 @@ public static class GoogleDrive
         using var resp = await Api.SendAsync(req);
         if (!resp.IsSuccessStatusCode) await ThrowFrom(resp);
     }
-
 
     private static HttpRequestMessage Authorized(HttpMethod method, string url, string accessToken)
     {

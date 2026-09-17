@@ -5,7 +5,7 @@ namespace KeepClip.Endpoints;
 public static class ConfigEndpoints
 {
 #if KEEPCLIP_DEV
-    private const bool DevBuild = true;   // Steruje widocznością narzędzia deweloperskiego.
+    private const bool DevBuild = true;
 #else
     private const bool DevBuild = false;
 #endif
@@ -25,7 +25,7 @@ public static class ConfigEndpoints
             html = html.Replace("<html lang=\"pl\">", $"<html lang=\"pl\" data-accent-theme=\"{accentTheme}\">");
             if (accentTheme == "green")
                 html = html.Replace("/icons/favicon.svg", "/icons/favicon-green.svg");
-            // Czas modyfikacji wymusza pobranie nowej wersji CSS/JS przez przeglądarkę.
+
             foreach (var name in new[] { "styles.css", "app.js", "onboarding.css", "onboarding.js" })
             {
                 var f = Path.Combine(Config.FrontendDir, name);
@@ -46,7 +46,7 @@ public static class ConfigEndpoints
             var root = Settings.GetClipsRoot();
             var configured = Settings.IsConfigured();
             var currentVersion = UpdateService.Current;
-        // Starsze instalacje mogą nie mieć pliku ustawień, mimo że baza zawiera klipy.
+
             if (!configured && clips.Count() > 0)
             {
                 Settings.SetClipsRoot(root);
@@ -77,7 +77,7 @@ public static class ConfigEndpoints
             if (!Directory.Exists(newRoot))
                 return Api.Detail(400, Strings.Get("config.notAFolder", newRoot));
             Settings.SetClipsRoot(newRoot);
-        var scan = Scanner.Scan();              // Skanuje od razu, aby pokazać zawartość.
+        var scan = Scanner.Scan();
             ThumbnailWorker.Ensure();
             DevLog.Add($"Zmieniono folder klipów na: {newRoot} (skan: +{scan.GetValueOrDefault("added")} / −{scan.GetValueOrDefault("removed")})");
             return Results.Json(new Dictionary<string, object?>
@@ -96,7 +96,6 @@ public static class ConfigEndpoints
             return Results.Json(new { ok = true, theme });
         });
 
-        // Interfejs zgłasza tu swój język, aby transkrypcja rozpoznawała mowę w tym samym.
         app.MapPost("/api/language", (LanguagePayload body) =>
         {
             Heartbeat.Touch();
@@ -120,8 +119,6 @@ public static class ConfigEndpoints
             return Results.Json(result);
         });
 
-        // Odpowiedź musi zostać wysłana przed zamknięciem procesu; aktywna transkrypcja
-        // blokuje wyjście, aby nie przerwać zapisu w połowie.
         app.MapPost("/api/shutdown", () =>
         {
             if (TranscribeState.Snapshot().running)
@@ -131,7 +128,7 @@ public static class ConfigEndpoints
         });
 
 #if KEEPCLIP_DEV
-    // Ten punkt końcowy nie jest kompilowany w wydaniach publicznych.
+
         app.MapGet("/api/logs", (long? since) =>
         {
             var (seq, lines) = DevLog.GetSince(since ?? 0);

@@ -1,7 +1,5 @@
 namespace KeepClip.Workers;
 
-// Klipy przeniesione do chmury nie są usuwane z bazy, a ich ścieżki pozostają
-// zarezerwowane, aby ponowne pojawienie się pliku nie utworzyło duplikatu.
 public static class Scanner
 {
     private static readonly object ScanLock = new();
@@ -30,7 +28,7 @@ public static class Scanner
         var clipsRootNorm = NormDir(clipsRoot);
 
         var onDisk = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        // Krótkie opóźnienie zapobiega dodaniu pliku, który ShadowPlay lub ffmpeg nadal zapisuje.
+
         var settledOnDisk = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var settledBefore = DateTime.UtcNow.AddMilliseconds(-1500);
         foreach (var path in Directory.EnumerateFiles(clipsRoot, "*", SearchOption.AllDirectories))
@@ -72,7 +70,7 @@ public static class Scanner
         {
             var tp = Config.ThumbPath(cid);
             try { if (File.Exists(tp)) File.Delete(tp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
-            con.Exec("DELETE FROM clips WHERE id=$id", ("$id", cid)); // Usunięcie kaskadowe obejmuje segmenty.
+            con.Exec("DELETE FROM clips WHERE id=$id", ("$id", cid));
             removed++;
         }
 

@@ -19,7 +19,6 @@ public static class OnboardingEndpoints
             return Results.Json(state);
         });
 
-        // Ponowne uruchomienie z ustawień zostawia ślad po wcześniejszym ukończeniu.
         app.MapPost("/api/onboarding/restart", () =>
         {
             Heartbeat.Touch();
@@ -28,9 +27,6 @@ public static class OnboardingEndpoints
         });
     }
 
-    // KeepClip nie wysyła nigdzie telemetrii, więc zdarzenia samouczka trafiają tylko
-    // do logu deweloperskiego (w wydaniu publicznym DevLog.Add nic nie robi).
-    // Zapisywany jest wyłącznie identyfikator kroku — żadnych ścieżek ani nazw plików.
     private static void LogEvent(OnboardingPatchPayload body)
     {
         var step = string.IsNullOrWhiteSpace(body.current_step) ? "-" : body.current_step;

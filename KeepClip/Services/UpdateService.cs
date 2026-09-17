@@ -3,13 +3,6 @@ using System.Text.Json;
 
 namespace KeepClip.Services;
 
-/// <summary>
-/// Aktualizacje w miejscu: sprawdza najnowsze wydanie na GitHubie (wynik krótko
-/// cache'owany), a na żądanie pobiera instalator do folderu tymczasowego i uruchamia go —
-/// aplikacja wtedy kończy pracę, a instalator (ten sam AppId Inno) podmienia pliki bez
-/// ruszania danych użytkownika. Plik pobrany przez HttpClient nie ma znacznika MotW,
-/// więc SmartScreen nie blokuje tak uruchomionej aktualizacji.
-/// </summary>
 public static class UpdateService
 {
     private const string ApiLatest = "https://api.github.com/repos/Kamilr210/KeepClip/releases/latest";
@@ -22,11 +15,10 @@ public static class UpdateService
     private static readonly TimeSpan OkTtl = TimeSpan.FromHours(6);
     private static readonly TimeSpan FailTtl = TimeSpan.FromMinutes(30);
 
-    // Postęp instalacji dla UI: idle | downloading | starting | error.
     private static string _phase = "idle";
     private static int _percent;
     private static string? _error;
-    private static int _installing;   // Interlocked: jedna instalacja naraz
+    private static int _installing;
 
     private static HttpClient CreateClient()
     {
@@ -36,8 +28,7 @@ public static class UpdateService
         return c;
     }
 
-    /// <summary>Wersja uruchomionej aplikacji (z zasobu zestawu).</summary>
-    public static Version Current =>
+        public static Version Current =>
         System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0, 0, 0);
 
     public static async Task<Dictionary<string, object?>> CheckAsync()
@@ -68,7 +59,7 @@ public static class UpdateService
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             using var resp = await Http.GetAsync(ApiLatest, cts.Token);
-            if (!resp.IsSuccessStatusCode) return res;   // repo prywatne / brak release'u / limit API
+            if (!resp.IsSuccessStatusCode) return res;
 
             using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(cts.Token));
             var root = doc.RootElement;
@@ -87,14 +78,13 @@ public static class UpdateService
             res["url"] = assetUrl;
             res["notes_url"] = root.TryGetProperty("html_url", out var hu) ? hu.GetString() : null;
         }
-        catch { /* brak sieci itp. — cicho, baner po prostu się nie pokaże */ }
+        catch {  }
         return res;
     }
 
     public static object Status() => new { phase = _phase, percent = _percent, error = _error };
 
-    /// <summary>Pobiera instalator i uruchamia go; zwraca false, gdy instalacja już trwa.</summary>
-    public static bool BeginInstall()
+        public static bool BeginInstall()
     {
         if (Interlocked.CompareExchange(ref _installing, 1, 0) != 0) return false;
         _phase = "downloading"; _percent = 0; _error = null;
@@ -130,7 +120,7 @@ public static class UpdateService
 
             _phase = "starting"; _percent = 100;
             Process.Start(new ProcessStartInfo(setupPath) { UseShellExecute = true });
-            // Chwila na wystartowanie kreatora, potem zwalniamy pliki aplikacji.
+
             await Task.Delay(1500);
             Environment.Exit(0);
         }

@@ -31,7 +31,7 @@ public static class MediaEndpoints
             {
                 if (string.IsNullOrEmpty(clip.RemoteId)) return Api.Detail(404, Strings.Get("cloud.noRemoteId"));
                 await CloudService.ProxyVideoAsync(http, clip.RemoteId);
-            return Results.Empty; // Odpowiedź została już zapisana przez pośrednika.
+            return Results.Empty;
             }
             if (string.IsNullOrEmpty(clip.Filepath) || !File.Exists(clip.Filepath))
                 return Api.Detail(404, Strings.Get("clip.fileMissing"));
@@ -46,7 +46,7 @@ public static class MediaEndpoints
             try
             {
                 var psi = new ProcessStartInfo { FileName = "explorer.exe", UseShellExecute = false };
-        // Ścieżka /select otwiera folder z zaznaczonym plikiem.
+
                 psi.ArgumentList.Add(File.Exists(p) ? $"/select,{p}" : p);
                 Process.Start(psi);
             }

@@ -1069,7 +1069,6 @@ body.cloud-connected .cloud-chip.cloud-up { display: flex; }
 }
 .cloud-quota .subtle { margin-top: 6px; font-size: 13px; }
 
-/* Baner aktualizacji aplikacji */
 #update-banner {
   display: flex; align-items: center; justify-content: space-between; gap: 16px;
   flex-wrap: wrap; margin-bottom: 14px;
@@ -1234,8 +1233,6 @@ body.cloud-connected .scc-body.on { display: block; }
 #scc-email { color: var(--text); word-break: break-all; }
 .scc-change { display: block; margin-top: 5px; color: var(--accent); font-weight: 600; }
 
-
-
 ::-webkit-scrollbar {
   width: 12px;
   height: 12px;
@@ -1254,7 +1251,6 @@ body.cloud-connected .scc-body.on { display: block; }
 ::-webkit-scrollbar-thumb:hover {
   background-color: #404862;
 }
-
 
 #root {
   position: relative;
@@ -1281,7 +1277,7 @@ body.cloud-connected .scc-body.on { display: block; }
   height: 16px;
   cursor: nwse-resize;
   z-index: 999999;
-  
+
   background: linear-gradient(135deg, transparent 40%, #8b92a5 40%, #8b92a5 50%, transparent 50%, transparent 65%, #8b92a5 65%, #8b92a5 75%, transparent 75%);
   opacity: 0.3;
   transition: opacity 0.2s;
@@ -1306,7 +1302,7 @@ body.cloud-connected .scc-body.on { display: block; }
 
 .titlebar-drag-region {
   flex-grow: 1;
-/* Pasek nie zajmuje miejsca w układzie, ale wystaje w dół jako natywny obszar przeciągania WebView2. */
+
   height: 32px;
   pointer-events: auto;
   app-region: drag;
@@ -1316,7 +1312,7 @@ body.cloud-connected .scc-body.on { display: block; }
 .titlebar-controls {
   display: flex;
   pointer-events: auto;
-/* Przyciski okna muszą być wyłączone z obszaru przeciągania. */
+
   app-region: no-drag;
   -webkit-app-region: no-drag;
 }
@@ -1345,7 +1341,6 @@ body.cloud-connected .scc-body.on { display: block; }
   color: #ffffff;
 }
 
-
 .text-red {
   color: #ff5c75 !important;
 }
@@ -1365,7 +1360,7 @@ body.cloud-connected .scc-body.on { display: block; }
   position: relative;
   width: 100%;
   flex: 1;
-  min-height: 0; /* Wymagane, aby zagnieżdżony flex mógł się prawidłowo kurczyć. */
+  min-height: 0;
   max-height: 50vh;
   background: #000;
   display: flex;
@@ -1506,7 +1501,6 @@ body.cloud-connected .scc-body.on { display: block; }
 .ctrl-round-btn:disabled { opacity: .35; cursor: default; }
 .ctrl-round-btn:disabled:hover { background: rgba(42, 48, 64, 0.75); }
 
-/* Rozmiar napisów WebVTT pozostawia przeglądarce, aby skalował się również w pełnym ekranie. */
 #player::cue {
   background: rgba(7, 10, 16, 0.72);
   color: #fff;
@@ -1816,7 +1810,6 @@ body.cloud-connected .scc-body.on { display: block; }
   border-color: var(--accent, #9120dd);
 }
 
-/* ── Widok Ustawienia (pełna strona, w duchu zakładki Chmura) ──────────── */
 .setx-head {
   display: flex; align-items: center; gap: 16px;
   margin: 4px 0 20px;
@@ -1891,7 +1884,6 @@ body.cloud-connected .scc-body.on { display: block; }
 .settings-select:hover,
 .settings-select:focus { border-color: var(--accent, #9120dd); }
 
-/* Suwak orb w wierszu ustawień — bez własnej ramki, sam przełącznik. */
 #view-settings .orb-toggle-wrap {
   padding: 0; border: none; background: transparent; margin: 0;
   flex-shrink: 0; cursor: pointer;
