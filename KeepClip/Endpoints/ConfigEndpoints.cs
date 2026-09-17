@@ -26,7 +26,7 @@ public static class ConfigEndpoints
             if (accentTheme == "green")
                 html = html.Replace("/icons/favicon.svg", "/icons/favicon-green.svg");
             // Czas modyfikacji wymusza pobranie nowej wersji CSS/JS przez przeglądarkę.
-            foreach (var name in new[] { "styles.css", "app.js" })
+            foreach (var name in new[] { "styles.css", "app.js", "onboarding.css", "onboarding.js" })
             {
                 var f = Path.Combine(Config.FrontendDir, name);
                 if (File.Exists(f))

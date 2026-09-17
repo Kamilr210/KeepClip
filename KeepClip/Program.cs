@@ -70,6 +70,7 @@ app.MapReplayEndpoints();
 app.MapCloudEndpoints();
 app.MapMediaEndpoints();
 app.MapUpdateEndpoints();
+app.MapOnboardingEndpoints();
 
 StartIdleWatcher();
 

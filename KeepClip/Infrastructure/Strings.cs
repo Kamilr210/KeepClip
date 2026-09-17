@@ -21,6 +21,7 @@ internal static class Strings
         ["pl"] = new()
         {
             ["clip.notFound"]          = "Klip nie istnieje.",
+            ["transcript.empty"]       = "Ten klip nie ma jeszcze transkrypcji.",
             ["clip.fileMissing"]       = "Plik nie istnieje na dysku.",
             ["clip.playbackNotReady"]  = "Podgląd klipu nie jest jeszcze gotowy.",
             ["folder.nameRequired"]    = "Nazwa folderu jest wymagana.",
@@ -78,6 +79,7 @@ internal static class Strings
         ["en"] = new()
         {
             ["clip.notFound"]          = "The clip does not exist.",
+            ["transcript.empty"]       = "This clip has no transcription yet.",
             ["clip.fileMissing"]       = "The file no longer exists on disk.",
             ["clip.playbackNotReady"]  = "The playback preview is not ready yet.",
             ["folder.nameRequired"]    = "A folder name is required.",
@@ -135,6 +137,7 @@ internal static class Strings
         ["ru"] = new()
         {
             ["clip.notFound"]          = "Клип не существует.",
+            ["transcript.empty"]       = "У этого клипа ещё нет транскрипции.",
             ["clip.fileMissing"]       = "Файла больше нет на диске.",
             ["clip.playbackNotReady"]  = "Предпросмотр клипа ещё не готов.",
             ["folder.nameRequired"]    = "Требуется имя папки.",
@@ -192,6 +195,7 @@ internal static class Strings
         ["uk"] = new()
         {
             ["clip.notFound"]          = "Кліп не існує.",
+            ["transcript.empty"]       = "Цей кліп ще не має транскрипції.",
             ["clip.fileMissing"]       = "Файла більше немає на диску.",
             ["clip.playbackNotReady"]  = "Попередній перегляд кліпу ще не готовий.",
             ["folder.nameRequired"]    = "Потрібна назва теки.",

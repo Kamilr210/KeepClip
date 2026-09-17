@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace KeepClip.Endpoints;
 
 public static class ClipEndpoints
@@ -17,6 +19,39 @@ public static class ClipEndpoints
             if (state is null) return Api.Detail(404, Strings.Get("clip.notFound"));
             DevLog.Add($"Ulubione: klip #{clipId} {(state.Value ? "dodany do ulubionych" : "usunięty z ulubionych")}");
             return Results.Json(new { ok = true, id = clipId, favorite = state.Value });
+        });
+
+        // Transkrypcja jako zwykły plik tekstowy. Nagłówek `Content-Disposition` sprawia,
+        // że przeglądarka pobiera go zamiast wyświetlać.
+        // HEAD pozwala interfejsowi sprawdzić dostępność pliku bez pobierania go dwa razy.
+        app.MapMethods("/api/clips/{clipId:long}/transcript.txt", new[] { "GET", "HEAD" },
+            (long clipId, ClipRepository clips, SegmentRepository segments) =>
+        {
+            Heartbeat.Touch();
+            var clip = clips.GetById(clipId);
+            if (clip is null) return Api.Detail(404, Strings.Get("clip.notFound"), "clipNotFound");
+
+            var rows = segments.ListByClipId(clipId);
+            if (rows.Count == 0)
+                return Api.Detail(404, Strings.Get("transcript.empty"), "transcriptEmpty");
+
+            var text = new StringBuilder();
+            text.AppendLine(clip.Filename);
+            var recorded = DateTimeOffset.FromUnixTimeMilliseconds((long)(clip.Mtime * 1000)).LocalDateTime;
+            text.AppendLine($"{clip.Game} · {recorded:yyyy-MM-dd HH:mm}");
+            text.AppendLine();
+            foreach (var row in rows)
+            {
+                var start = TimeSpan.FromSeconds(Convert.ToDouble(row["start_s"] ?? 0.0));
+                var stamp = start.TotalHours >= 1 ? $"{start:h\\:mm\\:ss}" : $"{start:mm\\:ss}";
+                text.AppendLine($"[{stamp}] {(row["text"] as string ?? "").Trim()}");
+            }
+
+            // Znacznik BOM pozwala Notatnikowi rozpoznać kodowanie i pokazać polskie znaki.
+            var bytes = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true).GetBytes(text.ToString());
+            var name = Path.GetFileNameWithoutExtension(clip.Filename);
+            return Results.File(bytes, "text/plain; charset=utf-8",
+                DisplayHelper.SafeFolderName($"{name}.txt"));
         });
 
         app.MapPost("/api/clips/{clipId:long}/retranscribe", (long clipId, ClipService clips) =>

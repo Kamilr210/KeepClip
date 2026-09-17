@@ -1853,6 +1853,7 @@ body.cloud-connected .scc-body.on { display: block; }
 .ic-theme  { background: linear-gradient(135deg, var(--accent-primary), var(--accent-2)); }
 .ic-orb    { background: linear-gradient(135deg, var(--accent-alt), #6366f1); }
 .ic-folder { background: linear-gradient(135deg, var(--accent-folder), #37a6ff); }
+.ic-help   { background: linear-gradient(135deg, var(--accent-vivid), var(--accent-2)); }
 .setx-row-info { flex: 1; min-width: 0; }
 .setx-row-title { font-size: clamp(15px, 1.15vw, 18px); font-weight: 600; }
 .setx-row-sub { font-size: clamp(12.5px, .95vw, 15px); margin-top: 3px; }

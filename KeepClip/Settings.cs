@@ -87,6 +87,26 @@ public static class Settings
 
     public static void SetLanguage(string language) => SetString("ui_language", language);
 
+    // Samouczek trzyma kilka powiązanych ze sobą pól, więc zapisuje je jako jeden
+    // obiekt zamiast rozsypywać po kluczach najwyższego poziomu.
+    public static JsonObject GetObject(string key)
+    {
+        var data = Load();
+        if (data.TryGetPropertyValue(key, out var node) && node is JsonObject obj)
+            return obj.DeepClone().AsObject();
+        return new JsonObject();
+    }
+
+    public static void SetObject(string key, JsonObject value)
+    {
+        lock (Gate)
+        {
+            var data = Load();
+            data[key] = value.DeepClone();
+            Save(data);
+        }
+    }
+
     public static string? GetString(string key) => StringOrNull(Load(), key);
 
     public static void SetString(string key, string value)

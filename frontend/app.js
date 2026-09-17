@@ -143,6 +143,7 @@ const els = {
   pdelete: $("#player-delete"),
   pfix: $("#player-fix"),
   pretrans: $("#player-retranscribe"),
+  transcriptTxt: $("#player-transcript-txt"),
   pfolders: $("#player-folders"),
   pfoldersDropdown: $("#player-folders-dropdown"),
   confirmOverlay: $("#confirm-overlay"),
@@ -1239,6 +1240,8 @@ async function openPlayer(clipId, startAt) {
   els.video.removeAttribute("src");
   els.video.load();
   currentSegments = data.segments;
+  // Bez transkrypcji nie ma czego pobierać, więc przycisk pojawia się dopiero z nią.
+  if (els.transcriptTxt) els.transcriptTxt.hidden = currentSegments.length === 0;
   rebuildSubtitles();
 
   els.segments.innerHTML = currentSegments.length
@@ -2058,6 +2061,30 @@ document.addEventListener("click", (e) => {
 });
 window.addEventListener("resize", closeFoldersDropdown);
 
+// Serwer odsyła plik z nagłówkiem `Content-Disposition`, więc kliknięcie odnośnika
+// zapisuje go na dysku zamiast otwierać w oknie aplikacji.
+els.transcriptTxt?.addEventListener("click", async () => {
+  if (!currentClipId) return;
+  const url = `/api/clips/${currentClipId}/transcript.txt`;
+  try {
+    // Sprawdzenie z wyprzedzeniem pozwala pokazać zrozumiały błąd zamiast pustego pliku.
+    const probe = await fetch(url, { method: "HEAD" });
+    if (!probe.ok) {
+      const detail = await fetch(url).then((r) => r.json()).catch(() => null);
+      throw new Error(backendErrorMessage(detail, `${probe.status}`));
+    }
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    toast(t("toast.transcriptSaved"));
+  } catch (e) {
+    toast(t("toast.transcriptFailed").replace("{error}", e.message), "error");
+  }
+});
+
 els.pretrans.addEventListener("click", async () => {
   if (!currentClipId) return;
   els.pretrans.disabled = true;
@@ -2498,6 +2525,8 @@ els.configSave.addEventListener("click", async () => {
       .replace("{details}", parts.length ? ` — ${parts.join(", ")}` : ""));
     await refreshLibraryViews();
     startAutoLibrarySync();
+    // Samouczek czeka z powitaniem, aż świeża instalacja dostanie folder z klipami.
+    document.dispatchEvent(new CustomEvent("keepclip:configured"));
   } catch (e) {
     els.configError.textContent = e.message;
     els.configError.hidden = false;
