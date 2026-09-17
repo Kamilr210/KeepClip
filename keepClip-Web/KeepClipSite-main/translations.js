@@ -232,7 +232,7 @@ window.keepClipTranslations = {
         "cta_note": "Бесплатно · Windows x64 · Без рекламы",
         "showcase_badge": "Примеры клипов",
         "showcase_heading": "Примеры игровых клипов"
-    }
+    },
 "uk": {
         "title": "KeepClip — Зберігайте. Шукайте. Переглядайте.",
         "nav_features": "Можливості",
