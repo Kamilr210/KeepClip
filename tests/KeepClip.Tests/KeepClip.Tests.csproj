@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- Ten sam cel co aplikacja: KeepClip korzysta z WinForms, więc test musi mieć pulpit .NET. -->
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <!-- WebApplicationFactory uruchamia całe Program.cs w procesie testów, bez portów i okna. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\KeepClip\KeepClip.csproj" />
+  </ItemGroup>
+
+  <!-- To samo co w KeepClip.csproj: pakiet WebView2 ciągnie nieużywaną wersję WPF,
+       która kłóci się z WindowsBase z platformy. -->
+  <Target Name="DropWebView2Wpf" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)"
+                 Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="KeepClip" />
+    <Using Include="KeepClip.Data" />
+    <Using Include="KeepClip.Domain" />
+    <Using Include="KeepClip.Infrastructure" />
+    <Using Include="KeepClip.Services" />
+    <Using Include="KeepClip.Workers" />
+    <Using Include="KeepClip.Endpoints" />
+  </ItemGroup>
+
+</Project>

@@ -29,6 +29,11 @@
     <DefineConstants Condition="'$(PublicRelease)' != 'true'">$(DefineConstants);KEEPCLIP_DEV</DefineConstants>
   </PropertyGroup>
 
+  <!-- Projekt testów widzi klasy wewnętrzne (Strings, DisplayHelper, zapytania FTS). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeepClip.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
     <!-- Microsoft.Data.Sqlite (także 10.0.10) ciągnie przechodnio podatną SQLitePCLRaw 2.1.11

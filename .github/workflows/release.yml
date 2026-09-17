@@ -20,6 +20,13 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      # Zepsuty build nie może trafić do użytkowników: testy biegną przed instalatorem.
+      - name: Sprawdź tłumaczenia interfejsu
+        run: node tests/i18n-check.js
+
+      - name: Testy xUnit
+        run: dotnet test tests/KeepClip.Tests/KeepClip.Tests.csproj -c Release --nologo
+
       - name: Pobierz ffmpeg (setup.ps1)
         shell: powershell
         run: powershell -ExecutionPolicy Bypass -File setup.ps1
