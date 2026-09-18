@@ -9,11 +9,13 @@
   const gl = probe.getContext('webgl2') || probe.getContext('webgl');
   if (!gl) { canvas.remove(); return; }
 
-  const V = '20260918s';
+  const V = '20260918ae';
   const CHARACTER = 'models/character-a.glb?v=' + V;
   const SKIN = 'models/Textures/texture-steve.png?v=' + V;
   const SHOTS = 9;
-  const IDLE_GAP = 1.2;
+  const REST_HOLD = 4;
+  const ENTRY_DURATION = 3.2;
+  const ENTRY_SIZE = 0.22;
 
   const load = (src) => new Promise((resolve, reject) => {
     const s = document.createElement('script');
@@ -55,7 +57,7 @@
     fill.position.set(-8, 3, -4);
     scene.add(fill);
 
-    const floor = new T.Mesh(new T.PlaneGeometry(200, 60), new T.ShadowMaterial({ opacity: 0.45 }));
+    const floor = new T.Mesh(new T.PlaneGeometry(200, 120), new T.ShadowMaterial({ opacity: 0.45 }));
     floor.rotation.x = -Math.PI / 2;
     floor.position.y = 0;
     floor.receiveShadow = true;
@@ -75,12 +77,14 @@
     skin.minFilter = T.LinearMipmapLinearFilter;
     skin.generateMipmaps = true;
 
+    const body = new T.Group();
+    scene.add(body);
     const actor = new T.Group();
+    body.add(actor);
     const model = charGltf.scene;
     const fadeMats = [];
     model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = false; o.material = o.material.clone(); o.material.map = skin; o.material.transparent = true; fadeMats.push(o.material); } });
     actor.add(model);
-    scene.add(actor);
 
     const rifle = new T.Group();
     const wood = new T.MeshStandardMaterial({ color: 0x7a4a22, roughness: 0.75, metalness: 0.05, transparent: true });
@@ -111,10 +115,18 @@
     part(gunmetal, 0.03, 0.03, 0.06, 0.06, 0.03, 0.02);
     const arm = model.getObjectByName('arm-left');
     const torso = model.getObjectByName('torso');
+    const head = model.getObjectByName('head');
+    const armFar = model.getObjectByName('arm-right');
+    const legNear = model.getObjectByName('leg-left');
+    const legFar = model.getObjectByName('leg-right');
+    const pinnedArm = Math.PI - 0.35;
     arm.add(rifle);
-    const GRIP = new T.Vector3(0.47, -1.02, 0);
-    const X_AXIS = new T.Vector3(1, 0, 0);
+    const GRIP = new T.Vector3(0.2, -0.9, 0.14);
+    const gripPose = new T.Object3D();
+    gripPose.rotation.set(-Math.PI / 2, 0, -0.5);
+    const gripQ = gripPose.quaternion.clone().invert();
     const Z_AXIS = new T.Vector3(0, 0, 1);
+    const qFall = new T.Quaternion();
     const restPose = new T.Object3D();
     restPose.lookAt(-1, 0, 0);
     restPose.rotateZ(-0.35);
@@ -127,6 +139,8 @@
     const spinQ = new T.Quaternion();
     const dropRifle = () => {
       scene.attach(rifle);
+      rifle.position.z = Math.max(rifle.position.z, LOGO_Z + 0.6);
+      rifle.renderOrder = 1;
       rifleFree = true;
       rifleSettle = false;
       rifleAngle = 0;
@@ -135,9 +149,8 @@
       const flight = (rifleVel.y + Math.sqrt(rifleVel.y * rifleVel.y + 48 * drop)) / 24;
       rifleOmega = Math.PI * 2 / flight;
     };
-    const armQ = new T.Quaternion();
-    const tiltQ = new T.Quaternion();
-    let tilt = 0.3;
+    let carry = 1;
+    let shotPending = false;
     rifle.position.copy(GRIP);
     rifle.scale.setScalar(1.2);
 
@@ -145,12 +158,8 @@
     const clips = charGltf.animations;
     const clip = (name) => clips.find((c) => c.name === name);
     const sprint = mixer.clipAction(clip('sprint'));
-    const aim = mixer.clipAction(clip('holding-both'));
-    const shoot = mixer.clipAction(clip('holding-both-shoot'));
     const idle = mixer.clipAction(clip('idle'));
-    shoot.setLoop(T.LoopOnce, 1);
-    shoot.clampWhenFinished = false;
-    [sprint, aim, shoot, idle].forEach((a) => { a.enabled = true; a.setEffectiveWeight(0); a.play(); });
+    [sprint, idle].forEach((a) => { a.enabled = true; a.setEffectiveWeight(0); a.play(); });
     let current = null;
     const fadeTo = (action, duration = 0.18) => {
       if (current === action) return;
@@ -187,12 +196,12 @@
     const spawnTracer = () => {
       const muzzle = new T.Vector3();
       flash.getWorldPosition(muzzle);
+      const direction = new T.Vector3(0, 0, 1).applyQuaternion(rifle.getWorldQuaternion(new T.Quaternion()));
       const m = new T.Mesh(new T.PlaneGeometry(1.4, 0.045), tracerMat);
-      m.position.copy(muzzle);
-      m.position.x -= 0.8;
-      m.position.z += 0.25;
+      m.position.copy(muzzle).addScaledVector(direction, 0.7);
+      m.rotation.z = Math.atan2(direction.y, direction.x);
       scene.add(m);
-      tracers.push({ mesh: m, life: 0 });
+      tracers.push({ mesh: m, velocity: direction.multiplyScalar(40), life: 0 });
     };
 
     const shells = [];
@@ -294,12 +303,13 @@
       }
     };
 
-    const state = { phase: 'enter', t: 0, x: 0, shotsLeft: SHOTS, nextShot: 0, recoil: 0, squash: 0, squashT: 0, logoY: 0, logoVy: 0, shake: 0 };
-    let edgeRight = 30;
+    const state = { phase: 'enter', t: 0, x: 0, z: 0, shotsLeft: SHOTS, nextShot: 0, recoil: 0, recoilT: 1, squash: 0, squashT: 0, struggle: 0, crawl: 0, reach: 0, collapse: 0, logoY: 0, logoVy: 0, shake: 0 };
+    let entryX = 0;
+    let entryZ = 0;
+    let entryYaw = 0;
     let edgeLeft = -30;
     let groundY = 0;
     let stopX = 4;
-    let speed = 7;
     let logoW = 6;
     let logoH = 1.6;
     let logoRest = 0;
@@ -316,7 +326,6 @@
       camera.position.set(0, 0.5, dist);
       camera.lookAt(0, 0.5, 0);
       const halfW = halfH * camera.aspect;
-      edgeRight = halfW + 2.5;
       edgeLeft = -halfW - 3;
       groundY = 0.5 - halfH * 0.44;
       floor.position.y = groundY;
@@ -328,29 +337,47 @@
       logoRest = groundY + logoH * 0.36;
       logoTop = 0.5 + halfH * logoZoom + logoH * 0.5 + 0.3;
       logoShadow.scale.set(logoW * 0.5, logoH * 0.35, 1);
-      speed = Math.max(6, (edgeRight - stopX) / 1.4);
+      // Perspective makes the distant character small; the route stays on the ground.
+      entryZ = dist * (1 - 1 / ENTRY_SIZE);
+      entryX = halfW * 0.96 / ENTRY_SIZE;
+      entryYaw = Math.atan2(stopX - entryX, -entryZ);
     };
     resize();
     window.addEventListener('resize', resize);
 
-    actor.scale.setScalar(1);
     const FEET = 0;
     const FACE_LEFT = -Math.PI / 2;
     const reset = () => {
       state.phase = 'enter';
       state.t = 0;
-      state.x = edgeRight;
+      state.x = entryX;
+      state.z = entryZ;
       state.shotsLeft = SHOTS;
       state.nextShot = 0.35;
-      actor.position.set(state.x, groundY + FEET, 0);
-      actor.rotation.y = FACE_LEFT;
-      actor.scale.set(1, 1, 1);
+      state.recoil = 0;
+      state.recoilT = 1;
+      carry = 1;
+      shotPending = false;
+      flash.visible = false;
+      flashLight.intensity = 0;
+      body.position.set(state.x, groundY + FEET, state.z);
+      body.quaternion.identity();
+      floor.material.opacity = 0.45;
+      body.scale.set(1, 1, 1);
+      actor.rotation.y = entryYaw;
       state.squash = 0;
       state.squashT = 0;
+      state.struggle = 0;
+      state.crawl = 0;
+      state.reach = 0;
+      state.collapse = 0;
+      logo.rotation.z = 0;
       if (rifleFree) {
         arm.add(rifle);
         rifleFree = false;
       }
+      rifle.scale.setScalar(1.2);
+      rifle.renderOrder = 0;
       logo.visible = false;
       logo.material.opacity = 1;
       logoShadow.material.opacity = 0;
@@ -359,17 +386,13 @@
     reset();
 
     const fire = () => {
-      aim.setEffectiveWeight(1);
-      sprint.setEffectiveWeight(0);
-      shoot.reset().play();
-      shoot.setEffectiveWeight(1);
       flash.visible = true;
+      flash.material.opacity = 1;
       flash.material.rotation = Math.random() * Math.PI;
       flash.scale.setScalar(0.75 + Math.random() * 0.35);
       flashLight.intensity = 6;
-      state.recoil = 1;
-      spawnTracer();
-      spawnShell();
+      state.recoilT = 0;
+      shotPending = true;
       state.shotsLeft -= 1;
       state.nextShot = 0.16 + Math.random() * 0.05;
     };
@@ -386,13 +409,15 @@
       state.t += dt;
 
       if (state.phase === 'enter') {
-        state.x -= speed * dt;
-        if (state.x <= stopX) {
+        const progress = T.MathUtils.smoothstep(state.t, 0, ENTRY_DURATION);
+        state.x = T.MathUtils.lerp(entryX, stopX, progress);
+        state.z = T.MathUtils.lerp(entryZ, 0, progress);
+        if (state.t >= ENTRY_DURATION) {
           state.x = stopX;
+          state.z = 0;
           state.phase = 'shoot';
           state.t = 0;
-          fadeTo(aim, 0.12);
-          sprint.setEffectiveWeight(0);
+          fadeTo(idle, 0.22);
         }
       } else if (state.phase === 'shoot') {
         state.nextShot -= dt;
@@ -420,52 +445,95 @@
           state.t = 0;
           state.squash = 1;
           state.squashT = 0;
+          shotPending = false;
+          flash.visible = false;
           dropRifle();
           state.shake = 1;
           puff(state.x, groundY);
           wave(state.x, logoW * 0.5, groundY);
-          fadeTo(idle, 0.05);
+          head.rotation.set(-0.6, 0, 0);
+          arm.rotation.set(pinnedArm, 0, 0);
+          armFar.rotation.set(pinnedArm, 0, 0);
+          legNear.rotation.set(0, 0, 0);
+          legFar.rotation.set(0, 0, 0);
         }
         logo.position.set(state.x, state.logoY, LOGO_Z);
       } else if (state.phase === 'squash') {
         const wobble = Math.exp(-state.t * 5) * Math.sin(state.t * 22) * 0.2;
-        logo.position.y = logoRest + Math.max(0, wobble) * logoH;
+        const since = Math.max(0, state.t - 0.9);
+        const attempts = Math.min(2, Math.floor(since / 1.6));
+        const cycle = attempts < 2 ? since % 1.6 : since - 3.2;
+        const pull = T.MathUtils.smoothstep(cycle, 0.32, 1.04);
+        // Reach, pull and recover share one cycle; completed pulls retain their distance.
+        if (attempts < 2) {
+          state.reach = T.MathUtils.smoothstep(cycle, 0, 0.32) * (1 - T.MathUtils.smoothstep(cycle, 1.04, 1.44));
+          state.struggle = Math.pow(Math.sin(pull * Math.PI), 2);
+          state.crawl = (attempts + pull) * 0.24;
+        } else {
+          state.collapse = T.MathUtils.smoothstep(cycle, 0.95, 1.4);
+          state.reach = T.MathUtils.smoothstep(cycle, 0, 0.5) * (1 - state.collapse);
+          state.struggle = T.MathUtils.smoothstep(cycle, 0.35, 0.85) * (1 - state.collapse);
+          state.crawl = 0.48 + state.struggle * 0.04;
+        }
+        logo.position.y = logoRest + Math.max(0, wobble) * logoH + state.struggle * 0.015;
+        logo.rotation.z = -state.struggle * 0.004;
         logo.scale.set(logoW * (1 + wobble * 0.6), logoW * (1 - wobble * 0.8), 1);
-        if (state.t >= 2.4) {
-          state.phase = 'leave';
+        if (state.collapse === 1) {
+          state.struggle = 0;
+          state.reach = 0;
+          logo.position.y = logoRest;
+          logo.rotation.z = 0;
+          logo.scale.set(logoW, logoW, 1);
+          state.phase = 'hold';
           state.t = 0;
         }
+      } else if (state.phase === 'hold') {
+        if (state.t < REST_HOLD) {
+          renderer.render(scene, camera);
+          return;
+        }
+        state.phase = 'leave';
+        state.t = 0;
       } else if (state.phase === 'leave') {
         const k = Math.min(1, state.t / 0.5);
         logo.material.opacity = 1 - k;
         logoShadow.material.opacity = 0.5 * (1 - k);
         fadeMats.forEach((m) => { m.opacity = 1 - k; });
-        if (state.t >= 0.5) {
-          state.phase = 'idle';
-          state.t = 0;
-          logo.visible = false;
-        }
-      } else if (state.phase === 'idle') {
-        if (state.t >= IDLE_GAP) reset();
+        floor.material.opacity = 0.45 * (1 - k);
+        if (state.t >= 0.5) reset();
       }
 
+      state.recoilT += dt;
+      const kick = state.recoilT * 32;
+      state.recoil = state.recoilT < 0.3 ? kick * Math.exp(1 - kick) : 0;
       if (state.squash > 0) {
-        state.squashT += dt;
-        const k = 1 - Math.pow(1 - Math.min(1, state.squashT / 0.12), 3);
-        const b = Math.exp(-state.squashT * 7) * Math.sin(state.squashT * 34) * 0.08;
-        actor.scale.set(1 + k * 0.4 - b, Math.max(0.1, 1 - k * 0.86 + b), 1 + k * 0.4);
+        if (state.phase === 'squash') state.squashT += dt;
+        const k = 1 - Math.pow(1 - Math.min(1, state.squashT / 0.16), 3);
+        const bounce = Math.exp(-state.squashT * 6) * Math.sin(state.squashT * 30) * 0.05;
+        const g = state.struggle;
+        qFall.setFromAxisAngle(Z_AXIS, Math.PI / 2 * k);
+        body.quaternion.copy(qFall);
+        body.scale.set(1 - 0.8 * k + bounce, 1 + 0.1 * k, 1 + 0.2 * k);
+        body.position.x = state.x + 1.5 * k - state.crawl;
+        body.position.y = groundY + 0.09 * k;
+        arm.rotation.x = T.MathUtils.lerp(pinnedArm + state.reach * 0.28 - g * 0.4, Math.PI + 0.3, state.collapse);
+        armFar.rotation.x = T.MathUtils.lerp(pinnedArm + state.reach * 0.22 - g * 0.32, Math.PI + 0.15, state.collapse);
+        legNear.rotation.x = -g * 0.12;
+        legFar.rotation.x = g * 0.08;
+        head.rotation.x = -0.6 + state.reach * 0.08 - state.collapse * 0.2;
+        head.rotation.z = -g * 0.06 - state.collapse * 0.16;
+      } else {
+        body.position.x = state.x + state.recoil * 0.025;
+        body.position.y = groundY + FEET;
+        body.position.z = state.z;
       }
       logoShadow.position.set(state.x, groundY + 0.01, LOGO_Z);
 
-      state.recoil = Math.max(0, state.recoil - dt * 9);
-      actor.position.x = state.x + state.recoil * 0.12;
-      actor.position.y = groundY + FEET;
-      if (state.phase === 'shoot') {
-        actor.rotation.y = FACE_LEFT + 0.15;
-      } else if (state.phase === 'enter') {
-        actor.rotation.y = FACE_LEFT;
+      if (!state.squash) {
+        carry += ((state.phase === 'enter' ? 1 : 0) - carry) * (1 - Math.exp(-dt * 12));
+        actor.rotation.y = T.MathUtils.lerp(FACE_LEFT + 0.15, entryYaw, carry);
       }
-      if (state.phase !== 'leave' && state.phase !== 'idle') fadeMats.forEach((m) => { m.opacity = 1; });
+      if (state.phase !== 'leave') fadeMats.forEach((m) => { m.opacity = 1; });
 
       flashLight.intensity = Math.max(0, flashLight.intensity - dt * 60);
       if (flash.visible) {
@@ -476,7 +544,7 @@
       for (let i = tracers.length - 1; i >= 0; i--) {
         const tr = tracers[i];
         tr.life += dt;
-        tr.mesh.position.x -= 40 * dt;
+        tr.mesh.position.addScaledVector(tr.velocity, dt);
         tr.mesh.material.opacity = Math.max(0, 0.95 - tr.life * 3);
         if (tr.life > 0.35 || tr.mesh.position.x < edgeLeft - 10) { scene.remove(tr.mesh); tr.mesh.geometry.dispose(); tracers.splice(i, 1); }
       }
@@ -510,8 +578,18 @@
       camera.position.x = (Math.random() - 0.5) * shakeAmp;
       camera.position.y = 0.5 + (Math.random() - 0.5) * shakeAmp;
 
-      mixer.update(dt);
-      if (rifleFree) {
+      if (!state.squash) {
+        mixer.update(dt);
+        const stride = sprint.time / sprint.getClip().duration * Math.PI * 2;
+        const sway = Math.sin(stride) * carry;
+        const step = Math.sin(stride * 2) * carry;
+        // Keep the grip fixed while shoulders and both arms carry the weapon together.
+        torso.rotation.set(0.06 + carry * 0.12 + step * 0.018 - state.recoil * 0.045, sway * 0.018, sway * 0.012);
+        arm.rotation.set(-Math.PI / 2 - 0.06 + carry * 0.12 + step * 0.012 - state.recoil * 0.035, 0, -0.5);
+        armFar.rotation.set(-Math.PI / 2 + 0.06 + carry * 0.12 + step * 0.012 - state.recoil * 0.035, 0, 0.65);
+        head.rotation.set(-torso.rotation.x * 0.65, carry * 0.12, -torso.rotation.z * 0.5);
+      }
+      if (rifleFree && state.phase !== 'leave') {
         rifleVel.y -= 24 * dt;
         rifle.position.addScaledVector(rifleVel, dt);
         const floorY = groundY + 0.42;
@@ -531,13 +609,14 @@
         }
         spinQ.setFromAxisAngle(Z_AXIS, rifleAngle);
         rifle.quaternion.copy(restQ).premultiply(spinQ);
-      } else {
-        tilt += ((state.phase === 'enter' ? 0.3 : 0) - tilt) * Math.min(1, dt * 8);
-        armQ.copy(torso.quaternion).multiply(arm.quaternion).invert();
-        tiltQ.setFromAxisAngle(X_AXIS, tilt);
-        rifle.quaternion.copy(armQ).multiply(tiltQ);
+      } else if (!rifleFree) {
+        rifle.quaternion.copy(gripQ);
         rifle.position.copy(GRIP);
-        rifle.translateZ(-state.recoil * 0.12);
+      }
+      if (shotPending && !rifleFree) {
+        spawnTracer();
+        spawnShell();
+        shotPending = false;
       }
       renderer.render(scene, camera);
     };
@@ -546,7 +625,7 @@
     window.keepClipHero = { state, reset };
   };
 
-  const kick = () => start().catch(() => canvas.remove());
+  const kick = () => start().catch((error) => { console.error('KeepClip hero animation failed:', error); canvas.remove(); });
   if ('requestIdleCallback' in window) requestIdleCallback(kick, { timeout: 1500 });
   else setTimeout(kick, 300);
 })();
