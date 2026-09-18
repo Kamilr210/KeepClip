@@ -14,9 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const saveLanguage = (language) => {
         try {
             window.localStorage.setItem('keepclip-language', language);
-        } catch {
-            // Strona nadal działa, gdy przeglądarka blokuje pamięć lokalną.
-        }
+        } catch {}
     };
 
     const applyLanguage = (language, updateAddress = true) => {
@@ -41,9 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (selectedLanguage === 'en') url.searchParams.delete('lang');
                 else url.searchParams.set('lang', selectedLanguage);
                 window.history.replaceState(null, '', url);
-            } catch {
-                // Zmiana adresu nie jest konieczna do działania tłumaczeń.
-            }
+            } catch {}
         }
     };
 
@@ -85,27 +81,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Pobieranie instalatora — stały link GitHuba zawsze wskazuje najnowsze wydanie.
     const DOWNLOAD_URL = 'https://github.com/Kamilr210/KeepClip/releases/latest/download/KeepClip-Setup.exe';
     ['downloadBtn', 'downloadBtn2'].forEach((id) => {
         const btn = document.getElementById(id);
         if (btn) btn.addEventListener('click', () => { window.location.href = DOWNLOAD_URL; });
     });
 
-    // Logika otwierania/zamykania FAQ
-    const faqButtons = document.querySelectorAll('.faq-q');
-    faqButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const setFaqOpen = (item, open) => {
+        const answer = item.querySelector('.faq-a');
+        const anime = window.anime;
+        if (item.classList.contains('open') === open) return;
+        if (!anime || reduceMotion || !answer) {
+            item.classList.toggle('open', open);
+            return;
+        }
+        if (open) {
+            item.classList.add('open');
+            const height = answer.scrollHeight;
+            anime.animate(answer, {
+                height: [0, height],
+                opacity: [0, 1],
+                duration: 360,
+                ease: 'out(3)',
+                onComplete: () => { answer.style.height = ''; answer.style.opacity = ''; },
+            });
+        } else {
+            const height = answer.scrollHeight;
+            anime.animate(answer, {
+                height: [height, 0],
+                opacity: [1, 0],
+                duration: 260,
+                ease: 'out(3)',
+                onComplete: () => {
+                    item.classList.remove('open');
+                    answer.style.height = '';
+                    answer.style.opacity = '';
+                },
+            });
+        }
+    };
+
+    document.querySelectorAll('.faq-q').forEach((btn) => {
+        btn.addEventListener('click', function () {
             const item = this.closest('.faq-item');
             const wasOpen = item.classList.contains('open');
-
-            // Zamknij pozostałe otwarte zakładki
-            document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
-
-            // Jeśli zakładka nie była otwarta — otwórz ją
-            if (!wasOpen) {
-                item.classList.add('open');
-            }
+            document.querySelectorAll('.faq-item.open').forEach((other) => {
+                if (other !== item) setFaqOpen(other, false);
+            });
+            setFaqOpen(item, !wasOpen);
         });
     });
 });

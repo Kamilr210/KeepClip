@@ -13,6 +13,7 @@ tools/bin/*.exe
 
 # Model Whisper pobierany przy pierwszym użyciu
 models/
+!keepClip-Web/KeepClipSite-main/models/
 
 # Pliki wynikowe instalatora
 installer/dist/
