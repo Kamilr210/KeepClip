@@ -1,0 +1,621 @@
+{
+  "checkedOn": "2026-10-02",
+  "localFfmpegObservation": [
+    {
+      "version": "ffmpeg version N-124633-gc79dfd29e6-20260525 Copyright (c) 2000-2026 the FFmpeg developers",
+      "configuration": "--prefix=/ffbuild/prefix --pkg-config-flags=--static --pkg-config=pkg-config --cross-prefix=x86_64-w64-mingw32- --arch=x86_64 --target-os=mingw32 --enable-gpl --enable-version3 --disable-debug --disable-w32threads --enable-pthreads --enable-iconv --enable-zlib --enable-libxml2 --enable-libvmaf --enable-fontconfig --enable-libharfbuzz --enable-libfreetype --enable-libfribidi --enable-vulkan --enable-libshaderc --enable-libvorbis --disable-libxcb --disable-xlib --disable-libpulse --enable-opencl --enable-gmp --enable-lzma --enable-liblcevc-dec --enable-amf --enable-libaom --enable-libaribb24 --enable-avisynth --enable-chromaprint --enable-libdav1d --enable-libdavs2 --enable-libdvdread --enable-libdvdnav --disable-libfdk-aac --enable-ffnvcodec --enable-cuda-llvm --enable-frei0r --enable-libgme --enable-libkvazaar --enable-libaribcaption --enable-libass --enable-libbluray --enable-libjxl --enable-libmp3lame --enable-libopus --enable-libplacebo --enable-librist --enable-libssh --enable-libtheora --enable-libvpx --enable-libwebp --enable-libzmq --enable-lv2 --enable-libvpl --enable-openal --enable-liboapv --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenh264 --enable-libopenjpeg --enable-libopenmpt --enable-librav1e --enable-librubberband --enable-schannel --enable-sdl2 --enable-libsnappy --enable-libsoxr --enable-libsrt --enable-libsvtav1 --enable-libtwolame --enable-libuavs3d --disable-libdrm --enable-vaapi --enable-libvidstab --enable-libvvenc --enable-whisper --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxvid --enable-libzimg --enable-libzvbi --extra-cflags=-DLIBTWOLAME_STATIC --extra-cxxflags= --extra-libs=-lgomp --extra-ldflags=-pthread --extra-ldexeflags= --cc=x86_64-w64-mingw32-gcc --cxx=x86_64-w64-mingw32-g++ --ar=x86_64-w64-mingw32-gcc-ar --ranlib=x86_64-w64-mingw32-gcc-ranlib --nm=x86_64-w64-mingw32-gcc-nm --extra-version=20260525\r",
+      "correspondingSourceStatus": "unverified",
+      "sha256": "52a9996e150fc452c7bc886a373aa7894917ae22166c99b9a157f5b6512e576b",
+      "upstreamArchive": null,
+      "file": "ffmpeg.exe"
+    },
+    {
+      "version": "ffprobe version N-124633-gc79dfd29e6-20260525 Copyright (c) 2007-2026 the FFmpeg developers",
+      "configuration": "--prefix=/ffbuild/prefix --pkg-config-flags=--static --pkg-config=pkg-config --cross-prefix=x86_64-w64-mingw32- --arch=x86_64 --target-os=mingw32 --enable-gpl --enable-version3 --disable-debug --disable-w32threads --enable-pthreads --enable-iconv --enable-zlib --enable-libxml2 --enable-libvmaf --enable-fontconfig --enable-libharfbuzz --enable-libfreetype --enable-libfribidi --enable-vulkan --enable-libshaderc --enable-libvorbis --disable-libxcb --disable-xlib --disable-libpulse --enable-opencl --enable-gmp --enable-lzma --enable-liblcevc-dec --enable-amf --enable-libaom --enable-libaribb24 --enable-avisynth --enable-chromaprint --enable-libdav1d --enable-libdavs2 --enable-libdvdread --enable-libdvdnav --disable-libfdk-aac --enable-ffnvcodec --enable-cuda-llvm --enable-frei0r --enable-libgme --enable-libkvazaar --enable-libaribcaption --enable-libass --enable-libbluray --enable-libjxl --enable-libmp3lame --enable-libopus --enable-libplacebo --enable-librist --enable-libssh --enable-libtheora --enable-libvpx --enable-libwebp --enable-libzmq --enable-lv2 --enable-libvpl --enable-openal --enable-liboapv --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenh264 --enable-libopenjpeg --enable-libopenmpt --enable-librav1e --enable-librubberband --enable-schannel --enable-sdl2 --enable-libsnappy --enable-libsoxr --enable-libsrt --enable-libsvtav1 --enable-libtwolame --enable-libuavs3d --disable-libdrm --enable-vaapi --enable-libvidstab --enable-libvvenc --enable-whisper --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxvid --enable-libzimg --enable-libzvbi --extra-cflags=-DLIBTWOLAME_STATIC --extra-cxxflags= --extra-libs=-lgomp --extra-ldflags=-pthread --extra-ldexeflags= --cc=x86_64-w64-mingw32-gcc --cxx=x86_64-w64-mingw32-g++ --ar=x86_64-w64-mingw32-gcc-ar --ranlib=x86_64-w64-mingw32-gcc-ranlib --nm=x86_64-w64-mingw32-gcc-nm --extra-version=20260525\r",
+      "correspondingSourceStatus": "unverified",
+      "sha256": "8a333b3ab9a1b1ab8ff9947a84ac6ea43749daa169b7422900f9f290d1bf557a",
+      "upstreamArchive": null,
+      "file": "ffprobe.exe"
+    }
+  ],
+  "packages": [
+    {
+      "copyright": "© Microsoft Corporation. All rights reserved.",
+      "nugetArchiveSha512": "n9Mxz49MQCbxt7nGUfsz6Azh0ODW9G3QDkHnHlmM/vuOMYzLhRkGTKT7n4LUEm0I9CBB5Zh+GGZ2raolleIp1A==",
+      "id": "Microsoft.Data.Sqlite",
+      "nugetContentHash": "58JwZ39lCvRXHfV5O6RQfbHEDu8ZsXI7weRoVRR4jrGRxxkS+qyeuGrN2xD+9VYEICApYr0iTSL6PuU+DdsvPg==",
+      "version": "10.0.10",
+      "licenseFiles": [
+        "licenses/third-party/Microsoft.Data.Sqlite/10.0.10/LICENSE.txt"
+      ],
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "license": "MIT",
+      "repository": "https://github.com/dotnet/dotnet",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "© Microsoft Corporation. All rights reserved.",
+      "nugetArchiveSha512": "cjobd7/jlmmCygJCJWstwyDth4xO2UgGgNddkbcWrCcBP6X+UzgAxQx8YADlAEasEK9dvEjjyk64hcbtZbwssQ==",
+      "id": "Microsoft.Data.Sqlite.Core",
+      "nugetContentHash": "TPCs0ldm7AWqcKmp6f/Xr+14sat7hx4rHfRlS4RgCURBH2thEWbAKEyX7cCWr63zVJVOJIJZTg2cBiUXa8ys6g==",
+      "version": "10.0.10",
+      "licenseFiles": [
+        "licenses/third-party/Microsoft.Data.Sqlite/10.0.10/LICENSE.txt"
+      ],
+      "commit": "f7d90799ce4ef09a0bb257852a57248d2a8fb8dd",
+      "license": "MIT",
+      "repository": "https://github.com/dotnet/dotnet",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "© Microsoft Corporation. All rights reserved.",
+      "nugetArchiveSha512": "T8VdQRl1M2TVy+3dUYoZQNL3RrwgGSzTicTVp+64AY5dbWH9k5zeJcxD1FB1YK9FwZfDOvglSQfUSqjRoLoROg==",
+      "id": "Microsoft.Extensions.AI.Abstractions",
+      "nugetContentHash": "ONGlIBht0ygEdKc0bCt9XWUiq19/460dAu7fCKzPM34OFJSMQIohEDTJwjCJ8vVp8znNakloc9xFF9+R/eDCYQ==",
+      "version": "10.2.0",
+      "licenseFiles": [
+        "licenses/third-party/Microsoft.Extensions.AI.Abstractions/10.2.0/LICENSE"
+      ],
+      "commit": "7c82ecb60925d76e53b65e290a33bef46f285cae",
+      "license": "MIT",
+      "repository": "https://github.com/dotnet/extensions",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "© Microsoft Corporation. All rights reserved.",
+      "nugetArchiveSha512": "50aQQCAY6Y78fcULLIsli750tq+VdLrJsdq7leYk5Zbbbi510kCjLBAG9EoZyEBAa7tlKpqnJ+5F7yuJXn3pfg==",
+      "id": "Microsoft.Web.WebView2",
+      "nugetContentHash": "b7dZ5kZ9bfU5Yo11M8feCOoiyalXCN+2Gsw674RBDBmQ2dJV5EOXb8/ivN2LuLJ+VO2V7FmK6l6LsyfEnG1lXw==",
+      "version": "1.0.3967.48",
+      "licenseFiles": [
+        "licenses/third-party/webview2/1.0.3967.48/LICENSE.txt",
+        "licenses/third-party/webview2/1.0.3967.48/NOTICE.txt"
+      ],
+      "commit": "",
+      "license": "LICENSE.txt",
+      "repository": "",
+      "scope": "application",
+      "licenseType": "file"
+    },
+    {
+      "copyright": "© Mark Heath 2023",
+      "nugetArchiveSha512": "QmHUKqsU4iQJ8gfKECJGyiBHGUk18XBZSYUBSJq+yRfvcvqV96IrEY12bQSAhnJSiCFlMIcoVZTfp/OcomCExg==",
+      "id": "NAudio",
+      "nugetContentHash": "c0DzwiyyklM0TP39Y7RObwO3QkWecgM6H60ikiEnsV/aEAJPbj5MFCLaD8BSfKuZe0HGuh9GRGWWlJmSxDc9MA==",
+      "version": "2.2.1",
+      "licenseFiles": [
+        "licenses/third-party/naudio/2.2.1/LICENSE.txt"
+      ],
+      "commit": "",
+      "license": "license.txt",
+      "repository": "https://github.com/naudio/NAudio",
+      "scope": "application",
+      "licenseType": "file"
+    },
+    {
+      "copyright": "© Mark Heath 2023",
+      "nugetArchiveSha512": "HWM/SqYTessyvfIyh5WZ21pfVIfJygzei/57d9LcXWs+yob2+hHasGAHdqGAsvfL7boZWfuPD0LxcWAHKGODBA==",
+      "id": "NAudio.Asio",
+      "nugetContentHash": "hQglyOT5iT3XuGpBP8ZG0+aoqwRfidHjTNehpoWwX0g6KJEgtH2VaqM2nuJ2mheKZa/IBqB4YQTZVvrIapzfOA==",
+      "version": "2.2.1",
+      "licenseFiles": [
+        "licenses/third-party/naudio/2.2.1/LICENSE.txt"
+      ],
+      "commit": "",
+      "license": "MIT",
+      "repository": "https://github.com/naudio/NAudio",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "© Mark Heath 2023",
+      "nugetArchiveSha512": "mI1gc6likH9pDzLEsKolvj9X+2rMunEw8s5tdOUN7tSRJAoXI3Fd6Ise6xrWsHvW1EQaWPItb5AyYk6S3ljrew==",
+      "id": "NAudio.Core",
+      "nugetContentHash": "GgkdP6K/7FqXFo7uHvoqGZTJvW4z8g2IffhOO4JHaLzKCdDOUEzVKtveoZkCuUX8eV2HAINqi7VFqlFndrnz/g==",
+      "version": "2.2.1",
+      "licenseFiles": [
+        "licenses/third-party/naudio/2.2.1/LICENSE.txt"
+      ],
+      "commit": "",
+      "license": "MIT",
+      "repository": "https://github.com/naudio/NAudio",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "© Mark Heath 2023",
+      "nugetArchiveSha512": "o5KinntLW8ulx01rYf7DrSlKIaFp3wjxdnWnnmOLgbP+FtVNRxOfBGiquvNNDWFNTIMAU9qo+D7wzHZIY8zROQ==",
+      "id": "NAudio.Midi",
+      "nugetContentHash": "6r23ylGo5aeP02WFXsPquz0T0hFJWyh+7t++tz19tc3Kr38NHm+Z9j+FiAv+xkH8tZqXJqus9Q8p6u7bidIgbw==",
+      "version": "2.2.1",
+      "licenseFiles": [
+        "licenses/third-party/naudio/2.2.1/LICENSE.txt"
+      ],
+      "commit": "",
+      "license": "MIT",
+      "repository": "https://github.com/naudio/NAudio",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "© Mark Heath 2023",
+      "nugetArchiveSha512": "AMvEdIEjdxknxt9rrzBkBSvoAYBBHUnMUHWF2B/q15k9h2q4wgPztluSBVoj3XIPrYys5OCNhND/14J7hyNqiQ==",
+      "id": "NAudio.Wasapi",
+      "nugetContentHash": "lFfXoqacZZe0WqNChJgGYI+XV/n/61LzPHT3C1CJp4khoxeo2sziyX5wzNYWeCMNbsWxFvT3b3iXeY1UYjBhZw==",
+      "version": "2.2.1",
+      "licenseFiles": [
+        "licenses/third-party/naudio/2.2.1/LICENSE.txt"
+      ],
+      "commit": "",
+      "license": "MIT",
+      "repository": "https://github.com/naudio/NAudio",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "© Mark Heath 2023",
+      "nugetArchiveSha512": "PGc3KGWLX9rbZ4DQIQu9ChV7s7/OJS2ouJP3AdjxUl1oSKM6eII9ZYdGH7PKN7Mh4MaHr36dXMOnIAPUQKrbOw==",
+      "id": "NAudio.WinForms",
+      "nugetContentHash": "DlDkewY1myY0A+3NrYRJD+MZhZV0yy1mNF6dckB27IQ9XCs/My5Ip8BZcoSHOsaPSe2GAjvoaDnk6N9w8xTv7w==",
+      "version": "2.2.1",
+      "licenseFiles": [
+        "licenses/third-party/naudio/2.2.1/LICENSE.txt"
+      ],
+      "commit": "",
+      "license": "MIT",
+      "repository": "https://github.com/naudio/NAudio",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "© Mark Heath 2023",
+      "nugetArchiveSha512": "3+w4f7aGBfJjrRSgTCXwQJR8RGwSCnKGGs3Zmmikyji5NMp8UxTZTJBQyLvho0vjJd9lVerhz/nj7nnwD8JU8w==",
+      "id": "NAudio.WinMM",
+      "nugetContentHash": "xFHRFwH4x6aq3IxRbewvO33ugJRvZFEOfO62i7uQJRUNW2cnu6BeBTHUS0JD5KBucZbHZaYqxQG8dwZ47ezQuQ==",
+      "version": "2.2.1",
+      "licenseFiles": [
+        "licenses/third-party/naudio/2.2.1/LICENSE.txt"
+      ],
+      "commit": "",
+      "license": "MIT",
+      "repository": "https://github.com/naudio/NAudio",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "Copyright 2014-2024 SourceGear, LLC",
+      "nugetArchiveSha512": "KbeKXtiMrpxd7dFgsnorA1Gci/xVRDCBmkfZNdiiE1la6OdUEMtyTTJ3TBeCn9nIvZgXo5uCd9dVCji3Ay6LuA==",
+      "id": "SQLitePCLRaw.bundle_e_sqlite3",
+      "nugetContentHash": "mAgscpQMLw5/nfA1Q5oJVAT29yROUo1ifZGbbTpx/lwZpSxMUGoYbKfmvdm8oXER+RzxqBmmQzeBEVKfeHv2nw==",
+      "version": "2.1.12",
+      "licenseFiles": [
+        "licenses/third-party/SQLitePCLRaw/2.1.12/LICENSE.TXT",
+        "licenses/third-party/SQLitePCLRaw/2.1.12/NOTICE.TXT"
+      ],
+      "commit": "",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/ericsink/SQLitePCL.raw",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "Copyright 2014-2024 SourceGear, LLC",
+      "nugetArchiveSha512": "WgmgyKwGLTR6ZfIf1+1dFNxsOyp9GmsU9YjjeUjgz+NZnw2hyjVB0U8taT1Z1vv21s5+gvhHQ3vtpZajsMKJYg==",
+      "id": "SQLitePCLRaw.core",
+      "nugetContentHash": "ETpNw9DY3ckWLgRRAeCHj+GKOuPi61aeczkXhgHexUvqoZBAYg8RYESE2J7O1M7+o6QbdSEZwrw9bfqztUVWXg==",
+      "version": "2.1.12",
+      "licenseFiles": [
+        "licenses/third-party/SQLitePCLRaw/2.1.12/LICENSE.TXT",
+        "licenses/third-party/SQLitePCLRaw/2.1.12/NOTICE.TXT"
+      ],
+      "commit": "",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/ericsink/SQLitePCL.raw",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "Copyright 2014-2024 SourceGear, LLC",
+      "nugetArchiveSha512": "Dli+ELKNuRX0g72Uq2I2OZa5zgi4fwSXV4Je3wyF7jH9oz6AKRA9wXIzMwuVeW7RfAZdSVgIcEeZZON59LdtiA==",
+      "id": "SQLitePCLRaw.lib.e_sqlite3",
+      "nugetContentHash": "fWi8Dbknuhgg72fWinIdjXVaqO1hHL4YBBwVLnr7e1c9TAZwJ0QE38j9syW1hwx6HaqEVTwI+O07WPdZn8Rp0w==",
+      "version": "2.1.12",
+      "licenseFiles": [
+        "licenses/third-party/SQLitePCLRaw/2.1.12/LICENSE.TXT",
+        "licenses/third-party/SQLitePCLRaw/2.1.12/NOTICE.TXT"
+      ],
+      "commit": "",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/ericsink/SQLitePCL.raw",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "Copyright 2014-2024 SourceGear, LLC",
+      "nugetArchiveSha512": "k4RCblP+Hc1JAc77crV+fFZLiZeJPaY8VjMA8kvki00Z0dohG6xxXw4qkuVyCUC2+HChbhwW+ydhmjmlUZAXUQ==",
+      "id": "SQLitePCLRaw.provider.e_sqlite3",
+      "nugetContentHash": "W3oH4XIfCzFrgUSDKHhN6N+dgzA5YHOR2VxX8GB6Qy7CyrJJgxPEG8NirgYWlPQC5P2jz2knSsexWu4tDUL33g==",
+      "version": "2.1.12",
+      "licenseFiles": [
+        "licenses/third-party/SQLitePCLRaw/2.1.12/LICENSE.TXT",
+        "licenses/third-party/SQLitePCLRaw/2.1.12/NOTICE.TXT"
+      ],
+      "commit": "",
+      "license": "Apache-2.0",
+      "repository": "https://github.com/ericsink/SQLitePCL.raw",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "",
+      "nugetArchiveSha512": "b9OntkriQP5ylc07KY4gAnKOgAJfjTO4qOscfgfGbNPztYg0O3G2+EOrIMbLCkI+ZNHzvkZH6KhikuEUM/dX8w==",
+      "id": "Whisper.net",
+      "nugetContentHash": "82WAKyyMun44cAXE80sP7vIra1oYhbVp2WrnqJm0CISTfMAvint1k/umt0SvsQH+IkDyekZ3BgMdS3Rag9SZ5A==",
+      "version": "1.9.1",
+      "licenseFiles": [
+        "licenses/third-party/whisper.net/1.9.1/LICENSE",
+        "licenses/third-party/whisper.cpp/1.8.5/LICENSE",
+        "licenses/third-party/whisper.cpp/1.8.5/llamafile-MIT.txt"
+      ],
+      "commit": "98278acc38ae23590cdfa9859f78f089abae52a7",
+      "license": "LICENSE",
+      "repository": "https://github.com/sandrohanea/whisper.net",
+      "scope": "application",
+      "licenseType": "file"
+    },
+    {
+      "copyright": "",
+      "nugetArchiveSha512": "oirjgKsR/CtqwA75asLFN4TyM9mgDoRXIpqrT623oTRMsek49dYvwhnEIT1w2ggYlaE/IdLEf8Bz2NEb0dOA7Q==",
+      "id": "Whisper.net.Runtime",
+      "nugetContentHash": "TipPJkry69VwJ3XL38U082QK5Trqte6NgSOoosuyj/C1eRHabmBbLQ3ujjcDryg5pkXT7wXwAKU5+PxGIJyxkQ==",
+      "version": "1.9.1",
+      "licenseFiles": [
+        "licenses/third-party/whisper.net/1.9.1/LICENSE",
+        "licenses/third-party/whisper.cpp/1.8.5/LICENSE",
+        "licenses/third-party/whisper.cpp/1.8.5/llamafile-MIT.txt"
+      ],
+      "commit": "",
+      "license": "MIT",
+      "repository": "",
+      "scope": "application",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "",
+      "nugetArchiveSha512": "fdwrGYj/1QIxV3OVDYN5lTOc8BkE2c2cTT4/4NKCDFNxa90afwS/Byd5VYtJopcijPhuVUHTIjpRBMX1c2UDLg==",
+      "id": "Whisper.net.Runtime.Metal",
+      "nugetContentHash": "Ut5tZyCUwXMVdThoLvdvQ7GyLwjRMreR/p3LuMJvRiXidQ2AXxx2Tv8UOGtMxvL395AC3+IkHdN/kMfd+EPSEw==",
+      "version": "1.9.1",
+      "licenseFiles": [
+        "licenses/third-party/whisper.net/1.9.1/LICENSE",
+        "licenses/third-party/whisper.cpp/1.8.5/LICENSE",
+        "licenses/third-party/whisper.cpp/1.8.5/llamafile-MIT.txt"
+      ],
+      "commit": "",
+      "license": "MIT",
+      "repository": "",
+      "scope": "resolved; not shipped on Windows",
+      "licenseType": "expression"
+    },
+    {
+      "copyright": "",
+      "nugetArchiveSha512": "hRYbrj76y09g38wZccGb3DvNiempYMq6Zf6FX/gKzxjS2Ff1JeTZ/XSSuJ0UgU13q/TAsD/Gl/Ctu0PmNcFjdA==",
+      "id": "Whisper.net.Runtime.Vulkan",
+      "nugetContentHash": "2kynHvbAczuEYHKRIR9NYg8xiXaGZHW3hb1Ts+N2dNcmVpA87xJWxA07yDiFnf5+vXz428wK57YWNvxqTJdkKw==",
+      "version": "1.9.1",
+      "licenseFiles": [
+        "licenses/third-party/whisper.net/1.9.1/LICENSE",
+        "licenses/third-party/whisper.cpp/1.8.5/LICENSE",
+        "licenses/third-party/whisper.cpp/1.8.5/llamafile-MIT.txt",
+        "licenses/third-party/Vulkan-Headers/1.4.321/LICENSE.md",
+        "licenses/third-party/Vulkan-Headers/1.4.321/Apache-2.0.txt",
+        "licenses/third-party/Vulkan-Headers/1.4.321/MIT.txt"
+      ],
+      "commit": "",
+      "license": "MIT",
+      "repository": "",
+      "scope": "application",
+      "licenseType": "expression"
+    }
+  ],
+  "materials": [
+    {
+      "path": "licenses/third-party/Microsoft.NETCore.App.Runtime.win-x64/10.0.12/LICENSE.TXT",
+      "sha256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b",
+      "source": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.win-x64/10.0.12/microsoft.netcore.app.runtime.win-x64.10.0.12.nupkg#LICENSE.TXT"
+    },
+    {
+      "path": "licenses/third-party/Microsoft.NETCore.App.Runtime.win-x64/10.0.12/THIRD-PARTY-NOTICES.TXT",
+      "sha256": "6d15e10a101c6bfff2ab4429ed061bf76c456fc4b23ad6b03e0d0f8377148a21",
+      "source": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.runtime.win-x64/10.0.12/microsoft.netcore.app.runtime.win-x64.10.0.12.nupkg#THIRD-PARTY-NOTICES.TXT"
+    },
+    {
+      "path": "licenses/third-party/Microsoft.WindowsDesktop.App.Runtime.win-x64/10.0.12/LICENSE",
+      "sha256": "a89886665765362eb77e0f8e26602c924520041d1711b2eedc136434fe4d01ab",
+      "source": "https://api.nuget.org/v3-flatcontainer/microsoft.windowsdesktop.app.runtime.win-x64/10.0.12/microsoft.windowsdesktop.app.runtime.win-x64.10.0.12.nupkg#LICENSE"
+    },
+    {
+      "path": "licenses/third-party/Microsoft.AspNetCore.App.Runtime.win-x64/10.0.12/LICENSE.txt",
+      "sha256": "d7a68596ab69b06f51ca278a6545148e4269a9381c26d597c13df5d88e08cf5b",
+      "source": "https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.app.runtime.win-x64/10.0.12/microsoft.aspnetcore.app.runtime.win-x64.10.0.12.nupkg#LICENSE.txt"
+    },
+    {
+      "path": "licenses/third-party/Microsoft.AspNetCore.App.Runtime.win-x64/10.0.12/THIRD-PARTY-NOTICES.TXT",
+      "sha256": "307d014f65d8482314f1400ddeae7a0cbabb96c2207bcc77f6233cc10588e5d9",
+      "source": "https://api.nuget.org/v3-flatcontainer/microsoft.aspnetcore.app.runtime.win-x64/10.0.12/microsoft.aspnetcore.app.runtime.win-x64.10.0.12.nupkg#THIRD-PARTY-NOTICES.TXT"
+    },
+    {
+      "path": "licenses/third-party/webview2/1.0.3967.48/LICENSE.txt",
+      "sha256": "0af8f1b807512aae39c2ac1aa4d0cae65cabecb6fd554b8439a5162a0d6eca55",
+      "source": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.3967.48/microsoft.web.webview2.1.0.3967.48.nupkg#LICENSE.txt"
+    },
+    {
+      "path": "licenses/third-party/webview2/1.0.3967.48/NOTICE.txt",
+      "sha256": "106423785c5b7eba0a8e61d1837f2132e9c828e20ad530f565d981c1df60dd90",
+      "source": "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.3967.48/microsoft.web.webview2.1.0.3967.48.nupkg#NOTICE.txt"
+    },
+    {
+      "path": "licenses/third-party/naudio/2.2.1/LICENSE.txt",
+      "sha256": "303e01786b271eb464b3f43d18a375f2f17d37bc708a37c2fdf45b289fb5bfaa",
+      "source": "https://api.nuget.org/v3-flatcontainer/naudio/2.2.1/naudio.2.2.1.nupkg#license.txt"
+    },
+    {
+      "path": "licenses/third-party/whisper.net/1.9.1/LICENSE",
+      "sha256": "d9ca846bbb028d80a87027b886dc7db63ba22dfc6a5e17c4aace03f62ab644ec",
+      "source": "https://api.nuget.org/v3-flatcontainer/whisper.net/1.9.1/whisper.net.1.9.1.nupkg#LICENSE"
+    },
+    {
+      "path": "licenses/third-party/Microsoft.Data.Sqlite/10.0.10/LICENSE.txt",
+      "sha256": "ae48df11a335dc1a615f4f938b69cba73bcf4485c4f97af49b38efb0f216353b",
+      "source": "https://raw.githubusercontent.com/dotnet/dotnet/f7d90799ce4ef09a0bb257852a57248d2a8fb8dd/src/efcore/LICENSE.txt"
+    },
+    {
+      "path": "licenses/third-party/Microsoft.Extensions.AI.Abstractions/10.2.0/LICENSE",
+      "sha256": "47f0ad8ba753eae5de6178291cd8f38bbb42d2368b177f8e11714ad17c701275",
+      "source": "https://raw.githubusercontent.com/dotnet/extensions/7c82ecb60925d76e53b65e290a33bef46f285cae/LICENSE"
+    },
+    {
+      "path": "licenses/third-party/SQLitePCLRaw/2.1.12/LICENSE.TXT",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "source": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/v2.1.12/LICENSE.TXT"
+    },
+    {
+      "path": "licenses/third-party/SQLitePCLRaw/2.1.12/NOTICE.TXT",
+      "sha256": "485b276b3d2bfaa26df348e1e5c84df3648981e09b88531a6a53006f0705c24b",
+      "source": "https://raw.githubusercontent.com/ericsink/SQLitePCL.raw/ca835d21508bff43121c65081035840ac5006c4c/NOTICE.TXT"
+    },
+    {
+      "path": "licenses/third-party/whisper.cpp/1.8.5/LICENSE",
+      "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d",
+      "source": "https://raw.githubusercontent.com/ggml-org/whisper.cpp/f24588a272ae8e23280d9c220536437164e6ed28/LICENSE"
+    },
+    {
+      "path": "licenses/third-party/whisper.cpp/1.8.5/llamafile-MIT.txt",
+      "sha256": "c5843750168debd92766cf0cf2f5040ce8a6eefe2ef7ebc652997b6897e1ba3b",
+      "source": "https://raw.githubusercontent.com/ggml-org/whisper.cpp/f24588a272ae8e23280d9c220536437164e6ed28/ggml/src/ggml-cpu/llamafile/sgemm.cpp#L1-L21"
+    },
+    {
+      "path": "licenses/third-party/Vulkan-Headers/1.4.321/LICENSE.md",
+      "sha256": "ac24e5ea920e4318e4d02c4086ae51f53cfb03feed06c18df1019e7ada1ec7bc",
+      "source": "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/vulkan-sdk-1.4.321.0/LICENSE.md"
+    },
+    {
+      "path": "licenses/third-party/Vulkan-Headers/1.4.321/Apache-2.0.txt",
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "source": "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/vulkan-sdk-1.4.321.0/LICENSES/Apache-2.0.txt"
+    },
+    {
+      "path": "licenses/third-party/Vulkan-Headers/1.4.321/MIT.txt",
+      "sha256": "1ca3502222d967f3be5751c55f6b7ee735b5383909c3b501495f54b216dbf227",
+      "source": "https://raw.githubusercontent.com/KhronosGroup/Vulkan-Headers/vulkan-sdk-1.4.321.0/LICENSES/MIT.txt"
+    },
+    {
+      "path": "licenses/third-party/whisper-models/v4/MODEL-CARD.md",
+      "sha256": "659294787cd02ffa4fb5a1a0cf5a8808ee4bcc8c7895cc96aabea5f301491eac",
+      "source": "https://huggingface.co/sandrohanea/whisper.net/raw/v4/README.md"
+    },
+    {
+      "path": "licenses/third-party/whisper-models/v4/LICENSE",
+      "sha256": "b5d65a59060e68c4ff940e1eddfa6f94b2d68fdf58ed7f4dd57721c997e35e9d",
+      "source": "https://raw.githubusercontent.com/openai/whisper/86098128c0b4f24f0e2aa2994de830614b474227/LICENSE"
+    },
+    {
+      "path": "licenses/third-party/ffmpeg/COPYING.GPLv3",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "source": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz (COPYING.GPLv3)"
+    },
+    {
+      "path": "licenses/third-party/inno-setup/6.7.3/LICENSE.txt",
+      "sha256": "2e5346868c2a18434489824e11d65c3031620f792fefc415d05f19cd441abf5c",
+      "source": "https://github.com/jrsoftware/issrc/blob/is-6_7_3/license.txt"
+    }
+  ],
+  "upstream": {
+    "sqlitePclRaw": {
+      "noticePaths": [
+        "NOTICE.TXT"
+      ],
+      "commit": "ca835d21508bff43121c65081035840ac5006c4c"
+    },
+    "whisperModels": {
+      "license": "MIT",
+      "revision": "v4",
+      "openaiLicenseCommit": "86098128c0b4f24f0e2aa2994de830614b474227",
+      "bundled": false,
+      "repository": "https://huggingface.co/sandrohanea/whisper.net"
+    },
+    "vulkanHeaders": {
+      "scope": "headers used by native Vulkan build",
+      "sdk": "1.4.321.1",
+      "version": "1.4.321"
+    },
+    "whisperCpp": {
+      "version": "1.8.5",
+      "commit": "f24588a272ae8e23280d9c220536437164e6ed28"
+    },
+    "sqliteEngine": {
+      "version": "3.53.3",
+      "sourceId": "2026-06-26 20:14:12 d4c0e51e4aeb96955b99185ab9cde75c339e2c29c3f3f12428d364a10d782c62",
+      "license": "public domain",
+      "source": "https://www.sqlite.org/copyright.html",
+      "verification": "SELECT sqlite_version(), sqlite_source_id() on an in-memory database using the restored SQLitePCLRaw 2.1.12 win-x64 native library"
+    }
+  },
+  "runtimePacks": [
+    {
+      "commit": "95017c711e6afc1085133d440e42b4bd78155701",
+      "licenseFiles": [
+        "licenses/third-party/Microsoft.NETCore.App.Runtime.win-x64/10.0.12/LICENSE.TXT",
+        "licenses/third-party/Microsoft.NETCore.App.Runtime.win-x64/10.0.12/THIRD-PARTY-NOTICES.TXT"
+      ],
+      "id": "Microsoft.NETCore.App.Runtime.win-x64",
+      "repository": "https://github.com/dotnet/dotnet",
+      "version": "10.0.12"
+    },
+    {
+      "commit": "95017c711e6afc1085133d440e42b4bd78155701",
+      "licenseFiles": [
+        "licenses/third-party/Microsoft.WindowsDesktop.App.Runtime.win-x64/10.0.12/LICENSE"
+      ],
+      "id": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
+      "repository": "https://github.com/dotnet/dotnet",
+      "version": "10.0.12"
+    },
+    {
+      "commit": "95017c711e6afc1085133d440e42b4bd78155701",
+      "licenseFiles": [
+        "licenses/third-party/Microsoft.AspNetCore.App.Runtime.win-x64/10.0.12/LICENSE.txt",
+        "licenses/third-party/Microsoft.AspNetCore.App.Runtime.win-x64/10.0.12/THIRD-PARTY-NOTICES.TXT"
+      ],
+      "id": "Microsoft.AspNetCore.App.Runtime.win-x64",
+      "repository": "https://github.com/dotnet/dotnet",
+      "version": "10.0.12"
+    }
+  ],
+  "nativeAssets": [
+    {
+      "sha256": "b7385d722c83fb52142a00477a726723745916d22a555711ee89834c1111fb2e",
+      "path": "e_sqlite3.dll"
+    },
+    {
+      "sha256": "07ec2fac4946005ba7380f2c2e9ccfa3ad23007592d074aa698ed5df6bfb4938",
+      "path": "runtimes/win-x64/whisper.dll"
+    },
+    {
+      "sha256": "e6c362421b6d5a5c1b52341f88d3d72764de29f05141748cc3faad2f6348063f",
+      "path": "runtimes/win-x64/ggml-base-whisper.dll"
+    },
+    {
+      "sha256": "480a23afc6deea301c5cda66cf462fa2f2eb7ff9bca63b8f4f933a0e8dc5d4dd",
+      "path": "runtimes/win-x64/ggml-cpu-whisper.dll"
+    },
+    {
+      "sha256": "2e0ac238c2bc178a5c1f09b3bde2421904b191bce1cc1c13dc64309ca3b9cb36",
+      "path": "runtimes/win-x64/ggml-whisper.dll"
+    },
+    {
+      "sha256": "56fe7c2e626fc0c981e87638d3e8c8bec39de8877636ac885929212b81ddb9ed",
+      "path": "runtimes/vulkan/win-x64/whisper.dll"
+    },
+    {
+      "sha256": "0faff6ab28a1e10dfc7319dc92608259d1f68aacb897b8dbff60323dce46bcb8",
+      "path": "runtimes/vulkan/win-x64/ggml-base-whisper.dll"
+    },
+    {
+      "sha256": "98120d5ebb99beb37a319d9de624ffdb61bfe528a9829f9a6a1a55af3dab06c5",
+      "path": "runtimes/vulkan/win-x64/ggml-cpu-whisper.dll"
+    },
+    {
+      "sha256": "4566056b3a710ffdf89c7627aa3ab7a73fb0f78374e14f13198628dcbf27cc2d",
+      "path": "runtimes/vulkan/win-x64/ggml-whisper.dll"
+    },
+    {
+      "sha256": "e325725c18b88bed00443a2ca4ac3d6fdb7587fb055b52c623df3b04e87fb039",
+      "path": "runtimes/vulkan/win-x64/ggml-vulkan-whisper.dll"
+    }
+  ],
+  "schemaVersion": 1,
+  "ffmpegSourceBuild": {
+    "schemaVersion": 1,
+    "buildId": "keepclip-ffmpeg-9.0.2-1",
+    "sourceDateEpoch": 1789776000,
+    "baseImage": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+    "sources": [
+      {
+        "component": "ffmpeg",
+        "version": "9.0.2",
+        "file": "ffmpeg-9.0.2.tar.xz",
+        "url": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+        "license": "GPL-3.0-or-later",
+        "sha256": "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e",
+        "bundlePath": "sources/ffmpeg-9.0.2.tar.xz"
+      },
+      {
+        "component": "x264",
+        "version": "31e19f92f00c7003fa115047ce50978bc98c3a0d",
+        "file": "x264.tar.gz",
+        "url": "https://github.com/mirror/x264/archive/31e19f92f00c7003fa115047ce50978bc98c3a0d.tar.gz",
+        "license": "GPL-2.0-or-later",
+        "sha256": "d053c9d86988d6bc78237ca5205865c5ddf99c98ef4cd9927eec8f6d388f6dd9",
+        "bundlePath": "sources/x264.tar.gz"
+      },
+      {
+        "component": "nv-codec-headers",
+        "version": "n12.2.72.0",
+        "file": "nv-codec-headers.tar.gz",
+        "url": "https://github.com/FFmpeg/nv-codec-headers/archive/refs/tags/n12.2.72.0.tar.gz",
+        "license": "MIT",
+        "sha256": "dbeaec433d93b850714760282f1d0992b1254fc3b5a6cb7d76fc1340a1e47563",
+        "bundlePath": "sources/nv-codec-headers.tar.gz"
+      },
+      {
+        "component": "AMF headers",
+        "version": "v1.5.3 (8c648005e07d4309033282bfd9947df2c7e76104)",
+        "file": "amf.tar.gz",
+        "url": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/releases/download/v1.5.3/AMF-headers-v1.5.3.tar.gz",
+        "license": "MIT",
+        "sha256": "570c8f6593b8c24a6e47a0a9c59b216a7198138e660ba4011590ae913343d5c3",
+        "bundlePath": "sources/amf.tar.gz"
+      },
+      {
+        "component": "AMF license",
+        "version": "v1.5.3",
+        "file": "AMF-LICENSE.txt",
+        "url": "https://raw.githubusercontent.com/GPUOpen-LibrariesAndSDKs/AMF/v1.5.3/LICENSE.txt",
+        "license": "MIT",
+        "sha256": "eb297397aaa455b5668ab67d216b83828466152dab123fa92384c6ec16b74170",
+        "bundlePath": "AMF-LICENSE.txt"
+      },
+      {
+        "component": "Intel oneVPL dispatcher",
+        "version": "v2.17.0",
+        "file": "libvpl.tar.gz",
+        "url": "https://github.com/intel/libvpl/archive/refs/tags/v2.17.0.tar.gz",
+        "license": "MIT",
+        "sha256": "4de3e2faf1e8307fb282e4a43f443191810f6a6b0a484fffa7995ba1c814c6ec",
+        "bundlePath": "sources/libvpl.tar.gz"
+      },
+      {
+        "component": "mingw-w64 CRT and winpthreads",
+        "version": "10.0.0",
+        "file": "mingw-w64.tar.bz2",
+        "url": "https://deb.debian.org/debian/pool/main/m/mingw-w64/mingw-w64_10.0.0.orig.tar.bz2",
+        "license": "multiple; see MINGW-COPYRIGHT",
+        "sha256": "ba6b430aed72c63a3768531f6a3ffc2b0fde2c57a3b251450dcf489a894f0894",
+        "bundlePath": "sources/mingw-w64.tar.bz2"
+      },
+      {
+        "component": "mingw-w64 Debian patches",
+        "version": "10.0.0-3",
+        "file": "mingw-w64-debian.tar.xz",
+        "url": "https://deb.debian.org/debian/pool/main/m/mingw-w64/mingw-w64_10.0.0-3.debian.tar.xz",
+        "license": "multiple; see Debian copyright in archive",
+        "sha256": "3ba56abfee3dc1fe3fad3b66105c5abde1f5aaa93df216f9938fc918b319de58",
+        "bundlePath": "sources/mingw-w64-debian.tar.xz"
+      }
+    ]
+  }
+}

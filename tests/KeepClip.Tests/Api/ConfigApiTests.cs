@@ -1,4 +1,6 @@
 using System.Net;
+using System.Text;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace KeepClip.Tests.Api;
@@ -50,6 +52,7 @@ public class ConfigApiTests
         Assert.False((bool)json["configured"]!);
         Assert.Equal("en", (string)json["language"]!);
         Assert.Equal("purple", (string)json["accent_theme"]!);
+        Assert.False((bool)json["favorites_after_recent"]!);
         Assert.Matches(@"^\d+\.\d+\.\d+$", (string)json["version"]!);
         Assert.NotNull(json["clips_root"]);
     }
@@ -117,6 +120,47 @@ public class ConfigApiTests
         Assert.Contains("data-accent-theme=\"green\"", html);
         Assert.Contains("favicon-green.svg", html);
         Assert.Equal("green", (string)(await _http.GetJson("/api/config"))["accent_theme"]!);
+    }
+
+    [Fact]
+    public async Task Clip_order_persists_both_values_without_changing_other_settings()
+    {
+        Settings.SetLanguage("pl");
+        Settings.SetHideFolderClips(true);
+
+        foreach (var enabled in new[] { true, false })
+        {
+            var response = await _http.PostJson("/api/clip-order", new { favorites_after_recent = enabled });
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var json = await response.Json();
+            Assert.True((bool)json["ok"]!);
+            Assert.Equal(enabled, (bool)json["favorites_after_recent"]!);
+            var config = await _http.GetJson("/api/config");
+            Assert.Equal(enabled, (bool)config["favorites_after_recent"]!);
+            Assert.Equal(enabled, (bool)JsonNode.Parse(File.ReadAllText(TestSettings.Path))!["favorites_after_recent"]!);
+            Assert.Equal("pl", (string)config["language"]!);
+            Assert.True((bool)config["hide_folder_clips"]!);
+        }
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"favorites_after_recent\":null}")]
+    [InlineData("{\"favorites_after_recent\":\"false\"}")]
+    [InlineData("{\"favorites_after_recent\":0}")]
+    [InlineData("{\"favorites_after_recent\":{}}")]
+    [InlineData("{")]
+    public async Task Invalid_clip_order_payloads_return_400_without_changing_saved_value(string body)
+    {
+        Settings.SetFavoritesAfterRecent(true);
+        var original = File.ReadAllText(TestSettings.Path);
+
+        var response = await _http.PostAsync("/api/clip-order", new StringContent(body, Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(original, File.ReadAllText(TestSettings.Path));
+        Assert.True((bool)(await _http.GetJson("/api/config"))["favorites_after_recent"]!);
     }
 
     [Fact]

@@ -103,11 +103,13 @@ const els = {
   statFav: $("#stat-fav"),
   localFree: $("#local-free"),
   localClips: $("#local-clips"),
+  localOther: $("#local-other"),
   localTotal: $("#local-total"),
   localFillClips: $("#local-fill-clips"),
   localFillOther: $("#local-fill-other"),
   cloudFree: $("#cloud-free"),
   cloudClips: $("#cloud-clips"),
+  cloudOther: $("#cloud-other"),
   cloudTotal: $("#cloud-total"),
   cloudFillClips: $("#cloud-fill-clips"),
   cloudFillOther: $("#cloud-fill-other"),
@@ -170,6 +172,8 @@ const els = {
   folderDetailName: $("#folder-detail-name"),
   folderDetailCount: $("#folder-detail-count"),
   folderDetailGrid: $("#folder-detail-grid"),
+  folderHideHome: $("#folder-hide-home"),
+  folderHideHomeHint: $("#folder-hide-home-hint"),
   btnNewFolder: $("#btn-new-folder"),
   btnBackFolders: $("#btn-back-folders"),
   btnRenameFolder: $("#btn-rename-folder"),
@@ -237,7 +241,12 @@ const els = {
   replayAudioOutput: $("#replay-audio-output"),
   replayAudioInput: $("#replay-audio-input"),
   viewSettings: $("#view-settings"),
+  settingsSearch: $("#settings-search"),
+  settingsSearchClear: $("#settings-search-clear"),
+  settingsEmpty: $("#settings-empty"),
   settingsTheme: $("#accent-theme-select"),
+  settingsHideFolderClips: $("#settings-hide-folder-clips"),
+  settingsFavoritesAfterRecent: $("#settings-favorites-after-recent"),
   settingsVersion: $("#settings-version"),
   ctrlSnap: $("#ctrl-snap"),
   ctrlMute: $("#ctrl-mute"),
@@ -390,21 +399,24 @@ function renderStorage() {
   const dTotal = s.disk_total || 0;
   const dFree = s.disk_free != null ? s.disk_free : 0;
 
-  const dUsed = dTotal > 0 ? dTotal - dFree : 0;
+  const diskKnown = dTotal > 0 && s.disk_free != null;
+  const dUsed = diskKnown ? Math.max(0, dTotal - dFree) : 0;
   const lOther = Math.max(0, dUsed - lClips);
 
   if (els.localClips) els.localClips.textContent = fmtSize(lClips);
+  if (els.localOther) els.localOther.textContent = diskKnown ? fmtSize(lOther) : "—";
   if (els.localTotal) els.localTotal.textContent = dTotal ? fmtSize(dTotal) : "—";
 
   if (els.localFree) {
-    els.localFree.textContent = dFree > 0 ? t("storage.free").replace("{size}", fmtSize(dFree)) : "—";
+    els.localFree.textContent = diskKnown ? t("storage.free").replace("{size}", fmtSize(dFree)) : "—";
     els.localFree.classList.remove("text-red");
   }
 
   let lClipsPct = pct(lClips, dTotal);
   let lOtherPct = pct(lOther, dTotal);
 
-  if (lClips > 0 && lClipsPct < 0.2) lClipsPct = 0.5;
+  if (diskKnown && lClips > 0 && lClipsPct < 0.2) lClipsPct = 0.5;
+  lOtherPct = Math.min(lOtherPct, 100 - lClipsPct);
 
   const localFillClips = document.getElementById("local-fill-clips");
   const localFillOther = document.getElementById("local-fill-other");
@@ -415,15 +427,15 @@ function renderStorage() {
   const cClips = s.cloud_bytes || 0;
   if (els.cloudClips) els.cloudClips.textContent = fmtSize(cClips);
 
-  const q = _cloudQuota;
+  const q = _cloudConnected ? _cloudQuota : null;
+  const cOther = q ? Math.max(0, q.usage - cClips) : 0;
+  if (els.cloudOther) els.cloudOther.textContent = q ? fmtSize(cOther) : "—";
 
   const cloudFillClips = document.getElementById("cloud-fill-clips");
   const cloudFillOther = document.getElementById("cloud-fill-other");
-  const cloudBarContainer = cloudFillClips ? cloudFillClips.parentElement : null;
 
   if (q && q.limit) {
     const cUsed = q.usage || 0;
-    const cOther = Math.max(0, cUsed - cClips);
     const cFree = Math.max(0, q.limit - cUsed);
 
     if (els.cloudTotal) els.cloudTotal.textContent = fmtSize(q.limit);
@@ -434,12 +446,10 @@ function renderStorage() {
 
     let cClipsPct = pct(cClips, q.limit);
     if (cClips > 0 && cClipsPct < 0.5) cClipsPct = 0.5;
-    let cOtherPct = pct(cOther, q.limit);
+    const cOtherPct = Math.min(pct(cOther, q.limit), 100 - cClipsPct);
 
     if (cloudFillClips) cloudFillClips.style.width = cClipsPct + "%";
     if (cloudFillOther) cloudFillOther.style.width = cOtherPct + "%";
-
-    if (cloudBarContainer) cloudBarContainer.style.visibility = "visible";
   } else {
     if (els.cloudTotal) els.cloudTotal.textContent = (q && _cloudConnected) ? "∞" : "—";
 
@@ -448,17 +458,13 @@ function renderStorage() {
         els.cloudFree.textContent = t("storage.notConnected");
         els.cloudFree.classList.add("text-red");
       } else {
-        els.cloudFree.textContent = t("storage.unlimited");
+        els.cloudFree.textContent = q ? t("storage.unlimited") : "—";
         els.cloudFree.classList.remove("text-red");
       }
     }
 
     if (cloudFillClips) cloudFillClips.style.width = "0%";
     if (cloudFillOther) cloudFillOther.style.width = "0%";
-
-    if (cloudBarContainer) {
-      cloudBarContainer.style.visibility = _cloudConnected ? "visible" : "hidden";
-    }
   }
 }
 
@@ -483,25 +489,30 @@ function syncSortOptions() {
   }
 }
 
+let _searchRequestId = 0;
+
 async function doSearch() {
+  const requestId = ++_searchRequestId;
   const q = els.q.value.trim();
   const game = els.gameFilter.value;
   syncSortOptions();
   const sort = els.sort.value || (q ? "relevance" : "newest");
   if (!q) {
-    await renderRecent(game, sort);
+    await renderRecent(game, sort, requestId);
     return;
   }
   els.results.innerHTML = `<div class="empty">${t("search.searching").replace("{q}", escapeHtml(q))}</div>`;
   const r = await fetch(
-    `/api/search?q=${encodeURIComponent(q)}&sort=${encodeURIComponent(sort)}&limit=200`
+    `/api/search?q=${encodeURIComponent(q)}&sort=${encodeURIComponent(sort)}&limit=200&home=${!_selectionMode}`
   ).then((r) => r.json());
+  if (requestId !== _searchRequestId) return;
   let results = r.results || [];
   if (game) results = results.filter((x) => x.game === game);
   renderResults(results);
 }
 
 let _repaint = null;
+let _favoritesAfterRecent = false;
 
 function favoritesFirst(clips) {
   const fav = [];
@@ -510,17 +521,26 @@ function favoritesFirst(clips) {
   return fav.concat(rest);
 }
 
-async function renderRecent(game, sort = "newest") {
+function orderMosaicClips(clips, sort) {
+  if (!_favoritesAfterRecent) return favoritesFirst(clips);
+  if (sort !== "newest") return clips;
+  return clips.slice(0, 4).concat(favoritesFirst(clips.slice(4)));
+}
+
+async function renderRecent(game, sort = "newest", requestId = ++_searchRequestId) {
   const params = new URLSearchParams({ sort, limit: "120" });
+  params.set("home", String(!_selectionMode));
   if (game) params.set("game", game);
   const clips = await fetch(`/api/clips?${params}`).then((r) => r.json());
+  if (requestId !== _searchRequestId) return;
   if (!clips.length) {
     _repaint = null;
-    els.results.innerHTML = `<div class="empty">${t("search.noClips")}</div>`;
+    const message = !_selectionMode && _lastStats?.clips > 0 ? "search.noVisibleClips" : "search.noClips";
+    els.results.innerHTML = `<div class="empty">${t(message)}</div>`;
     return;
   }
   _repaint = () => {
-    const ordered = _layoutMode === "mosaic" ? favoritesFirst(clips) : clips;
+    const ordered = _layoutMode === "mosaic" ? orderMosaicClips(clips, sort) : clips;
     els.results.innerHTML = ordered.map((c) => clipCard(c)).join("");
     $$(".result").forEach((el) => el.addEventListener("click", () => openPlayer(parseInt(el.dataset.clipId, 10), 0)));
   };
@@ -628,6 +648,7 @@ async function toggleFavorite(clipId) {
     });
     loadStats();
     if (!els.viewFavorites.hidden) loadFavorites();
+    if (_layoutMode === "mosaic" && !els.viewClips.hidden) await doSearch();
   } catch {
     toast(t("toast.folderAddError").replace("{error}", ""), "error");
   }
@@ -2353,6 +2374,152 @@ function applyAccentTheme(theme) {
 
 applyAccentTheme(document.documentElement.dataset.accentTheme);
 
+function filterSettings() {
+  const normalize = (value) => value.toLocaleLowerCase(LANG).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ł/g, "l");
+  const words = normalize(els.settingsSearch.value).trim().split(/\s+/).filter(Boolean);
+  let visibleRows = 0;
+  els.viewSettings.querySelectorAll("[data-settings-group]").forEach((group) => {
+    const heading = group.querySelector("[data-settings-heading]")?.textContent || "";
+    let groupVisible = false;
+    group.querySelectorAll("[data-settings-row]").forEach((row) => {
+      const text = normalize(heading + " " + row.textContent);
+      row.hidden = !words.every((word) => text.includes(word));
+      if (!row.hidden) { groupVisible = true; visibleRows += 1; }
+    });
+    group.hidden = !groupVisible;
+  });
+  els.settingsEmpty.hidden = visibleRows > 0;
+  els.settingsSearchClear.hidden = els.settingsSearch.value.length === 0;
+}
+
+function clearSettingsSearch(focus = false) {
+  els.settingsSearch.value = "";
+  filterSettings();
+  if (focus) els.settingsSearch.focus();
+}
+
+els.settingsSearch.addEventListener("input", filterSettings);
+els.settingsSearchClear.addEventListener("click", () => clearSettingsSearch(true));
+els.settingsSearch.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { e.preventDefault(); clearSettingsSearch(true); }
+});
+$("#btn-run-onboarding").addEventListener("click", () => clearSettingsSearch());
+
+let _hideFolderClips = false;
+let _homeVisibilityLoaded = false;
+let _homeVisibilitySaving = false;
+let _folderVisibilitySaving = false;
+let _currentFolderHiddenFromHome = false;
+let _clipOrderLoaded = false;
+let _clipOrderSaving = false;
+let _clipOrderRevision = 0;
+
+function applyClipOrder(config) {
+  _favoritesAfterRecent = config.favorites_after_recent === true;
+  _clipOrderLoaded = typeof config.favorites_after_recent === "boolean";
+  els.settingsFavoritesAfterRecent.checked = _favoritesAfterRecent;
+  els.settingsFavoritesAfterRecent.disabled = !_clipOrderLoaded || _clipOrderSaving;
+  if (_repaint) _repaint();
+}
+
+function updateHomeVisibilityControls() {
+  els.settingsHideFolderClips.checked = _hideFolderClips;
+  els.settingsHideFolderClips.disabled = !_homeVisibilityLoaded || _homeVisibilitySaving;
+  els.folderHideHome.checked = _hideFolderClips || _currentFolderHiddenFromHome;
+  els.folderHideHome.disabled = !_homeVisibilityLoaded || _hideFolderClips || _folderVisibilitySaving || _currentFolderId == null;
+  const hint = _hideFolderClips ? "folderDetail.homeVisibilityGlobal" : "folderDetail.homeVisibilityHint";
+  els.folderHideHomeHint.dataset.i18n = hint;
+  els.folderHideHomeHint.textContent = t(hint);
+}
+
+function applyHomeVisibility(config) {
+  _hideFolderClips = !!config.hide_folder_clips;
+  _homeVisibilityLoaded = true;
+  updateHomeVisibilityControls();
+}
+
+async function loadLibrarySettings() {
+  const revision = _clipOrderRevision;
+  try {
+    const response = await fetch("/api/config");
+    if (!response.ok) throw new Error(response.statusText);
+    const config = await response.json();
+    if (!_homeVisibilitySaving) applyHomeVisibility(config);
+    if (!_clipOrderSaving && revision === _clipOrderRevision) applyClipOrder(config);
+  } catch (e) {
+    toast(t("settings.homeVisibilitySaveError").replace("{error}", e.message), "error");
+  }
+}
+
+els.settingsFavoritesAfterRecent.addEventListener("change", async () => {
+  const selected = els.settingsFavoritesAfterRecent.checked;
+  _clipOrderSaving = true;
+  _clipOrderRevision += 1;
+  els.settingsFavoritesAfterRecent.disabled = true;
+  try {
+    const response = await fetch("/api/clip-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ favorites_after_recent: selected }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || response.statusText);
+    applyClipOrder(data);
+  } catch (e) {
+    els.settingsFavoritesAfterRecent.checked = _favoritesAfterRecent;
+    toast(t("settings.favoritesOrderSaveError").replace("{error}", e.message), "error");
+  } finally {
+    _clipOrderSaving = false;
+    els.settingsFavoritesAfterRecent.disabled = !_clipOrderLoaded;
+  }
+});
+
+els.settingsHideFolderClips.addEventListener("change", async () => {
+  const selected = els.settingsHideFolderClips.checked;
+  _homeVisibilitySaving = true;
+  els.settingsHideFolderClips.disabled = true;
+  try {
+    const response = await fetch("/api/home-visibility", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hide_folder_clips: selected }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || response.statusText);
+    applyHomeVisibility(data);
+    await refreshLibraryViews({ skipStats: true });
+  } catch (e) {
+    toast(t("settings.homeVisibilitySaveError").replace("{error}", e.message), "error");
+  } finally {
+    _homeVisibilitySaving = false;
+    updateHomeVisibilityControls();
+  }
+});
+
+els.folderHideHome.addEventListener("change", async () => {
+  const folderId = _currentFolderId;
+  if (folderId == null || _hideFolderClips) return;
+  const selected = els.folderHideHome.checked;
+  _folderVisibilitySaving = true;
+  els.folderHideHome.disabled = true;
+  try {
+    const response = await fetch(`/api/folders/${folderId}/visibility`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hidden_from_home: selected }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || response.statusText);
+    if (_currentFolderId === folderId) _currentFolderHiddenFromHome = !!data.hidden_from_home;
+    await refreshLibraryViews({ skipStats: true });
+  } catch (e) {
+    toast(t("toast.folderVisibilitySaveError").replace("{error}", e.message), "error");
+  } finally {
+    _folderVisibilitySaving = false;
+    updateHomeVisibilityControls();
+  }
+});
+
 if (els.settingsTheme) {
   els.settingsTheme.addEventListener("change", async () => {
     const previous = normalizeAccentTheme(document.documentElement.dataset.accentTheme);
@@ -2913,6 +3080,8 @@ function setView(view) {
   els.viewFavorites.hidden = view !== "favorites";
   els.viewCloud.hidden = view !== "cloud";
   if (els.viewSettings) els.viewSettings.hidden = view !== "settings";
+  if (view === "clips") doSearch();
+  if (view === "settings") { filterSettings(); loadLibrarySettings(); }
   if (view === "folders" && _currentFolderId == null) {
     loadFoldersIndex();
   }
@@ -2986,6 +3155,7 @@ function folderCard(f) {
       <div class="folder-card-body">
         <div class="folder-card-name">${escapeHtml(f.name)}</div>
         <div class="folder-card-meta">${f.clip_count} ${clipsWord(f.clip_count)}</div>
+        ${_hideFolderClips || f.hidden_from_home ? `<div class="folder-visibility-badge">${t("folders.hiddenFromHome")}</div>` : ""}
       </div>
     </div>`;
 }
@@ -3010,10 +3180,14 @@ async function promptNewFolder() {
 
 async function openFolder(folderId) {
   _currentFolderId = folderId;
+  els.folderHideHome.disabled = true;
   els.foldersIndex.hidden = true;
   els.folderDetail.hidden = false;
   if (els.btnUploadFolder) els.btnUploadFolder.hidden = !_cloudConnected;
   const data = await fetch(`/api/folders/${folderId}/clips?sort=added`).then((r) => r.json());
+  if (_currentFolderId !== folderId) return;
+  _currentFolderHiddenFromHome = !!data.folder.hidden_from_home;
+  updateHomeVisibilityControls();
   els.folderDetailName.textContent = data.folder.name;
   const n = data.clips.length;
   els.folderDetailCount.textContent = `${n} ${clipsWord(n)}`;
@@ -3092,6 +3266,8 @@ setInterval(sendHeartbeat, 30000);
 (async function bootstrap() {
   try {
     const cfg = await fetch("/api/config").then((r) => r.json());
+    applyHomeVisibility(cfg);
+    applyClipOrder(cfg);
     if (els.settingsVersion && cfg.version) {
       els.settingsVersion.textContent = `KeepClip • v${cfg.version}`;
     }
@@ -3406,6 +3582,116 @@ document.addEventListener("keydown", (e) => {
     try { await fetch("/api/logs/clear", { method: "POST" }); } catch {}
     output.textContent = "";
     lastSeq = 0;
+  });
+})();
+(function initDevResources() {
+  const overlay = document.getElementById("resources-overlay");
+  const button = document.getElementById("btn-resources");
+  if (!overlay || !button) return;
+  const box = document.getElementById("resources-box");
+  const status = document.getElementById("resources-message");
+  const activity = document.getElementById("resources-activity");
+  const updated = document.getElementById("resources-updated");
+  const rows = document.getElementById("resources-processes");
+  const copy = document.getElementById("resources-copy");
+  const percent = value => value == null ? "—" : value.toFixed(1) + "%";
+  const bytes = value => value == null ? "—" : fmtSize(Math.round(value));
+  const rate = value => value == null ? "—" : bytes(value) + "/s";
+  const metrics = [
+    ["cpu", "cpu_percent", percent], ["ram", "ram_bytes", bytes], ["gpu", "gpu_percent", percent],
+    ["vram", "gpu_dedicated_bytes", bytes], ["read", "read_bytes_per_second", rate], ["write", "write_bytes_per_second", rate],
+  ];
+  let active = false, generation = 0, timer = null, request = null, snapshot = null, peaks = {};
+
+  fetch("/api/config").then(r => r.json()).then(config => { button.hidden = !config.dev; }).catch(() => {});
+
+  function render(data) {
+    snapshot = data;
+    copy.disabled = false;
+    metrics.forEach(([id, field, format]) => {
+      const value = data.total[field];
+      if (value != null) peaks[field] = Math.max(peaks[field] ?? 0, value);
+      document.getElementById("resources-" + id).textContent = format(value);
+      document.getElementById("resources-" + id + "-peak").textContent = "Szczyt: " + format(peaks[field]);
+    });
+    activity.textContent = data.transcribing ? "Transkrypcja w toku · KeepClip + WebView2 + narzędzia" : "KeepClip + WebView2 + narzędzia";
+    updated.textContent = `${data.processes.length} procesów · ${new Date(data.captured_at).toLocaleTimeString(LANG)}`;
+    const messages = [];
+    if (data.warming_up) messages.push("Zbieranie pierwszej próbki — obciążenie będzie dostępne przy kolejnym odczycie.");
+    if (!data.webview_attached) messages.push("Brak aktywnego WebView2 tej instancji; zewnętrzna przeglądarka nie jest doliczana.");
+    if (data.unreadable_processes) messages.push(`Nie odczytano ${data.unreadable_processes} procesów — mogły zakończyć pracę lub odmówić dostępu. Suma może być niepełna.`);
+    status.textContent = messages.join(" ");
+    rows.innerHTML = data.processes.map(p => `<tr><td>${escapeHtml(p.kind)}<small>${escapeHtml(p.name)}</small></td><td>${p.pid}</td><td>${percent(p.usage.cpu_percent)}</td><td>${bytes(p.usage.ram_bytes)}</td><td>${percent(p.usage.gpu_percent)}</td><td>${bytes(p.usage.gpu_dedicated_bytes)}</td><td>${bytes(p.usage.gpu_shared_bytes)}</td><td>${rate(p.usage.read_bytes_per_second)}</td><td>${rate(p.usage.write_bytes_per_second)}</td></tr>`).join("");
+  }
+
+  async function poll() {
+    if (!active || document.hidden) return;
+    clearTimeout(timer);
+    request?.abort();
+    const controller = new AbortController();
+    request = controller;
+    const current = generation;
+    try {
+      const response = await fetch("/api/dev/resources", { signal: controller.signal, cache: "no-store" });
+      if (!response.ok) throw new Error(response.status === 404 ? "Panel wymaga aktualnego wydania DEV." : response.statusText);
+      const data = await response.json();
+      if (active && current === generation && !controller.signal.aborted) render(data);
+    } catch (e) {
+      if (active && current === generation && !controller.signal.aborted) status.textContent = "Nie udało się odczytać zasobów: " + e.message;
+    } finally {
+      if (request === controller) request = null;
+      if (active && current === generation && !controller.signal.aborted) timer = setTimeout(poll, 2000);
+    }
+  }
+
+  function close() {
+    active = false;
+    generation += 1;
+    clearTimeout(timer);
+    request?.abort();
+    overlay.hidden = true;
+    button.focus();
+  }
+
+  button.addEventListener("click", () => {
+    active = true;
+    generation += 1;
+    snapshot = null;
+    peaks = {};
+    copy.disabled = true;
+    rows.innerHTML = "";
+    updated.textContent = "";
+    activity.textContent = "Oczekiwanie na pomiar…";
+    status.textContent = "";
+    metrics.forEach(([id]) => {
+      document.getElementById("resources-" + id).textContent = "—";
+      document.getElementById("resources-" + id + "-peak").textContent = "Szczyt: —";
+    });
+    overlay.hidden = false;
+    box.focus();
+    poll();
+  });
+  document.getElementById("resources-close").addEventListener("click", close);
+  overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
+  box.addEventListener("keydown", e => {
+    if (e.key === "Escape") { e.stopPropagation(); close(); }
+    if (e.key !== "Tab") return;
+    const focusable = Array.from(box.querySelectorAll('button:not(:disabled), [tabindex="0"]'));
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === box)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!active) return;
+    clearTimeout(timer);
+    request?.abort();
+    if (!document.hidden) poll();
+  });
+  document.getElementById("resources-reset").addEventListener("click", () => { peaks = {}; if (snapshot) render(snapshot); });
+  copy.addEventListener("click", async () => {
+    if (!snapshot) return;
+    try { await navigator.clipboard.writeText(JSON.stringify({ ...snapshot, peaks }, null, 2)); toast("Pomiar zasobów skopiowany."); }
+    catch { toast(t("errors.copyFailed"), "error"); }
   });
 })();
 /* DEV:END */

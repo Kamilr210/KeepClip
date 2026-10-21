@@ -312,6 +312,16 @@ internal sealed class ShellForm : Form
         var env = await CoreWebView2Environment.CreateAsync(null, userData, opts);
         await _web.EnsureCoreWebView2Async(env);
         var core = _web.CoreWebView2;
+#if KEEPCLIP_DEV
+        void UpdateResourceProcesses()
+        {
+            try { DevResourceMonitor.SetWebViewProcesses(env.GetProcessInfos().ToDictionary(p => p.ProcessId, p => p.Kind.ToString())); }
+            catch (Exception ex) { DevLog.Add($"Monitor zasobów: nie odczytano procesów WebView2 ({ex.Message})"); }
+        }
+        env.ProcessInfosChanged += (_, _) => UpdateResourceProcesses();
+        UpdateResourceProcesses();
+        FormClosed += (_, _) => DevResourceMonitor.SetWebViewProcesses(new());
+#endif
 
         core.Settings.IsStatusBarEnabled = false;
         core.Settings.IsSwipeNavigationEnabled = false;

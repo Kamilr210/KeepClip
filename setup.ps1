@@ -1,77 +1,42 @@
-<#
-  Pobiera ffmpeg i ffprobe do tools\bin. Model Whisper oraz folder data powstają
-  automatycznie podczas używania aplikacji.
-
-  Użycie:
-      powershell -ExecutionPolicy Bypass -File setup.ps1
-      ...\setup.ps1 -Force
-#>
 [CmdletBinding()]
-param([switch]$Force)
-
-$ErrorActionPreference = 'Stop'
-function Step($m) { Write-Host ""; Write-Host "==> $m" -ForegroundColor Cyan }
-
-$RepoRoot = $PSScriptRoot
-$ToolsBin = Join-Path $RepoRoot 'tools\bin'
-$Ffmpeg   = Join-Path $ToolsBin 'ffmpeg.exe'
-$Ffprobe  = Join-Path $ToolsBin 'ffprobe.exe'
-$Url      = 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip'
-
+param([switch]$Force,[string]$BuildArtifactDir)
+$ErrorActionPreference='Stop'
+$ToolsBin=Join-Path $PSScriptRoot 'tools\bin'
+$NoticesDir=Join-Path $PSScriptRoot 'tools\ffmpeg-notices'
+$Verify=Join-Path $PSScriptRoot 'build\ffmpeg\verify.ps1'
+$TempRoot=[IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+$WorkDir=Join-Path $TempRoot ('keepclip-ffmpeg-'+[Guid]::NewGuid().ToString('N'))
 try {
-  # SDK .NET 10 jest wymagane do lokalnego uruchamiania i budowania projektu.
-  Step "Sprawdzam .NET SDK"
-  $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
-  if (-not $dotnet) {
-    Write-Warning "Nie znaleziono 'dotnet'. Zainstaluj .NET 10 SDK: https://dotnet.microsoft.com/download/dotnet/10.0"
-  } else {
-    $sdks = & dotnet --list-sdks
-    if ($sdks -match '^10\.') {
-      Write-Host "OK - wykryto .NET 10 SDK."
-    } else {
-      Write-Warning "Jest 'dotnet', ale bez SDK 10.x. Zainstaluj .NET 10 SDK: https://dotnet.microsoft.com/download/dotnet/10.0"
-      Write-Host ("Wykryte SDK:`n" + ($sdks -join "`n"))
+    if ((Test-Path -LiteralPath (Join-Path $ToolsBin 'ffmpeg.exe')) -and (Test-Path -LiteralPath (Join-Path $ToolsBin 'ffprobe.exe')) -and -not $Force) {
+        & $Verify -BinDir $ToolsBin -NoticesDir $NoticesDir
+        Write-Host 'Istniejacy FFmpeg ma pasujace zrodla i notices. -Force odbudowuje/wymienia narzedzia.'
+        return
     }
-  }
-
-  Step "Sprawdzam ffmpeg / ffprobe"
-  if ((Test-Path $Ffmpeg) -and (Test-Path $Ffprobe) -and -not $Force) {
-    Write-Host "Juz sa w tools\bin - pomijam (uzyj -Force, by pobrac ponownie)."
-  } else {
-    New-Item -ItemType Directory -Force -Path $ToolsBin | Out-Null
-    $zip = Join-Path $env:TEMP 'keepclip-ffmpeg.zip'
-    $ext = Join-Path $env:TEMP 'keepclip-ffmpeg'
-    Write-Host "Pobieram ffmpeg (oficjalny build Windows z gyan.dev)..."
-    try {
-      Invoke-WebRequest -Uri $Url -OutFile $zip
-    } catch {
-      throw "Nie udalo sie pobrac ffmpeg z $Url ($($_.Exception.Message)). Sprawdz internet albo pobierz recznie i wrzuc ffmpeg.exe + ffprobe.exe do tools\bin\."
+    if (-not $BuildArtifactDir) {
+        if (-not (Get-Command node -ErrorAction SilentlyContinue) -or -not (Get-Command docker -ErrorAction SilentlyContinue)) { throw 'Budowa FFmpeg wymaga Node 20+ oraz Docker z kontenerami Linux. W CI artefakt tworzy job ffmpeg.' }
+        $BuildArtifactDir=Join-Path $WorkDir 'artifact'
+        & node (Join-Path $PSScriptRoot 'build\ffmpeg\build.mjs') --output $BuildArtifactDir
+        if ($LASTEXITCODE -ne 0) { throw "Budowa FFmpeg zwrocila kod $LASTEXITCODE. Dotychczasowe narzedzia pozostaja bez zmian." }
     }
-    Write-Host "Rozpakowuje..."
-    if (Test-Path $ext) { Remove-Item -Recurse -Force $ext }
-    Expand-Archive -Path $zip -DestinationPath $ext -Force
-    $srcDir = (Get-ChildItem $ext -Recurse -Filter ffmpeg.exe | Select-Object -First 1).DirectoryName
-    if (-not $srcDir) { throw "W pobranym archiwum nie ma ffmpeg.exe - cos poszlo nie tak." }
-    Copy-Item (Join-Path $srcDir 'ffmpeg.exe')  $Ffmpeg  -Force
-    Copy-Item (Join-Path $srcDir 'ffprobe.exe') $Ffprobe -Force
-    Remove-Item $zip -Force
-    Remove-Item $ext -Recurse -Force
-    Write-Host "Wrzucono ffmpeg.exe + ffprobe.exe do tools\bin." -ForegroundColor Green
-  }
-
-  Step "Weryfikacja"
-  if (-not ((Test-Path $Ffmpeg) -and (Test-Path $Ffprobe))) {
-    throw "Brakuje ffmpeg.exe lub ffprobe.exe w tools\bin - setup nieukonczony."
-  }
-  $ver = (& $Ffmpeg -version | Select-Object -First 1)
-  Write-Host "ffmpeg dziala: $ver" -ForegroundColor Green
-
-  Step "GOTOWE"
-  Write-Host "Uruchom aplikacje komenda:" -ForegroundColor Green
-  Write-Host "    dotnet run --project KeepClip" -ForegroundColor Green
-}
-catch {
-  Write-Host ""
-  Write-Host "BLAD: $($_.Exception.Message)" -ForegroundColor Red
-  exit 1
+    $BuildArtifactDir=[IO.Path]::GetFullPath($BuildArtifactDir)
+    $Bin=Join-Path $BuildArtifactDir 'bin'
+    $Notices=Join-Path $BuildArtifactDir 'notices'
+    & $Verify -BinDir $Bin -NoticesDir $Notices
+    New-Item -ItemType Directory -Force -Path $ToolsBin,$NoticesDir | Out-Null
+    foreach ($name in @('ffmpeg.exe','ffprobe.exe')) { Copy-Item -LiteralPath (Join-Path $Bin $name) -Destination (Join-Path $ToolsBin $name) -Force }
+    foreach ($file in Get-ChildItem -LiteralPath $Notices -File -Recurse) {
+        $relative=$file.FullName.Substring($Notices.Length+1)
+        $destination=Join-Path $NoticesDir $relative
+        New-Item -ItemType Directory -Force -Path (Split-Path $destination) | Out-Null
+        Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
+    }
+    & $Verify -BinDir $ToolsBin -NoticesDir $NoticesDir
+    Write-Host 'Gotowe: FFmpeg 9.0.2 z odpowiadajacymi zrodlami, zaleznosciami, skryptami i licencjami.' -ForegroundColor Green
+} catch {
+    Write-Host "BLAD: $($_.Exception.Message)" -ForegroundColor Red
+    if (-not $Force) { Write-Host 'Stary lub nieznany FFmpeg: uruchom setup.ps1 -Force, aby jawnie go wymienic.' }
+    exit 1
+} finally {
+    $resolved=[IO.Path]::GetFullPath($WorkDir)
+    if ($resolved.StartsWith($TempRoot.TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase) -and (Test-Path -LiteralPath $resolved)) { Remove-Item -LiteralPath $resolved -Recurse -Force }
 }

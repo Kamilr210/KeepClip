@@ -9,6 +9,7 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DefineConstants Condition="'$(PublicRelease)' != 'true'">$(DefineConstants);KEEPCLIP_DEV</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>

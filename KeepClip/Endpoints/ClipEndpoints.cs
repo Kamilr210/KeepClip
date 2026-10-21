@@ -6,8 +6,8 @@ public static class ClipEndpoints
 {
     public static void MapClipEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/clips", (string? game, string? sort, int? limit, int? favorite, ClipRepository clips) =>
-            Results.Json(clips.List(game, sort, limit ?? 200, favorite is not null && favorite != 0)));
+        app.MapGet("/api/clips", (string? game, string? sort, int? limit, int? favorite, bool? home, ClipRepository clips) =>
+            Results.Json(clips.List(game, sort, limit ?? 200, favorite is not null && favorite != 0, home == true, home == true && Settings.GetHideFolderClips())));
 
         app.MapGet("/api/single-operation/status", () =>
             Results.Json(SingleOperationProgress.Snapshot()));

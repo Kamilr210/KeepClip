@@ -11,6 +11,26 @@
   #define PublishDir "..\publish"
 #endif
 
+#define LicenseCheckCommand "-NoProfile -ExecutionPolicy Bypass -File """ + SourcePath + "verify-licenses.ps1"" -PublishDir """ + PublishDir + """ -RequireFfmpeg"
+#ifndef VerificationOnly
+  #define LicenseCheckCommand LicenseCheckCommand + " -ForDistribution"
+#endif
+#if Exec("powershell.exe", LicenseCheckCommand, SourcePath, 1, SW_HIDE) != 0
+  #error "License/source verification failed. Use setup.ps1 and installer/build.ps1."
+#endif
+#if !FileExists(PublishDir + "\THIRD-PARTY-NOTICES.md")
+  #error "Missing THIRD-PARTY-NOTICES.md. Run dotnet publish again."
+#endif
+#if !FileExists(PublishDir + "\licenses\manifest.json")
+  #error "Missing third-party license manifest. Run dotnet publish again."
+#endif
+#if !FileExists(PublishDir + "\licenses\ffmpeg-build\COPYING.GPLv3")
+  #error "Missing FFmpeg GPLv3 license. Run dotnet publish again."
+#endif
+#if !FileExists(PublishDir + "\licenses\installer-engine\LICENSE.txt")
+  #error "Missing actual Inno Setup engine license. Use installer/build.ps1 -VerifyPackaging."
+#endif
+
 [Setup]
 AppId={{A1F2C3D4-5E6F-4A8B-9C0D-1E2F3A4B5C6D}
 AppName={#MyAppName}
@@ -23,8 +43,13 @@ DefaultDirName={localappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+#ifdef VerificationOnly
+OutputDir=dist\verification
+OutputBaseFilename=KeepClip-Packaging-Verification
+#else
 OutputDir=dist
 OutputBaseFilename=KeepClip-Setup
+#endif
 SetupIconFile=..\frontend\icons\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExe}
 UninstallDisplayName={#MyAppName}

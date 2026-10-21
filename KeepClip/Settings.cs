@@ -85,6 +85,40 @@ public static class Settings
 
     public static void SetLanguage(string language) => SetString("ui_language", language);
 
+    public static bool GetHideFolderClips()
+    {
+        var data = Load();
+        return data.TryGetPropertyValue("hide_folder_clips", out var node) && node is JsonValue value &&
+               value.TryGetValue<bool>(out var hidden) && hidden;
+    }
+
+    public static void SetHideFolderClips(bool hidden)
+    {
+        lock (Gate)
+        {
+            var data = Load();
+            data["hide_folder_clips"] = hidden;
+            Save(data);
+        }
+    }
+
+    public static bool GetFavoritesAfterRecent()
+    {
+        var data = Load();
+        return data.TryGetPropertyValue("favorites_after_recent", out var node) && node is JsonValue value &&
+               value.TryGetValue<bool>(out var enabled) && enabled;
+    }
+
+    public static void SetFavoritesAfterRecent(bool enabled)
+    {
+        lock (Gate)
+        {
+            var data = Load();
+            data["favorites_after_recent"] = enabled;
+            Save(data);
+        }
+    }
+
     public static JsonObject GetObject(string key)
     {
         var data = Load();

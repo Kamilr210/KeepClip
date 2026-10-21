@@ -113,4 +113,25 @@ public class FolderRepositoryTests
         Assert.Equal(older, Convert.ToInt64(largest[0]["id"]));
         Assert.Single(_folders.ListClips(folder, null, 1)!.Value.clips);
     }
+
+    [Fact]
+    public void InitDb_migrates_existing_folders_without_losing_memberships_and_preserves_visibility_on_reinitialization()
+    {
+        var folder = Create("Istniejący");
+        var clip = TestDb.AddClip();
+        _folders.AddClip(folder, clip);
+        TestDb.Exec("ALTER TABLE folders DROP COLUMN hidden_from_home");
+
+        Db.InitDb();
+
+        Assert.False(Assert.IsType<bool>(Assert.Single(_folders.List())["hidden_from_home"]));
+        Assert.Equal(new[] { folder }, _folders.GetFolderIdsForClip(clip));
+        Assert.True(_folders.SetHiddenFromHome(folder, true));
+
+        Db.InitDb();
+        Db.InitDb();
+
+        Assert.True(Assert.IsType<bool>(Assert.Single(_folders.List())["hidden_from_home"]));
+        Assert.Equal(clip, Convert.ToInt64(Assert.Single(_folders.ListClips(folder, null, 10)!.Value.clips)["id"]));
+    }
 }

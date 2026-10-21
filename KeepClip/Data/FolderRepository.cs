@@ -19,11 +19,12 @@ public class FolderRepository
     {
         using var con = Db.Open();
         var folders = con.Query(
-            @"SELECT f.id, f.name, f.created_at,
+            @"SELECT f.id, f.name, f.created_at, f.hidden_from_home,
                      (SELECT COUNT(*) FROM folder_clips fc WHERE fc.folder_id = f.id) AS clip_count
               FROM folders f ORDER BY f.name COLLATE NOCASE");
         foreach (var f in folders)
         {
+            f["hidden_from_home"] = Convert.ToInt64(f["hidden_from_home"]) != 0;
             var ids = con.Query(
                 "SELECT clip_id FROM folder_clips WHERE folder_id=$id ORDER BY added_at DESC LIMIT 4",
                 ("$id", f["id"]));
@@ -38,7 +39,9 @@ public class FolderRepository
         try { con.Exec("INSERT INTO folders(name) VALUES($n)", ("$n", name)); }
         catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.SqliteErrorCode == 19) { return null; }
         var id = con.ScalarLong("SELECT last_insert_rowid()");
-        return con.QueryOne("SELECT id, name, created_at FROM folders WHERE id=$id", ("$id", id));
+        var folder = con.QueryOne("SELECT id, name, created_at, hidden_from_home FROM folders WHERE id=$id", ("$id", id));
+        if (folder is not null) folder["hidden_from_home"] = Convert.ToInt64(folder["hidden_from_home"]) != 0;
+        return folder;
     }
 
     public FolderWrite Rename(long id, string name)
@@ -59,11 +62,18 @@ public class FolderRepository
         return row["name"] as string;
     }
 
+    public bool SetHiddenFromHome(long id, bool hiddenFromHome)
+    {
+        using var con = Db.Open();
+        return con.Exec("UPDATE folders SET hidden_from_home=$hidden WHERE id=$id", ("$hidden", hiddenFromHome ? 1 : 0), ("$id", id)) > 0;
+    }
+
     public (Dictionary<string, object?> folder, List<Dictionary<string, object?>> clips)? ListClips(long folderId, string? sort, int limit)
     {
         using var con = Db.Open();
-        var folder = con.QueryOne("SELECT id, name, created_at FROM folders WHERE id=$id", ("$id", folderId));
+        var folder = con.QueryOne("SELECT id, name, created_at, hidden_from_home FROM folders WHERE id=$id", ("$id", folderId));
         if (folder is null) return null;
+        folder["hidden_from_home"] = Convert.ToInt64(folder["hidden_from_home"]) != 0;
         var order = ClipSorts.GetValueOrDefault(sort ?? "newest", ClipSorts["added"]);
         var clips = con.Query(
             $@"SELECT c.id, c.game, c.filename, c.duration, c.size_bytes, c.mtime,

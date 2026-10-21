@@ -39,6 +39,9 @@ builder.Services.AddSingleton<StatsRepository>();
 
 builder.Services.AddSingleton<PlaybackProxyService>();
 builder.Services.AddSingleton<ClipService>();
+#if KEEPCLIP_DEV
+builder.Services.AddSingleton<DevResourceMonitor>();
+#endif
 
 var app = builder.Build();
 

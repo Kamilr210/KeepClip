@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "buildId": "keepclip-ffmpeg-9.0.2-1",
+  "sourceDateEpoch": 1789776000,
+  "baseImage": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
+  "sources": [
+    {
+      "component": "ffmpeg",
+      "version": "9.0.2",
+      "file": "ffmpeg-9.0.2.tar.xz",
+      "url": "https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz",
+      "license": "GPL-3.0-or-later",
+      "sha256": "8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e",
+      "bundlePath": "sources/ffmpeg-9.0.2.tar.xz"
+    },
+    {
+      "component": "x264",
+      "version": "31e19f92f00c7003fa115047ce50978bc98c3a0d",
+      "file": "x264.tar.gz",
+      "url": "https://github.com/mirror/x264/archive/31e19f92f00c7003fa115047ce50978bc98c3a0d.tar.gz",
+      "license": "GPL-2.0-or-later",
+      "sha256": "d053c9d86988d6bc78237ca5205865c5ddf99c98ef4cd9927eec8f6d388f6dd9",
+      "bundlePath": "sources/x264.tar.gz"
+    },
+    {
+      "component": "nv-codec-headers",
+      "version": "n12.2.72.0",
+      "file": "nv-codec-headers.tar.gz",
+      "url": "https://github.com/FFmpeg/nv-codec-headers/archive/refs/tags/n12.2.72.0.tar.gz",
+      "license": "MIT",
+      "sha256": "dbeaec433d93b850714760282f1d0992b1254fc3b5a6cb7d76fc1340a1e47563",
+      "bundlePath": "sources/nv-codec-headers.tar.gz"
+    },
+    {
+      "component": "AMF headers",
+      "version": "v1.5.3 (8c648005e07d4309033282bfd9947df2c7e76104)",
+      "file": "amf.tar.gz",
+      "url": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/releases/download/v1.5.3/AMF-headers-v1.5.3.tar.gz",
+      "license": "MIT",
+      "sha256": "570c8f6593b8c24a6e47a0a9c59b216a7198138e660ba4011590ae913343d5c3",
+      "bundlePath": "sources/amf.tar.gz"
+    },
+    {
+      "component": "AMF license",
+      "version": "v1.5.3",
+      "file": "AMF-LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/GPUOpen-LibrariesAndSDKs/AMF/v1.5.3/LICENSE.txt",
+      "license": "MIT",
+      "sha256": "eb297397aaa455b5668ab67d216b83828466152dab123fa92384c6ec16b74170",
+      "bundlePath": "AMF-LICENSE.txt"
+    },
+    {
+      "component": "Intel oneVPL dispatcher",
+      "version": "v2.17.0",
+      "file": "libvpl.tar.gz",
+      "url": "https://github.com/intel/libvpl/archive/refs/tags/v2.17.0.tar.gz",
+      "license": "MIT",
+      "sha256": "4de3e2faf1e8307fb282e4a43f443191810f6a6b0a484fffa7995ba1c814c6ec",
+      "bundlePath": "sources/libvpl.tar.gz"
+    },
+    {
+      "component": "mingw-w64 CRT and winpthreads",
+      "version": "10.0.0",
+      "file": "mingw-w64.tar.bz2",
+      "url": "https://deb.debian.org/debian/pool/main/m/mingw-w64/mingw-w64_10.0.0.orig.tar.bz2",
+      "license": "multiple; see MINGW-COPYRIGHT",
+      "sha256": "ba6b430aed72c63a3768531f6a3ffc2b0fde2c57a3b251450dcf489a894f0894",
+      "bundlePath": "sources/mingw-w64.tar.bz2"
+    },
+    {
+      "component": "mingw-w64 Debian patches",
+      "version": "10.0.0-3",
+      "file": "mingw-w64-debian.tar.xz",
+      "url": "https://deb.debian.org/debian/pool/main/m/mingw-w64/mingw-w64_10.0.0-3.debian.tar.xz",
+      "license": "multiple; see Debian copyright in archive",
+      "sha256": "3ba56abfee3dc1fe3fad3b66105c5abde1f5aaa93df216f9938fc918b319de58",
+      "bundlePath": "sources/mingw-w64-debian.tar.xz"
+    }
+  ]
+}

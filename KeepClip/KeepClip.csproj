@@ -23,6 +23,8 @@
          i natywne biblioteki Whispera muszą istnieć jako osobne pliki. -->
     <!-- Interfejs ma własne tłumaczenia HTML, więc wystarczą angielskie zasoby platformy. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Runtime publikacji musi odpowiadać wersjom zweryfikowanym w licenses/manifest.json. -->
+    <RuntimeFrameworkVersion Condition="'$(SelfContained)' == 'true'">10.0.12</RuntimeFrameworkVersion>
 
     <!-- Właściwość PublicRelease usuwa panel logów z instalatora publikowanego przez CI. -->
     <PublicRelease Condition="'$(PublicRelease)' == ''">false</PublicRelease>
@@ -73,6 +75,7 @@
     <Copy SourceFiles="@(_ToolsFiles)"
           DestinationFiles="@(_ToolsFiles->'$(_Pub)tools\%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\installer\stage-licenses.ps1&quot; -PublishDir &quot;$(_Pub).&quot; -AssetsFile &quot;$(ProjectAssetsFile)&quot;" />
     <Message Importance="high" Text="KeepClip: staged frontend/ + tools/ into $(_Pub)" />
   </Target>
 

@@ -76,9 +76,12 @@ public class SegmentRepository
         return (shifted, dropped);
     }
 
-    public List<Dictionary<string, object?>> Search(string ftsQuery, string? sort, int limit)
+    public List<Dictionary<string, object?>> Search(string ftsQuery, string? sort, int limit, bool home = false, bool hideFolderClips = false)
     {
         var order = SearchSorts.GetValueOrDefault(sort ?? "relevance", SearchSorts["relevance"]);
+        var visibility = home ? " AND NOT EXISTS (SELECT 1 FROM folder_clips fc JOIN folders f ON f.id = fc.folder_id WHERE fc.clip_id = c.id AND ($hide_folder_clips = 1 OR f.hidden_from_home = 1))" : "";
+        var ps = new List<(string, object?)> { ("$q", ftsQuery), ("$limit", limit) };
+        if (home) ps.Add(("$hide_folder_clips", hideFolderClips ? 1 : 0));
         using var con = Db.Open();
         return con.Query(
             $@"SELECT s.id AS segment_id, s.start_s, s.end_s, s.text,
@@ -89,9 +92,9 @@ public class SegmentRepository
                FROM segments_fts
                JOIN segments s ON s.id = segments_fts.rowid
                JOIN clips c ON c.id = s.clip_id
-               WHERE segments_fts MATCH $q
+               WHERE segments_fts MATCH $q{visibility}
                ORDER BY {order}
                LIMIT $limit",
-            ("$q", ftsQuery), ("$limit", limit));
+            ps.ToArray());
     }
 }

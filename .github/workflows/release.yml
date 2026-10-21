@@ -1,5 +1,5 @@
 # Tag v* buduje samowystarczalny instalator i publikuje go w sekcji wydań GitHub.
-# FFmpeg pobiera setup.ps1, a klient OAuth powstaje z sekretu GOOGLE_CLIENT_JSON_B64.
+# FFmpeg jest kompilowany ze zrodel z dolaczonym pakietem odpowiadajacych zrodel, a klient OAuth powstaje z sekretu GOOGLE_CLIENT_JSON_B64.
 # Brak lub błędna wartość sekretu celowo przerywa wydanie.
 name: release
 
@@ -11,14 +11,30 @@ permissions:
   contents: write   # gh release create
 
 jobs:
+  ffmpeg:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Zbuduj FFmpeg i komplet odpowiadajacych zrodel
+        run: node build/ffmpeg/build.mjs --output "${{ runner.temp }}/ffmpeg-artifact"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-with-source
+          path: ${{ runner.temp }}/ffmpeg-artifact/
+          compression-level: 0
+          retention-days: 7
+
   build:
+    needs: ffmpeg
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: "10.0.401"
 
       # Zepsuty build nie może trafić do użytkowników: testy biegną przed instalatorem.
       - name: Sprawdź tłumaczenia interfejsu
@@ -27,9 +43,18 @@ jobs:
       - name: Testy xUnit
         run: dotnet test tests/KeepClip.Tests/KeepClip.Tests.csproj -c Release --nologo
 
-      - name: Pobierz ffmpeg (setup.ps1)
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-with-source
+          path: ${{ runner.temp }}/ffmpeg-artifact
+
+      - name: Przygotuj FFmpeg wraz ze zrodlami (setup.ps1)
         shell: powershell
-        run: powershell -ExecutionPolicy Bypass -File setup.ps1
+        run: powershell -ExecutionPolicy Bypass -File setup.ps1 -BuildArtifactDir "$env:RUNNER_TEMP\ffmpeg-artifact"
+
+      - name: Test FFmpeg na syntetycznym obrazie i audio
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File tests\ffmpeg-smoke.ps1 -WorkDir "$env:RUNNER_TEMP\ffmpeg-smoke"
 
       - name: Wbuduj klienta OAuth Google (wymagany)
         env:
@@ -59,6 +84,10 @@ jobs:
         shell: powershell
         run: powershell -ExecutionPolicy Bypass -File installer\build.ps1 -PublicRelease
 
+      - name: Sprawdz pakowanie licencji i zrodel
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File tests\license-packaging.Tests.ps1 -PublishDir installer\staging\publish
+
       - name: Utwórz release i wgraj instalator
         shell: powershell
         env:
@@ -66,5 +95,7 @@ jobs:
         run: |
           gh release create "$env:GITHUB_REF_NAME" `
             "installer/dist/KeepClip-Setup.exe#KeepClip-Setup-$env:GITHUB_REF_NAME.exe" `
+            "installer/dist/KeepClip-FFmpeg-Source.zip#KeepClip-FFmpeg-Source-$env:GITHUB_REF_NAME.zip" `
+            "installer/dist/KeepClip-Setup.provenance.json" `
             --title "KeepClip $env:GITHUB_REF_NAME" `
             --generate-notes

@@ -41,6 +41,16 @@ public static class FolderEndpoints
             }
         });
 
+        app.MapPatch("/api/folders/{folderId:long}/visibility", (long folderId, FolderVisibilityPayload body, FolderRepository folders) =>
+        {
+            Heartbeat.Touch();
+            if (body.hidden_from_home is not bool hidden)
+                return Api.Detail(400, Strings.Get("visibility.booleanRequired"));
+            if (!folders.SetHiddenFromHome(folderId, hidden))
+                return Api.Detail(404, Strings.Get("folder.notFound"));
+            return Results.Json(new { ok = true, id = folderId, hidden_from_home = hidden });
+        });
+
         app.MapDelete("/api/folders/{folderId:long}", (long folderId, FolderRepository folders) =>
         {
             Heartbeat.Touch();
@@ -92,3 +102,4 @@ public static class FolderEndpoints
 }
 
 record FolderPayload(string name);
+record FolderVisibilityPayload(bool? hidden_from_home);

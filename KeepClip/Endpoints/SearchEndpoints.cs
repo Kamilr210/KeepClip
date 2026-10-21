@@ -15,13 +15,13 @@ public static class SearchEndpoints
 
     public static void MapSearchEndpoints(this WebApplication app)
     {
-        app.MapGet("/api/search", (string q, string? sort, int? limit, SegmentRepository segments) =>
+        app.MapGet("/api/search", (string q, string? sort, int? limit, bool? home, SegmentRepository segments) =>
         {
             if (string.IsNullOrEmpty(q)) return Api.Detail(422, Strings.Get("search.queryRequired"));
             var ftsQ = ToFtsQuery(q);
             if (string.IsNullOrEmpty(ftsQ))
                 return Results.Json(new Dictionary<string, object?> { ["query"] = q, ["results"] = Array.Empty<object>() });
-            var rows = segments.Search(ftsQ, sort, limit ?? 100);
+            var rows = segments.Search(ftsQ, sort, limit ?? 100, home == true, home == true && Settings.GetHideFolderClips());
             return Results.Json(new Dictionary<string, object?>
             {
                 ["query"] = q, ["fts"] = ftsQ, ["results"] = rows,

@@ -10,7 +10,7 @@ public class ClipRepository
         ["smallest"] = "size_bytes ASC",
     };
 
-    public List<Dictionary<string, object?>> List(string? game, string? sort, int limit, bool favoritesOnly)
+    public List<Dictionary<string, object?>> List(string? game, string? sort, int limit, bool favoritesOnly, bool home = false, bool hideFolderClips = false)
     {
         var order = ListSorts.GetValueOrDefault(sort ?? "newest", ListSorts["newest"]);
         var sql = "SELECT id, game, filename, duration, size_bytes, mtime, has_thumb, " +
@@ -19,6 +19,11 @@ public class ClipRepository
         var ps = new List<(string, object?)>();
         if (!string.IsNullOrEmpty(game)) { where.Add("game = $game"); ps.Add(("$game", game)); }
         if (favoritesOnly) where.Add("favorite = 1");
+        if (home)
+        {
+            where.Add("NOT EXISTS (SELECT 1 FROM folder_clips fc JOIN folders f ON f.id = fc.folder_id WHERE fc.clip_id = clips.id AND ($hide_folder_clips = 1 OR f.hidden_from_home = 1))");
+            ps.Add(("$hide_folder_clips", hideFolderClips ? 1 : 0));
+        }
         if (where.Count > 0) sql += " WHERE " + string.Join(" AND ", where);
         sql += $" ORDER BY {order} LIMIT $limit";
         ps.Add(("$limit", limit));

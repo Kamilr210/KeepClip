@@ -14,6 +14,49 @@ public class SettingsTests
         Assert.Equal(Config.DefaultClipsRoot, Settings.GetClipsRoot());
         Assert.Null(Settings.GetString("accent_theme"));
         Assert.Empty(Settings.GetObject("onboarding"));
+        Assert.False(Settings.GetHideFolderClips());
+        Assert.False(Settings.GetFavoritesAfterRecent());
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("\"true\"")]
+    [InlineData("1")]
+    public void Invalid_saved_home_visibility_falls_back_to_false(string value)
+    {
+        File.WriteAllText(TestSettings.Path, $$"""{"hide_folder_clips": {{value}}}""");
+
+        Assert.False(Settings.GetHideFolderClips());
+    }
+
+    [Fact]
+    public void Favorites_order_persists_as_boolean_and_keeps_unrelated_settings()
+    {
+        Settings.SetClipsRoot(@"C:\Klipy");
+        Settings.SetHideFolderClips(true);
+
+        foreach (var enabled in new[] { true, false })
+        {
+            Settings.SetFavoritesAfterRecent(enabled);
+
+            Assert.Equal(enabled, Settings.GetFavoritesAfterRecent());
+            var saved = JsonNode.Parse(File.ReadAllText(TestSettings.Path))!;
+            Assert.Equal(enabled, (bool)saved["favorites_after_recent"]!);
+            Assert.Equal(@"C:\Klipy", Settings.GetClipsRoot());
+            Assert.True(Settings.GetHideFolderClips());
+        }
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("\"true\"")]
+    [InlineData("1")]
+    [InlineData("{}")]
+    public void Invalid_saved_favorites_order_falls_back_to_false(string value)
+    {
+        File.WriteAllText(TestSettings.Path, $$"""{"favorites_after_recent": {{value}}}""");
+
+        Assert.False(Settings.GetFavoritesAfterRecent());
     }
 
     [Fact]

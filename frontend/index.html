@@ -109,6 +109,10 @@
         <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>
         <span class="nav-label">Logi aplikacji</span>
       </button>
+      <button class="nav-tool" id="btn-resources" type="button" hidden>
+        <svg class="ni-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="15" rx="2"/><path d="m6 13 3-4 3 6 3-4h3M8 22h8"/></svg>
+        <span class="nav-label">Zużycie zasobów</span>
+      </button>
       <!-- DEV:END -->
     </nav>
 
@@ -223,12 +227,13 @@
             <span class="storage-free" id="local-free">…</span>
           </div>
           <div class="storage-bar">
-            <span class="seg seg-clips" id="local-fill-clips"></span>
-            <span class="seg seg-other" id="local-fill-other"></span>
+            <span class="storage-segment seg-clips" id="local-fill-clips"></span>
+            <span class="storage-segment seg-other" id="local-fill-other"></span>
           </div>
           <div class="storage-legend">
             <span><i class="dot dot-clips"></i><span data-i18n="storageLabel.clips">Klipy</span> <b id="local-clips">…</b></span>
-            <span><span data-i18n="storageLabel.of">z</span> <b id="local-total">…</b></span>
+            <span><i class="dot dot-other"></i><span data-i18n="storageLabel.otherFiles">Inne pliki</span> <b id="local-other">…</b></span>
+            <span class="storage-total"><span data-i18n="storageLabel.of">z</span> <b id="local-total">…</b></span>
           </div>
         </div>
         <div class="storage-box cloud">
@@ -239,13 +244,14 @@
             <span class="storage-title" data-i18n="storageTitle.cloudDrive">Chmura (Google Drive)</span>
             <span class="storage-free" id="cloud-free">…</span>
           </div>
-          <div class="storage-bar">
-            <span class="seg seg-clips" id="cloud-fill-clips"></span>
-            <span class="seg seg-other" id="cloud-fill-other"></span>
+          <div class="storage-bar" id="cloud-storage-bar">
+            <span class="storage-segment seg-clips" id="cloud-fill-clips"></span>
+            <span class="storage-segment seg-other" id="cloud-fill-other"></span>
           </div>
           <div class="storage-legend">
             <span><i class="dot dot-cloud"></i><span data-i18n="storageLabel.clips">Klipy</span> <b id="cloud-clips">…</b></span>
-            <span><span data-i18n="storageLabel.of">z</span> <b id="cloud-total">…</b></span>
+            <span><i class="dot dot-other"></i><span data-i18n="storageLabel.otherFiles">Inne pliki</span> <b id="cloud-other">…</b></span>
+            <span class="storage-total"><span data-i18n="storageLabel.of">z</span> <b id="cloud-total">…</b></span>
           </div>
         </div>
       </section>
@@ -272,6 +278,16 @@
             <button id="btn-rename-folder" class="btn ghost" data-i18n-title="folderDetail.rename" title="Zmień nazwę">✎</button>
             <button id="btn-delete-folder" class="btn danger" data-i18n-title="folderDetail.delete" title="Usuń folder">🗑</button>
           </div>
+        </div>
+        <div class="folder-visibility-row">
+          <div>
+            <label id="folder-hide-home-label" for="folder-hide-home" data-i18n="folderDetail.hideFromHome">Ukryj klipy tego folderu na stronie głównej</label>
+            <div id="folder-hide-home-hint" class="subtle" data-i18n="folderDetail.homeVisibilityHint">Klipy pozostają dostępne w tym folderze i w ulubionych.</div>
+          </div>
+          <label class="visibility-toggle">
+            <input id="folder-hide-home" type="checkbox" role="switch" aria-labelledby="folder-hide-home-label" aria-describedby="folder-hide-home-hint" disabled />
+            <span class="toggle-switch" aria-hidden="true"></span>
+          </label>
         </div>
         <div id="folder-detail-grid" class="grid"></div>
       </div>
@@ -443,87 +459,163 @@
     <div id="view-settings" hidden>
       <div class="setx-head">
         <span class="setx-head-ic" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.62 10.4 18.52 7.74 20 6l-2-2-1.74 1.48-2.7-1.11L13.1 2h-2.19l-.46 2.37-2.71 1.11L6 4 4 6l1.48 1.74-1.1 2.66L2 10.9v2.2l2.38.5 1.1 2.66L4 18l2 2 1.74-1.48 2.7 1.11.47 2.37h2.19l.46-2.37 2.71-1.11L18 20l2-2-1.48-1.74 1.1-2.66 2.38-.5v-2.2z"/></svg>
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.62 10.4 18.52 7.74 20 6l-2-2-1.74 1.48-2.7-1.11L13.1 2h-2.19l-.46 2.37-2.71 1.11L6 4 4 6l1.48 1.74-1.1 2.66L2 10.9v2.2l2.38.5 1.1 2.66L4 18l2 2 1.74-1.48 2.7 1.11.47 2.37h2.19l.46-2.37 2.71-1.11L18 20l2-2-1.48-1.74 1.1-2.66 2.38-.5v-2.2z"/></svg>
         </span>
-        <div>
+        <div class="setx-head-info">
           <h2 data-i18n="settings.title">Ustawienia</h2>
           <div class="subtle setx-head-sub" data-i18n="settings.subtitle">Dostosuj aplikację do swoich potrzeb</div>
         </div>
+        <div class="setx-search">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+          <input id="settings-search" type="search" data-i18n-placeholder="settings.searchPlaceholder" data-i18n-aria="settings.searchPlaceholder" placeholder="Szukaj w ustawieniach…" aria-label="Szukaj w ustawieniach…" autocomplete="off" />
+          <button id="settings-search-clear" type="button" data-i18n-title="ui.clear" data-i18n-aria="ui.clear" title="Wyczyść" aria-label="Wyczyść" hidden>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
+          </button>
+        </div>
       </div>
 
-      <div class="setx-card">
-        <div class="setx-row">
-          <span class="setx-ic ic-lang" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14.5 14.5 0 0 1 0 18M12 3a14.5 14.5 0 0 0 0 18"/></svg>
+      <section class="setx-card" data-settings-group aria-labelledby="settings-appearance-title">
+        <div class="setx-section-head" data-settings-heading>
+          <span class="setx-section-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
           </span>
-          <div class="setx-row-info">
-            <div class="setx-row-title" data-i18n="ui.language">Język</div>
-            <div class="subtle setx-row-sub" data-i18n="settings.langSub">Zmień język interfejsu aplikacji</div>
+          <div>
+            <h3 id="settings-appearance-title" data-i18n="settings.appearanceTitle">Wygląd</h3>
+            <div class="subtle setx-section-sub" data-i18n="settings.appearanceSub">Dostosuj wygląd aplikacji</div>
           </div>
-          <select id="lang-select" class="settings-select">
-            <option value="en">🇬🇧 English</option>
-            <option value="pl">🇵🇱 Polski</option>
-            <option value="uk">🇺🇦 Українська</option>
-            <option value="ru">🇷🇺 Русский</option>
-          </select>
         </div>
-
-        <div class="setx-row">
-          <span class="setx-ic ic-theme" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18h1.2a1.8 1.8 0 0 0 .3-3.57A1.8 1.8 0 0 1 13.8 14H17a4 4 0 0 0 4-4c0-3.87-4.03-7-9-7Z"/><circle cx="7.5" cy="10" r="1" fill="#fff" stroke="none"/><circle cx="10" cy="6.8" r="1" fill="#fff" stroke="none"/><circle cx="14.2" cy="6.7" r="1" fill="#fff" stroke="none"/></svg>
-          </span>
+        <div class="setx-row" data-settings-row>
           <div class="setx-row-info">
-            <div class="setx-row-title" data-i18n="settings.themeLabel">Kolor aplikacji</div>
-            <div class="subtle setx-row-sub" data-i18n="settings.themeSub">Wybierz kolor akcentów interfejsu</div>
+            <label for="accent-theme-select" class="setx-row-title" data-i18n="settings.themeLabel">Kolor aplikacji</label>
+            <div id="settings-theme-hint" class="subtle setx-row-sub" data-i18n="settings.themeSub">Wybierz kolor akcentów interfejsu</div>
           </div>
-          <select id="accent-theme-select" class="settings-select">
+          <select id="accent-theme-select" class="settings-select" aria-describedby="settings-theme-hint">
             <option value="purple" data-i18n="settings.themePurple">Klasyczny fioletowy</option>
             <option value="green" data-i18n="settings.themeGreen">Neonowy zielony</option>
           </select>
         </div>
 
-        <div class="setx-row">
-          <span class="setx-ic ic-orb" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>
-          </span>
+        <div class="setx-row" data-settings-row>
           <div class="setx-row-info">
-            <div class="setx-row-title" data-i18n="orb.label">Tło animowane</div>
-            <div class="subtle setx-row-sub" data-i18n="orb.sublabel">Zezwól na tło animowane w aplikacji</div>
+            <div id="settings-orb-label" class="setx-row-title" data-i18n="orb.label">Tło animowane</div>
+            <div id="settings-orb-hint" class="subtle setx-row-sub" data-i18n="orb.sublabel">Zezwól na tło animowane w aplikacji</div>
           </div>
-          <div class="orb-toggle-wrap" id="orb-toggle" role="button" tabindex="0"
-               data-i18n-aria="orb.toggleAria" aria-label="Włącz/wyłącz animację tła">
-            <div class="toggle-switch on" id="toggle-knob"></div>
+          <div class="orb-toggle-wrap" id="orb-toggle" role="switch" aria-checked="true" tabindex="0"
+               aria-labelledby="settings-orb-label" aria-describedby="settings-orb-hint">
+            <div class="toggle-switch on" id="toggle-knob" aria-hidden="true"></div>
           </div>
         </div>
+      </section>
 
-        <div class="setx-row">
-          <span class="setx-ic ic-folder" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <section class="setx-card" data-settings-group aria-labelledby="settings-language-title">
+        <div class="setx-section-head" data-settings-heading>
+          <span class="setx-section-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14.5 14.5 0 0 1 0 18M12 3a14.5 14.5 0 0 0 0 18"/></svg>
           </span>
+          <div>
+            <h3 id="settings-language-title" data-i18n="settings.languageTitle">Język</h3>
+            <div class="subtle setx-section-sub" data-i18n="settings.languageSub">Wybierz język interfejsu</div>
+          </div>
+        </div>
+        <div class="setx-row" data-settings-row>
+          <div class="setx-row-info">
+            <label for="lang-select" class="setx-row-title" data-i18n="ui.language">Język</label>
+            <div id="settings-language-hint" class="subtle setx-row-sub" data-i18n="settings.langSub">Zmień język interfejsu aplikacji</div>
+          </div>
+          <div class="settings-language-control">
+            <span class="settings-language-flag" data-language-flag="en" aria-hidden="true" hidden><svg viewBox="0 0 24 16" focusable="false"><path fill="#012169" d="M0 0h24v16H0z"/><path stroke="#fff" stroke-width="4" d="m0 0 24 16M24 0 0 16"/><path stroke="#c8102e" stroke-width="1.5" d="m0 0 24 16M24 0 0 16"/><path stroke="#fff" stroke-width="6" d="M12 0v16M0 8h24"/><path stroke="#c8102e" stroke-width="3.5" d="M12 0v16M0 8h24"/></svg></span>
+            <span class="settings-language-flag" data-language-flag="pl" aria-hidden="true" hidden><svg viewBox="0 0 24 16" focusable="false"><path fill="#fff" d="M0 0h24v8H0z"/><path fill="#dc143c" d="M0 8h24v8H0z"/></svg></span>
+            <span class="settings-language-flag" data-language-flag="uk" aria-hidden="true" hidden><svg viewBox="0 0 24 16" focusable="false"><path fill="#0057b7" d="M0 0h24v8H0z"/><path fill="#ffd700" d="M0 8h24v8H0z"/></svg></span>
+            <span class="settings-language-flag" data-language-flag="ru" aria-hidden="true" hidden><svg viewBox="0 0 24 16" focusable="false"><path fill="#fff" d="M0 0h24v16H0z"/><path fill="#0039a6" d="M0 5.333h24v5.334H0z"/><path fill="#d52b1e" d="M0 10.667h24V16H0z"/></svg></span>
+            <select id="lang-select" class="settings-select" aria-describedby="settings-language-hint">
+              <option value="en">English</option>
+              <option value="pl">Polski</option>
+              <option value="uk">Українська</option>
+              <option value="ru">Русский</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="setx-card" data-settings-group aria-labelledby="settings-clips-title">
+        <div class="setx-section-head" data-settings-heading>
+          <span class="setx-section-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6m-11 3 6 3-6 3z"/></svg>
+          </span>
+          <div>
+            <h3 id="settings-clips-title" data-i18n="settings.clipsTitle">Klipy</h3>
+            <div class="subtle setx-section-sub" data-i18n="settings.clipsSub">Zapis i porządek w bibliotece</div>
+          </div>
+        </div>
+        <div class="setx-row" data-settings-row>
           <div class="setx-row-info">
             <div class="setx-row-title" data-i18n="settings.folderLabel">Foldery z klipami</div>
-            <div class="subtle setx-row-sub" data-i18n="settings.folderSub">Wybierz główny katalog do zapisu klipów</div>
+            <div id="settings-folder-hint" class="subtle setx-row-sub" data-i18n="settings.folderSub">Wybierz główny katalog do zapisu klipów</div>
           </div>
-          <button class="btn settings-folder-btn setx-btn" data-action="change-folder" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <button class="btn settings-folder-btn setx-btn" data-action="change-folder" type="button" aria-describedby="settings-folder-hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
             <span data-i18n="settings.changeFolderBtn">Zmień folder</span>
           </button>
         </div>
 
-        <div class="setx-row">
-          <span class="setx-ic ic-help" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .9-1 1.6v.4"/><circle cx="12" cy="17" r=".9" fill="#fff" stroke="none"/></svg>
+        <div class="setx-row" data-settings-row>
+          <div class="setx-row-info">
+            <label id="settings-hide-folder-clips-label" for="settings-hide-folder-clips" class="setx-row-title" data-i18n="settings.hideFolderClipsLabel">Ukrywaj klipy przypisane do folderów</label>
+            <div id="settings-hide-folder-clips-hint" class="subtle setx-row-sub" data-i18n="settings.hideFolderClipsSub">Na stronie głównej pokazuj tylko klipy, które nie należą do żadnego folderu.</div>
+          </div>
+          <label class="visibility-toggle">
+            <input id="settings-hide-folder-clips" type="checkbox" role="switch" aria-labelledby="settings-hide-folder-clips-label" aria-describedby="settings-hide-folder-clips-hint" disabled />
+            <span class="toggle-switch" aria-hidden="true"></span>
+          </label>
+        </div>
+
+        <div class="setx-row" data-settings-row>
+          <div class="setx-row-info">
+            <label id="settings-favorites-after-recent-label" for="settings-favorites-after-recent" class="setx-row-title" data-i18n="settings.favoritesAfterRecentLabel">Ulubione za 4 najnowszymi klipami</label>
+            <div id="settings-favorites-after-recent-hint" class="subtle setx-row-sub" data-i18n="settings.favoritesAfterRecentSub">W mozaice pokaż najpierw 4 najnowsze klipy, a za nimi ulubione. Pozostałe sortowania zachowują wybraną kolejność.</div>
+          </div>
+          <label class="visibility-toggle">
+            <input id="settings-favorites-after-recent" type="checkbox" role="switch" aria-labelledby="settings-favorites-after-recent-label" aria-describedby="settings-favorites-after-recent-hint" disabled />
+            <span class="toggle-switch" aria-hidden="true"></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="setx-card" data-settings-group aria-labelledby="settings-help-title">
+        <div class="setx-section-head" data-settings-heading>
+          <span class="setx-section-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .9-1 1.6v.4"/><circle cx="12" cy="17" r=".9" fill="currentColor" stroke="none"/></svg>
           </span>
+          <div>
+            <h3 id="settings-help-title" data-i18n="settings.helpTitle">Pomoc i informacje</h3>
+            <div class="subtle setx-section-sub" data-i18n="settings.helpSub">Poznaj możliwości KeepClip</div>
+          </div>
+        </div>
+        <div class="setx-row" data-settings-row>
           <div class="setx-row-info">
             <div class="setx-row-title" data-i18n="onboarding.settingsTitle">Samouczek</div>
-            <div class="subtle setx-row-sub" data-i18n="onboarding.settingsSub">Poznaj najważniejsze możliwości KeepClip</div>
+            <div id="settings-onboarding-hint" class="subtle setx-row-sub" data-i18n="onboarding.settingsSub">Poznaj najważniejsze możliwości KeepClip</div>
           </div>
-          <button class="btn setx-btn" id="btn-run-onboarding" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 6 3.5-6 3.5z"/></svg>
+          <button class="btn setx-btn" id="btn-run-onboarding" type="button" aria-describedby="settings-onboarding-hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 6 3.5-6 3.5z"/></svg>
             <span data-i18n="onboarding.settingsBtn">Uruchom samouczek</span>
           </button>
         </div>
+      </section>
 
+      <div id="settings-empty" class="setx-empty subtle" role="status" data-i18n="settings.searchEmpty" hidden>Nie znaleziono ustawień. Spróbuj wpisać inne słowo.</div>
+      <div class="setx-support">
+        <span class="setx-support-ic" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 15a6 6 0 1 1 7 0c-1 .7-1.5 1.8-1.5 3h-4c0-1.2-.5-2.3-1.5-3ZM10 21h4M12 2V1M3 5l1 1M20 6l1-1M2 12H1M23 12h-1"/></svg>
+        </span>
+        <div class="setx-support-info">
+          <div class="setx-row-title" data-i18n="settings.supportTitle">Potrzebujesz pomocy?</div>
+          <div class="subtle setx-row-sub" data-i18n="settings.supportSub">Dołącz do naszego Discorda — pomożemy Ci z KeepClip.</div>
+        </div>
+        <a class="setx-btn" href="https://discord.gg/nZ3BK7BPKv" target="_blank" rel="noopener noreferrer">
+          <span data-i18n="settings.supportButton">Otwórz Discord</span>
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7M21 3 10 14M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5"/></svg>
+        </a>
       </div>
       <div id="settings-version" class="setx-version">KeepClip</div>
     </div>
@@ -684,6 +776,37 @@
     </header>
     <pre id="logs-output" class="logs-output"></pre>
   </div>
+</div>
+<div id="resources-overlay" hidden>
+  <section id="resources-box" role="dialog" aria-modal="true" aria-labelledby="resources-title" tabindex="-1">
+    <header class="logs-head">
+      <h3 id="resources-title">Zużycie zasobów <span class="logs-dev-tag">DEV</span></h3>
+      <div class="logs-head-actions">
+        <button id="resources-reset" class="btn ghost" type="button">Zeruj szczyty</button>
+        <button id="resources-copy" class="btn ghost" type="button">Kopiuj pomiar</button>
+        <button id="resources-close" class="btn ghost" type="button" data-i18n="ui.close">Zamknij</button>
+      </div>
+    </header>
+    <div class="resources-content">
+      <div class="resources-status-row"><strong id="resources-activity">Oczekiwanie na pomiar…</strong><span id="resources-updated" class="subtle"></span></div>
+      <p id="resources-message" class="subtle" role="status"></p>
+      <div class="resources-summary">
+        <div><span>CPU łącznie</span><strong id="resources-cpu">—</strong><small id="resources-cpu-peak">Szczyt: —</small></div>
+        <div><span>RAM prywatny</span><strong id="resources-ram">—</strong><small id="resources-ram-peak">Szczyt: —</small></div>
+        <div><span>GPU</span><strong id="resources-gpu">—</strong><small id="resources-gpu-peak">Szczyt: —</small></div>
+        <div><span>VRAM procesów</span><strong id="resources-vram">—</strong><small id="resources-vram-peak">Szczyt: —</small></div>
+        <div><span>Odczyt I/O</span><strong id="resources-read">—</strong><small id="resources-read-peak">Szczyt: —</small></div>
+        <div><span>Zapis I/O</span><strong id="resources-write">—</strong><small id="resources-write-peak">Szczyt: —</small></div>
+      </div>
+      <div class="resources-table-wrap" tabindex="0" aria-label="Procesy KeepClip i ich zużycie zasobów">
+        <table class="resources-table">
+          <thead><tr><th scope="col">Proces</th><th scope="col">PID</th><th scope="col">CPU</th><th scope="col">RAM</th><th scope="col">GPU</th><th scope="col">VRAM</th><th scope="col">GPU współdz.</th><th scope="col">Odczyt I/O</th><th scope="col">Zapis I/O</th></tr></thead>
+          <tbody id="resources-processes"></tbody>
+        </table>
+      </div>
+      <p class="resources-note subtle">CPU jest liczone względem całej mocy procesora. RAM to suma prywatnych zestawów roboczych — bez ponownego doliczania współdzielonej pamięci RAM. GPU pokazuje najbardziej obciążony silnik karty; VRAM i pamięć GPU współdzielona są sumą liczników procesów i mogą obejmować wspólne zasoby GPU. I/O obejmuje pliki, sieć i komunikację między procesami, więc nie jest wyłącznie transferem dysku. Kreska oznacza brak pomiaru. Próbkowanie co około 2 sekundy, tylko przy otwartym panelu; krótkotrwały proces może zakończyć się między próbkami.</p>
+    </div>
+  </section>
 </div>
 <!-- DEV:END -->
 
@@ -986,9 +1109,15 @@
 
   var langSel = document.getElementById('lang-select');
   if (langSel) {
+    var languageFlags = Array.from(document.querySelectorAll('[data-language-flag]'));
+    function setLanguageFlag(value) {
+      languageFlags.forEach(function(flag) { flag.hidden = flag.getAttribute('data-language-flag') !== value; });
+    }
     langSel.value = lang;
+    setLanguageFlag(lang);
     langSel.addEventListener('change', function() {
       var chosen = langSel.value;
+      setLanguageFlag(chosen);
       try { localStorage.setItem('keepclip_lang', chosen); } catch(e) {}
       var url = window.location.href.split('?')[0];
 
@@ -1015,6 +1144,7 @@
 
   function setOrbs(on) {
     orbsOn = on;
+    toggle.setAttribute('aria-checked', String(on));
     knob.classList.toggle('on', on);
     orb1.classList.toggle('paused', !on);
     orb2.classList.toggle('paused', !on);

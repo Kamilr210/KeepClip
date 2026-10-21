@@ -11,12 +11,15 @@ param(
   [switch]$SkipPublish,
   [switch]$NoInstaller,
   # Wydanie publiczne usuwa panel logów; GitHub Actions włącza ten tryb automatycznie.
-  [switch]$PublicRelease
+  [switch]$PublicRelease,
+  [switch]$VerifyPackaging,
+  [string]$OutputRoot
 )
 
 $ErrorActionPreference = 'Stop'
 
 $Public = $PublicRelease.IsPresent -or ($env:GITHUB_ACTIONS -eq 'true')
+if ($VerifyPackaging -and $Public) { throw '-VerifyPackaging jest tylko lokalnym testem; nie lacz go z -PublicRelease ani GitHub Actions.' }
 
 function Step($m) { Write-Host ""; Write-Host "==> $m" -ForegroundColor Cyan }
 
@@ -38,6 +41,13 @@ $RedistDir    = Join-Path $InstallerDir 'redist'
 $IssFile      = Join-Path $InstallerDir 'KeepClip.iss'
 $DistDir      = Join-Path $InstallerDir 'dist'
 $GoogleClient = Join-Path $InstallerDir 'embed\google_client.json'
+if ($OutputRoot) {
+  $OutputRoot = [IO.Path]::GetFullPath($OutputRoot)
+  if ($OutputRoot -eq $RepoRoot -or $OutputRoot -eq $InstallerDir) { throw 'OutputRoot musi wskazywac osobny katalog wynikowy.' }
+  $PublishDir = Join-Path $OutputRoot 'publish'
+  $DistDir = Join-Path $OutputRoot 'dist'
+}
+if ($VerifyPackaging) { $DistDir = Join-Path $DistDir 'verification' }
 
 try {
   # Kazdy instalator przeznaczony dla uzytkownikow musi miec wspolnego klienta
@@ -85,7 +95,12 @@ try {
     }
   } else {
     Step "Publikuje aplikacje (dotnet publish, self-contained win-x64)"
-    if (Test-Path $PublishDir) { Remove-Item -Recurse -Force $PublishDir }
+    $allowedRoot = if ($OutputRoot) { $OutputRoot } else { Join-Path $InstallerDir 'staging' }
+    $resolvedPublish = [IO.Path]::GetFullPath($PublishDir)
+    if (-not $resolvedPublish.StartsWith([IO.Path]::GetFullPath($allowedRoot).TrimEnd('\')+'\',[StringComparison]::OrdinalIgnoreCase)) {
+      throw 'Katalog usuwanej publikacji wykracza poza katalog wynikowy.'
+    }
+    if (Test-Path -LiteralPath $resolvedPublish) { Remove-Item -LiteralPath $resolvedPublish -Recurse -Force }
     $pubArgs = @(
       'publish', $Project,
       '-c', 'Release',
@@ -96,6 +111,7 @@ try {
       '-o', $PublishDir
     )
     if ($Public) { $pubArgs += '-p:PublicRelease=true' }
+    if ($OutputRoot) { $pubArgs += ('-p:BaseOutputPath='+(Join-Path $OutputRoot 'build\')) }
     Write-Host ("Tryb: {0}" -f $(if ($Public) { 'PUBLICZNY (bez funkcji deweloperskich)' } else { 'deweloperski' }))
     & dotnet @pubArgs
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish zwrocil kod $LASTEXITCODE." }
@@ -125,9 +141,18 @@ try {
   $pubSize = [math]::Round(((Get-ChildItem $PublishDir -Recurse -File | Measure-Object Length -Sum).Sum / 1MB), 1)
   Write-Host "Rozmiar publish: $pubSize MB"
 
+  Step "Sprawdzam licencje i notices publikacji"
+  & (Join-Path $InstallerDir 'verify-licenses.ps1') -PublishDir $PublishDir -RequireFfmpeg
+
   if ($NoInstaller) {
     Step "Gotowe (-NoInstaller): publish w $PublishDir"
     return
+  }
+
+  if (-not $VerifyPackaging) {
+    & (Join-Path $InstallerDir 'verify-licenses.ps1') -PublishDir $PublishDir -RequireFfmpeg -ForDistribution
+  } else {
+    Write-Warning 'Test pakowania: wynik nie jest przeznaczony do dystrybucji.'
   }
 
   Step "Szukam kompilatora Inno Setup (ISCC.exe)"
@@ -160,30 +185,41 @@ try {
   }
   $iscc = Find-ISCC
   if (-not $iscc) {
-    Write-Host "Nie znaleziono Inno Setup - probuje przez winget..."
-    if (Get-Command winget -ErrorAction SilentlyContinue) {
-      try {
-        winget install -e --id JRSoftware.InnoSetup --accept-package-agreements --accept-source-agreements
-      } catch {}
-      $iscc = Find-ISCC
-    }
-  }
-  if (-not $iscc) {
     throw "Brak Inno Setup. Zainstaluj z https://jrsoftware.org/isdl.php (Inno Setup 6) i uruchom ponownie, albo `winget install JRSoftware.InnoSetup`."
   }
   Write-Host "ISCC: $iscc"
 
+  $engineLicense = Join-Path (Split-Path $iscc) 'license.txt'
+  if (-not (Test-Path -LiteralPath $engineLicense)) { throw 'Brak oryginalnej licencji kompilatora Inno Setup.' }
+  $engineNoticeDir = Join-Path $PublishDir 'licenses\installer-engine'
+  New-Item -ItemType Directory -Force -Path $engineNoticeDir | Out-Null
+  Copy-Item -LiteralPath $engineLicense -Destination (Join-Path $engineNoticeDir 'LICENSE.txt') -Force
+  @{compiler='Inno Setup';compilerSha256=(Get-FileHash -LiteralPath $iscc -Algorithm SHA256).Hash.ToLowerInvariant();licenseSha256=(Get-FileHash -LiteralPath $engineLicense -Algorithm SHA256).Hash.ToLowerInvariant();source='license.txt alongside the compiler used for this installer'} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $engineNoticeDir 'provenance.json') -Encoding UTF8
+  if (Test-Path -LiteralPath $wv2) {
+    $wv2Info = (Get-Item -LiteralPath $wv2).VersionInfo
+    @{component='Microsoft Edge WebView2 Evergreen bootstrapper';sha256=(Get-FileHash -LiteralPath $wv2 -Algorithm SHA256).Hash.ToLowerInvariant();fileVersion=$wv2Info.FileVersion;productVersion=$wv2Info.ProductVersion;source='https://go.microsoft.com/fwlink/p/?LinkId=2124703';runtimeTerms='https://developer.microsoft.com/en-us/microsoft-edge/webview2/';runtimeVersion='downloaded later; Evergreen, not the SDK version';license='Microsoft software license terms; distinct from SDK BSD-3-Clause'} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $engineNoticeDir 'webview2-bootstrapper.json') -Encoding UTF8
+  }
+
+  New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
+  $sourceArchive=Join-Path $DistDir 'KeepClip-FFmpeg-Source.zip'
+  Compress-Archive -Path (Join-Path $PublishDir 'licenses\ffmpeg-build\*') -DestinationPath $sourceArchive -Force
+
   Step "Buduje instalator (ISCC)"
   New-Item -ItemType Directory -Force -Path $DistDir | Out-Null
-  & $iscc "/DPublishDir=$PublishDir" $IssFile
+  $isccArgs = @("/DPublishDir=$PublishDir", "/O$DistDir")
+  if ($VerifyPackaging) { $isccArgs += '/DVerificationOnly=1' }
+  & $iscc @isccArgs $IssFile
   if ($LASTEXITCODE -ne 0) { throw "ISCC zwrocil kod $LASTEXITCODE." }
 
-  $setup = Join-Path $DistDir 'KeepClip-Setup.exe'
+  $setupName = if ($VerifyPackaging) { 'KeepClip-Packaging-Verification.exe' } else { 'KeepClip-Setup.exe' }
+  $setup = Join-Path $DistDir $setupName
   if (Test-Path $setup) {
     $mb = [math]::Round(((Get-Item $setup).Length / 1MB), 1)
+    $ffmpegBuild=Get-Content -LiteralPath (Join-Path $PublishDir 'licenses\ffmpeg-build\provenance.json') -Raw | ConvertFrom-Json
+    @{installerSha256=(Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant();ffmpegSourceArchiveSha256=(Get-FileHash -LiteralPath $sourceArchive -Algorithm SHA256).Hash.ToLowerInvariant();ffmpeg=$ffmpegBuild.binaries;buildId=$ffmpegBuild.buildId} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $DistDir 'KeepClip-Setup.provenance.json') -Encoding UTF8
     Step "GOTOWE"
     Write-Host "Instalator: $setup ($mb MB)" -ForegroundColor Green
-    Write-Host "Wrzuc go na GitHub Releases - uzytkownicy koncowi pobieraja i klikaja Dalej." -ForegroundColor Green
+    if ($VerifyPackaging) { Write-Host 'Wynik wylacznie do lokalnej kontroli zawartosci; nie publikuj.' -ForegroundColor Yellow }
   } else {
     throw "ISCC zakonczyl sie sukcesem, ale nie ma $setup."
   }

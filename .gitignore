@@ -10,6 +10,7 @@ publish/
 
 # Duże pliki ffmpeg i ffprobe
 tools/bin/*.exe
+tools/ffmpeg-notices/
 
 # Model Whisper pobierany przy pierwszym użyciu
 models/
@@ -28,3 +29,8 @@ installer/embed/
 # Edytor i narzędzia deweloperskie
 .claude/
 .idea/
+
+# Raporty analizy i testów
+.sonarqube/
+coverage.xml
+TestResults/

@@ -60,6 +60,8 @@ public static class ConfigEndpoints
                 dev = DevBuild,
                 accent_theme = AccentThemeOrDefault(),
                 language = Settings.GetLanguage(),
+                hide_folder_clips = Settings.GetHideFolderClips(),
+                favorites_after_recent = Settings.GetFavoritesAfterRecent(),
                 version = $"{currentVersion.Major}.{currentVersion.Minor}.{Math.Max(currentVersion.Build, 0)}",
             });
         });
@@ -108,6 +110,24 @@ public static class ConfigEndpoints
             return Results.Json(new { ok = true, language });
         });
 
+        app.MapPost("/api/home-visibility", (HomeVisibilityPayload body) =>
+        {
+            Heartbeat.Touch();
+            if (body.hide_folder_clips is not bool hidden)
+                return Api.Detail(400, Strings.Get("visibility.booleanRequired"));
+            Settings.SetHideFolderClips(hidden);
+            return Results.Json(new { ok = true, hide_folder_clips = hidden });
+        });
+
+        app.MapPost("/api/clip-order", (ClipOrderPayload body) =>
+        {
+            Heartbeat.Touch();
+            if (body.favorites_after_recent is not bool enabled)
+                return Api.Detail(400, Strings.Get("visibility.booleanRequired"));
+            Settings.SetFavoritesAfterRecent(enabled);
+            return Results.Json(new { ok = true, favorites_after_recent = enabled });
+        });
+
         app.MapPost("/api/heartbeat", () => { Heartbeat.Touch(); return Results.Json(new { ok = true }); });
 
         app.MapPost("/api/scan", () =>
@@ -129,6 +149,12 @@ public static class ConfigEndpoints
 
 #if KEEPCLIP_DEV
 
+        app.MapGet("/api/dev/resources", (DevResourceMonitor monitor) =>
+        {
+            Heartbeat.Touch();
+            return Results.Json(monitor.Sample());
+        });
+
         app.MapGet("/api/logs", (long? since) =>
         {
             var (seq, lines) = DevLog.GetSince(since ?? 0);
@@ -142,3 +168,5 @@ public static class ConfigEndpoints
 record ConfigPayload(string clips_root);
 record AccentThemePayload(string? theme);
 record LanguagePayload(string? language);
+record HomeVisibilityPayload(bool? hide_folder_clips);
+record ClipOrderPayload(bool? favorites_after_recent);

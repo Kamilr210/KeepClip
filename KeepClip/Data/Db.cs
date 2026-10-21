@@ -30,7 +30,8 @@ CREATE INDEX IF NOT EXISTS idx_clips_transcribed ON clips(transcribed_at);
 CREATE TABLE IF NOT EXISTS folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    hidden_from_home INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS folder_clips (
@@ -131,5 +132,15 @@ END;
         AddColumn("storage", "storage TEXT NOT NULL DEFAULT 'local'");
         AddColumn("remote_id", "remote_id TEXT");
         AddColumn("remote_uploaded_at", "remote_uploaded_at TEXT");
+
+        cols.Clear();
+        using (var cmd = con.CreateCommand())
+        {
+            cmd.CommandText = "PRAGMA table_info(folders)";
+            using var r = cmd.ExecuteReader();
+            while (r.Read()) cols.Add(r.GetString(1));
+        }
+        if (!cols.Contains("hidden_from_home"))
+            con.Exec("ALTER TABLE folders ADD COLUMN hidden_from_home INTEGER NOT NULL DEFAULT 0");
     }
 }
