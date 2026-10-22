@@ -8,12 +8,16 @@ public class ClipService
     private readonly ClipRepository _clips;
     private readonly SegmentRepository _segments;
     private readonly PlaybackProxyService _playback;
+    private readonly ClipOperations _operations;
 
-    public ClipService(ClipRepository clips, SegmentRepository segments, PlaybackProxyService playback)
+    public ClipService(ClipRepository clips, SegmentRepository segments, PlaybackProxyService playback) : this(clips, segments, playback, new ClipOperations()) { }
+
+    internal ClipService(ClipRepository clips, SegmentRepository segments, PlaybackProxyService playback, ClipOperations operations)
     {
         _clips = clips;
         _segments = segments;
         _playback = playback;
+        _operations = operations;
     }
 
     public Result<Dictionary<string, object?>> Fix(long clipId)
@@ -25,10 +29,10 @@ public class ClipService
 
         var originalMtime = ((DateTimeOffset)File.GetLastWriteTimeUtc(src)).ToUnixTimeMilliseconds() / 1000.0;
 
-        var (ok, fixedPath, message, trimmed) = Media.FixBrokenClip(src);
+        var (ok, fixedPath, message, trimmed) = _operations.FixBrokenClip(src);
         if (!ok || fixedPath is null) return Fail(422, message);
 
-        try { Trash.Send(src); }
+        try { _operations.TrashFile(src); }
         catch (Exception ex)
         {
             try { if (File.Exists(fixedPath)) File.Delete(fixedPath); } catch { }
@@ -40,10 +44,10 @@ public class ClipService
         try { File.SetLastWriteTimeUtc(src, DateTimeOffset.FromUnixTimeMilliseconds((long)(originalMtime * 1000)).UtcDateTime); }
         catch (IOException) { }
 
-        var newDuration = Media.ProbeDuration(src);
+        var newDuration = _operations.ProbeDuration(src);
         var tp = Config.ThumbPath(clipId);
         if (File.Exists(tp)) { try { File.Delete(tp); } catch (IOException) { } }
-        var hasThumb = Media.MakeThumbnail(clipId, src);
+        var hasThumb = _operations.MakeThumbnail(clipId, src);
 
         int shifted = 0, dropped = 0;
         if (trimmed > 0) (shifted, dropped) = _segments.ShiftTimestamps(clipId, trimmed);
@@ -77,6 +81,8 @@ public class ClipService
         if (clip is null) return Fail(404, "Klip nie istnieje.");
         var src = clip.Filepath ?? "";
         if (!File.Exists(src)) return Fail(404, "Plik źródłowy nie istnieje na dysku.");
+        var validationError = Media.ValidateCut(start, end, targetSizeMb);
+        if (validationError is not null) return Fail(422, validationError);
 
         var cutsRoot = Settings.GetCutsRoot();
         Directory.CreateDirectory(cutsRoot);
@@ -92,7 +98,7 @@ public class ClipService
         for (int i = 2; File.Exists(output); i++)
             output = Path.Combine(cutsRoot, $"{baseName}_{i}.mp4");
 
-        var (ok, msg, stats) = Media.CutClip(src, output, start, end, targetSizeMb, progress);
+        var (ok, msg, stats) = _operations.CutClip(src, output, start, end, targetSizeMb, progress);
         if (!ok) return Fail(422, msg);
 
         long? newClipId = null;
@@ -145,7 +151,7 @@ public class ClipService
                 return Fail(409, "Klip chmurowy nie ma identyfikatora Google Drive. Najpierw zsynchronizuj chmurę.");
             try
             {
-                await CloudService.TrashRemoteAsync(clip.RemoteId);
+                await _operations.TrashRemoteAsync(clip.RemoteId);
                 cloudDeleted = true;
             }
             catch (Exception ex)
@@ -158,7 +164,8 @@ public class ClipService
         bool fileSentToTrash = false;
         if (clip.Storage != "cloud" && deleteFile && !string.IsNullOrEmpty(clip.Filepath) && File.Exists(clip.Filepath))
         {
-            trashError = Trash.SendWithRetry(clip.Filepath);
+            trashError = _operations.TrashFileWithRetry(clip.Filepath);
+            if (trashError is not null) return Fail(500, $"Nie udało się przenieść pliku do Kosza: {trashError}");
             fileSentToTrash = trashError is null;
         }
 
@@ -197,7 +204,7 @@ public class ClipService
 
         var sw = Stopwatch.StartNew();
         List<Transcriber.Segment> segs;
-        try { segs = Transcriber.Transcribe(fp, progress); }
+        try { segs = _operations.Transcribe(fp, progress); }
         catch (Exception ex) { return Fail(500, $"Transkrypcja nie powiodła się: {ex.Message}"); }
         sw.Stop();
 

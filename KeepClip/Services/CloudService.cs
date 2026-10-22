@@ -7,10 +7,13 @@ public static class CloudService
 {
     private const string FolderIdSettingKey = "cloud_folder_id";
     private static readonly SemaphoreSlim SyncGate = new(1, 1);
+    private static readonly CloudConnection Connection = new();
 
     public sealed record SyncResult(int Imported, int Updated, int Found, int Skipped);
 
-    public static async Task<bool> UploadClipAsync(long clipId)
+    public static Task<bool> UploadClipAsync(long clipId) => UploadClipAsync(clipId, Connection);
+
+    internal static async Task<bool> UploadClipAsync(long clipId, CloudConnection connection)
     {
         using var con = Db.Open();
         var row = con.QueryOne(
@@ -23,8 +26,8 @@ public static class CloudService
         if (string.IsNullOrEmpty(filepath) || !File.Exists(filepath))
             throw new FileNotFoundException(Strings.Get("clip.fileMissing"));
 
-        var token = await OAuthService.GetAccessTokenAsync();
-        var folderId = await EnsureFolderAsync(token);
+        var token = await connection.GetAccessTokenAsync();
+        var folderId = await EnsureFolderAsync(token, connection);
         var appProperties = new Dictionary<string, string>
         {
             ["keepclip"] = "1",
@@ -34,89 +37,28 @@ public static class CloudService
             ["mtime"] = Convert.ToDouble(row["mtime"] ?? 0.0)
                 .ToString("R", CultureInfo.InvariantCulture),
         };
-        string remoteId = await GoogleDrive.UploadResumableAsync(
+        string remoteId = await connection.UploadAsync(
             token, filename, folderId, filepath, VideoMime(filepath), appProperties);
 
         con.Exec("UPDATE clips SET storage='cloud', remote_id=$rid, remote_uploaded_at=$ts WHERE id=$id",
             ("$rid", remoteId), ("$ts", NowIso()), ("$id", clipId));
 
-        Trash.SendWithRetry(filepath);
-        OAuthService.InvalidateAbout();
+        connection.TrashLocalFile(filepath);
+        connection.InvalidateAbout();
         return false;
     }
 
-    public static async Task<SyncResult> SyncFromCloudAsync()
+    public static Task<SyncResult> SyncFromCloudAsync() => SyncFromCloudAsync(Connection);
+
+    internal static async Task<SyncResult> SyncFromCloudAsync(CloudConnection connection)
     {
         await SyncGate.WaitAsync();
         try
         {
-            var token = await OAuthService.GetAccessTokenAsync();
-            var folderId = await EnsureFolderAsync(token);
-            var remoteFiles = await GoogleDrive.ListFolderFilesAsync(token, folderId);
-            var videoFiles = remoteFiles
-                .Where(file => Config.VideoExts.Contains(Path.GetExtension(file.Name)))
-                .ToList();
-
-            int imported = 0, updated = 0, skipped = remoteFiles.Count - videoFiles.Count;
-            using var con = Db.Open();
-            using var tx = con.BeginTransaction();
-
-            foreach (var remote in videoFiles)
-            {
-                var existing = con.QueryOne(
-                    "SELECT id, filename, size_bytes, mtime, storage FROM clips WHERE remote_id=$rid LIMIT 1",
-                    ("$rid", remote.Id));
-
-                double mtime = RemoteMtime(remote);
-                double duration = RemoteDuration(remote);
-                if (existing is not null)
-                {
-                    bool changed = (existing["storage"] as string) != "cloud"
-                                   || (existing["filename"] as string) != remote.Name
-                                   || Convert.ToInt64(existing["size_bytes"] ?? 0L) != remote.Size
-                                   || Math.Abs(Convert.ToDouble(existing["mtime"] ?? 0.0) - mtime) > 0.001;
-                    con.Exec(
-                        "UPDATE clips SET filename=$name, size_bytes=$size, mtime=$mtime, " +
-                        "duration=CASE WHEN duration IS NULL OR duration <= 0 THEN $duration ELSE duration END, " +
-                        "storage='cloud', remote_uploaded_at=COALESCE(remote_uploaded_at,$uploaded) WHERE id=$id",
-                        ("$name", remote.Name), ("$size", remote.Size), ("$mtime", mtime),
-                        ("$duration", duration), ("$uploaded", RemoteUploadedAt(remote)),
-                        ("$id", Convert.ToInt64(existing["id"]!)));
-                    if (changed) updated++;
-                    continue;
-                }
-
-                existing = con.QueryOne(
-                    "SELECT id FROM clips WHERE filename=$name AND storage='cloud' AND remote_id IS NULL " +
-                    "ORDER BY id DESC LIMIT 1",
-                    ("$name", remote.Name));
-                if (existing is not null)
-                {
-                    con.Exec(
-                        "UPDATE clips SET remote_id=$rid, size_bytes=$size, mtime=$mtime, " +
-                        "duration=CASE WHEN duration IS NULL OR duration <= 0 THEN $duration ELSE duration END, " +
-                        "remote_uploaded_at=COALESCE(remote_uploaded_at,$uploaded) WHERE id=$id",
-                        ("$rid", remote.Id), ("$size", remote.Size), ("$mtime", mtime),
-                        ("$duration", duration), ("$uploaded", RemoteUploadedAt(remote)),
-                        ("$id", Convert.ToInt64(existing["id"]!)));
-                    updated++;
-                    continue;
-                }
-
-                string game = RemoteGame(remote);
-                string filepath = UniqueCloudPath(con, game, remote.Name, remote.Id);
-                con.Exec(
-                    "INSERT INTO clips(game, filename, filepath, size_bytes, mtime, duration, has_thumb, " +
-                    "storage, remote_id, remote_uploaded_at) " +
-                    "VALUES($game,$name,$path,$size,$mtime,$duration,0,'cloud',$rid,$uploaded)",
-                    ("$game", game), ("$name", remote.Name), ("$path", filepath),
-                    ("$size", remote.Size), ("$mtime", mtime), ("$duration", duration),
-                    ("$rid", remote.Id), ("$uploaded", RemoteUploadedAt(remote)));
-                imported++;
-            }
-
-            tx.Commit();
-            return new SyncResult(imported, updated, videoFiles.Count, skipped);
+            var token = await connection.GetAccessTokenAsync();
+            var folderId = await EnsureFolderAsync(token, connection);
+            var remoteFiles = await connection.ListFilesAsync(token, folderId);
+            return ImportClips(remoteFiles);
         }
         finally
         {
@@ -124,7 +66,77 @@ public static class CloudService
         }
     }
 
-    public static async Task<bool> DownloadClipAsync(long clipId)
+    internal static SyncResult ImportClips(IReadOnlyList<GoogleDrive.DriveFile> remoteFiles)
+    {
+        var videoFiles = remoteFiles
+            .Where(file => Config.VideoExts.Contains(Path.GetExtension(file.Name)))
+            .ToList();
+
+        int imported = 0, updated = 0, skipped = remoteFiles.Count - videoFiles.Count;
+        using var con = Db.Open();
+        using var tx = con.BeginTransaction();
+
+        foreach (var remote in videoFiles)
+        {
+            var existing = con.QueryOne(
+                "SELECT id, filename, size_bytes, mtime, storage FROM clips WHERE remote_id=$rid LIMIT 1",
+                ("$rid", remote.Id));
+
+            double mtime = RemoteMtime(remote);
+            double duration = RemoteDuration(remote);
+            if (existing is not null)
+            {
+                bool changed = (existing["storage"] as string) != "cloud"
+                               || (existing["filename"] as string) != remote.Name
+                               || Convert.ToInt64(existing["size_bytes"] ?? 0L) != remote.Size
+                               || Math.Abs(Convert.ToDouble(existing["mtime"] ?? 0.0) - mtime) > 0.001;
+                con.Exec(
+                    "UPDATE clips SET filename=$name, size_bytes=$size, mtime=$mtime, " +
+                    "duration=CASE WHEN duration IS NULL OR duration <= 0 THEN $duration ELSE duration END, " +
+                    "storage='cloud', remote_uploaded_at=COALESCE(remote_uploaded_at,$uploaded) WHERE id=$id",
+                    ("$name", remote.Name), ("$size", remote.Size), ("$mtime", mtime),
+                    ("$duration", duration), ("$uploaded", RemoteUploadedAt(remote)),
+                    ("$id", Convert.ToInt64(existing["id"]!)));
+                if (changed) updated++;
+                continue;
+            }
+
+            existing = con.QueryOne(
+                "SELECT id FROM clips WHERE filename=$name AND storage='cloud' AND remote_id IS NULL " +
+                "ORDER BY id DESC LIMIT 1",
+                ("$name", remote.Name));
+            if (existing is not null)
+            {
+                con.Exec(
+                    "UPDATE clips SET remote_id=$rid, size_bytes=$size, mtime=$mtime, " +
+                    "duration=CASE WHEN duration IS NULL OR duration <= 0 THEN $duration ELSE duration END, " +
+                    "remote_uploaded_at=COALESCE(remote_uploaded_at,$uploaded) WHERE id=$id",
+                    ("$rid", remote.Id), ("$size", remote.Size), ("$mtime", mtime),
+                    ("$duration", duration), ("$uploaded", RemoteUploadedAt(remote)),
+                    ("$id", Convert.ToInt64(existing["id"]!)));
+                updated++;
+                continue;
+            }
+
+            string game = RemoteGame(remote);
+            string filepath = UniqueCloudPath(con, game, remote.Name, remote.Id);
+            con.Exec(
+                "INSERT INTO clips(game, filename, filepath, size_bytes, mtime, duration, has_thumb, " +
+                "storage, remote_id, remote_uploaded_at) " +
+                "VALUES($game,$name,$path,$size,$mtime,$duration,0,'cloud',$rid,$uploaded)",
+                ("$game", game), ("$name", remote.Name), ("$path", filepath),
+                ("$size", remote.Size), ("$mtime", mtime), ("$duration", duration),
+                ("$rid", remote.Id), ("$uploaded", RemoteUploadedAt(remote)));
+            imported++;
+        }
+
+        tx.Commit();
+        return new SyncResult(imported, updated, videoFiles.Count, skipped);
+    }
+
+    public static Task<bool> DownloadClipAsync(long clipId) => DownloadClipAsync(clipId, Connection);
+
+    internal static async Task<bool> DownloadClipAsync(long clipId, CloudConnection connection)
     {
         using var con = Db.Open();
         var row = con.QueryOne(
@@ -137,13 +149,13 @@ public static class CloudService
         if (string.IsNullOrEmpty(filepath)) throw new InvalidOperationException(Strings.Get("cloud.noTargetPath"));
         if (string.IsNullOrEmpty(remoteId)) throw new InvalidOperationException(Strings.Get("cloud.noRemoteId"));
 
-        var token = await OAuthService.GetAccessTokenAsync();
+        var token = await connection.GetAccessTokenAsync();
         Directory.CreateDirectory(Path.GetDirectoryName(filepath)!);
 
         string tmp = filepath + ".part";
         try
         {
-            await GoogleDrive.DownloadAsync(token, remoteId, tmp);
+            await connection.DownloadAsync(token, remoteId, tmp);
             if (File.Exists(filepath)) File.Delete(filepath);
             File.Move(tmp, filepath);
         }
@@ -152,12 +164,14 @@ public static class CloudService
         con.Exec("UPDATE clips SET storage='local', remote_id=NULL, remote_uploaded_at=NULL WHERE id=$id",
             ("$id", clipId));
 
-        try { await GoogleDrive.TrashAsync(token, remoteId); } catch { }
-        OAuthService.InvalidateAbout();
+        try { await connection.TrashAsync(token, remoteId); } catch { }
+        connection.InvalidateAbout();
         return false;
     }
 
-    public static async Task<(int uploaded, int total, int skipped, int failed)> UploadFolderAsync(long folderId)
+    public static Task<(int uploaded, int total, int skipped, int failed)> UploadFolderAsync(long folderId) => UploadFolderAsync(folderId, Connection);
+
+    internal static async Task<(int uploaded, int total, int skipped, int failed)> UploadFolderAsync(long folderId, CloudConnection connection)
     {
         List<long> clipIds;
         using (var con = Db.Open())
@@ -171,7 +185,7 @@ public static class CloudService
         {
             try
             {
-                if (await UploadClipAsync(id)) skipped++;
+                if (await UploadClipAsync(id, connection)) skipped++;
                 else uploaded++;
             }
             catch { failed++; }
@@ -179,31 +193,35 @@ public static class CloudService
         return (uploaded, clipIds.Count, skipped, failed);
     }
 
-    public static async Task TrashRemoteAsync(string remoteId)
+    public static Task TrashRemoteAsync(string remoteId) => TrashRemoteAsync(remoteId, Connection);
+
+    internal static async Task TrashRemoteAsync(string remoteId, CloudConnection connection)
     {
-        if (!OAuthService.IsConfigured() || !OAuthService.IsConnected())
+        if (!connection.IsConnected)
             throw new InvalidOperationException(Strings.Get("cloud.notConnected"));
 
-        var token = await OAuthService.GetAccessTokenAsync();
-        await GoogleDrive.TrashAsync(token, remoteId);
-        OAuthService.InvalidateAbout();
+        var token = await connection.GetAccessTokenAsync();
+        await connection.TrashAsync(token, remoteId);
+        connection.InvalidateAbout();
     }
 
-    public static async Task ProxyVideoAsync(HttpContext http, string remoteId)
+    public static Task ProxyVideoAsync(HttpContext http, string remoteId) => ProxyVideoAsync(http, remoteId, Connection);
+
+    internal static async Task ProxyVideoAsync(HttpContext http, string remoteId, CloudConnection connection)
     {
         string token;
-        try { token = await OAuthService.GetAccessTokenAsync(); }
+        try { token = await connection.GetAccessTokenAsync(); }
         catch (Exception ex)
         {
             http.Response.StatusCode = 502;
-            await http.Response.WriteAsJsonAsync(new { detail = ex.Message });
+            await http.Response.WriteAsJsonAsync(new { detail = ex.Message }, http.RequestAborted);
             return;
         }
 
         string? range = http.Request.Headers.TryGetValue("Range", out var rv) ? rv.ToString() : null;
         if (string.IsNullOrEmpty(range)) range = null;
 
-        using var resp = await GoogleDrive.OpenMediaAsync(token, remoteId, range, http.RequestAborted);
+        using var resp = await connection.OpenMediaAsync(token, remoteId, range, http.RequestAborted);
 
         http.Response.StatusCode = (int)resp.StatusCode;
         var rc = resp.Content.Headers;
@@ -220,10 +238,10 @@ public static class CloudService
         catch (OperationCanceledException) { }
     }
 
-    private static async Task<string> EnsureFolderAsync(string token)
+    private static async Task<string> EnsureFolderAsync(string token, CloudConnection connection)
     {
         string? known = Settings.GetString(FolderIdSettingKey);
-        string id = await GoogleDrive.EnsureFolderAsync(token, Config.DriveFolderName, known);
+        string id = await connection.EnsureFolderAsync(token, Config.DriveFolderName, known);
         if (id != known) Settings.SetString(FolderIdSettingKey, id);
         return id;
     }
@@ -234,7 +252,7 @@ public static class CloudService
     private static double RemoteDuration(GoogleDrive.DriveFile file) =>
         file.AppProperties.TryGetValue("duration", out var value)
         && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var duration)
-        && duration > 0
+        && double.IsFinite(duration) && duration > 0 && duration <= TimeSpan.MaxValue.TotalSeconds
             ? duration
             : 0.0;
 
@@ -242,7 +260,7 @@ public static class CloudService
     {
         if (file.AppProperties.TryGetValue("mtime", out var value)
             && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var mtime)
-            && mtime > 0)
+            && double.IsFinite(mtime) && mtime > 0 && mtime <= DateTimeOffset.MaxValue.ToUnixTimeMilliseconds() / 1000.0)
             return mtime;
         var timestamp = file.CreatedTime ?? file.ModifiedTime ?? DateTimeOffset.UtcNow;
         return timestamp.ToUnixTimeMilliseconds() / 1000.0;
@@ -279,7 +297,9 @@ public static class CloudService
     {
         string root = Settings.GetClipsRoot();
         string directory = game == "_root" ? root : Path.Combine(root, DisplayHelper.SafeFolderName(game));
-        string safeName = DisplayHelper.SafeFolderName(remoteName);
+        string remoteExtension = Path.GetExtension(remoteName);
+        string safeStem = DisplayHelper.SafeFolderName(Path.GetFileNameWithoutExtension(remoteName));
+        string safeName = safeStem[..Math.Min(safeStem.Length, 80 - remoteExtension.Length)] + remoteExtension;
         string candidate = Path.Combine(directory, safeName);
         var owner = con.QueryOne("SELECT remote_id FROM clips WHERE filepath=$path", ("$path", candidate));
         if ((owner is null && !File.Exists(candidate)) || (owner?["remote_id"] as string) == remoteId)
@@ -287,7 +307,7 @@ public static class CloudService
 
         string extension = Path.GetExtension(safeName);
         string stem = Path.GetFileNameWithoutExtension(safeName);
-        string suffix = remoteId.Length > 8 ? remoteId[..8] : remoteId;
+        string suffix = DisplayHelper.SanitizeFileName(remoteId.Length > 8 ? remoteId[..8] : remoteId);
         for (int number = 1; ; number++)
         {
             string counter = number == 1 ? "" : $"_{number}";

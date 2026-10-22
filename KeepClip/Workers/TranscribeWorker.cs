@@ -11,6 +11,11 @@ public static class TranscribeWorker
         DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
 
     public static bool Start(bool force, out int total)
+        => Start(force, out total, new ClipOperations());
+
+    internal static Task? Completion { get { lock (StartLock) return _task; } }
+
+    internal static bool Start(bool force, out int total, ClipOperations operations)
     {
         total = 0;
         lock (StartLock)
@@ -37,12 +42,12 @@ public static class TranscribeWorker
             total = clips.Count;
             lock (TranscribeState.Lock) TranscribeState.Total = total;
 
-            _task = Task.Run(() => Work(clips));
+            _task = Task.Run(() => Work(clips, operations));
             return true;
         }
     }
 
-    private static void Work(List<Dictionary<string, object?>> clips)
+    private static void Work(List<Dictionary<string, object?>> clips, ClipOperations operations)
     {
         try
         {
@@ -96,20 +101,21 @@ public static class TranscribeWorker
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
 
-                double? dur = Media.ProbeDuration(fp);
+                double? dur = operations.ProbeDuration(fp);
                 using (var con = Db.Open())
                 {
                     if (dur is not null)
                         con.Exec("UPDATE clips SET duration=$d WHERE id=$id", ("$d", dur), ("$id", cid));
-                    if (!File.Exists(Config.ThumbPath(cid)) && Media.MakeThumbnail(cid, fp))
+                    if (!File.Exists(Config.ThumbPath(cid)) && operations.MakeThumbnail(cid, fp))
                         con.Exec("UPDATE clips SET has_thumb=1 WHERE id=$id", ("$id", cid));
                 }
 
                 try
                 {
-                    var segs = Transcriber.Transcribe(fp);
+                    var segs = operations.Transcribe(fp);
                     using (var con = Db.Open())
                     {
+                        using var transaction = con.BeginTransaction();
                         con.Exec("DELETE FROM segments WHERE clip_id=$id", ("$id", cid));
                         foreach (var s in segs)
                             con.Exec(
@@ -117,6 +123,7 @@ public static class TranscribeWorker
                                 ("$c", cid), ("$s", s.Start), ("$e", s.End), ("$t", s.Text));
                         con.Exec("UPDATE clips SET transcribed_at=$ts, language=$lang WHERE id=$id",
                             ("$ts", NowIso()), ("$lang", Settings.GetLanguage()), ("$id", cid));
+                        transaction.Commit();
                     }
                     sw.Stop();
                     TranscribeState.PushLog(

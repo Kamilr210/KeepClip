@@ -1,19 +1,11 @@
 using System.Diagnostics;
-using System.Text.Json;
 
 namespace KeepClip.Services;
 
 public static class UpdateService
 {
-    private const string ApiLatest = "https://api.github.com/repos/Kamilr210/KeepClip/releases/latest";
-    private const string AssetName = "KeepClip-Setup.exe";
-
     private static readonly HttpClient Http = CreateClient();
-    private static readonly object Gate = new();
-    private static Dictionary<string, object?>? _cached;
-    private static DateTimeOffset _cachedAt = DateTimeOffset.MinValue;
-    private static readonly TimeSpan OkTtl = TimeSpan.FromHours(6);
-    private static readonly TimeSpan FailTtl = TimeSpan.FromMinutes(30);
+    private static readonly UpdateChecker Checker = new(Http, Current, TimeProvider.System);
 
     private static string _phase = "idle";
     private static int _percent;
@@ -29,58 +21,9 @@ public static class UpdateService
     }
 
         public static Version Current =>
-        System.Reflection.Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(0, 0, 0, 0);
+        typeof(UpdateService).Assembly.GetName().Version ?? new Version(0, 0, 0, 0);
 
-    public static async Task<Dictionary<string, object?>> CheckAsync()
-    {
-        lock (Gate)
-        {
-            if (_cached is not null)
-            {
-                var ttl = Equals(_cached.GetValueOrDefault("ok"), true) ? OkTtl : FailTtl;
-                if (DateTimeOffset.UtcNow - _cachedAt < ttl) return _cached;
-            }
-        }
-        var result = await FetchLatestAsync();
-        lock (Gate) { _cached = result; _cachedAt = DateTimeOffset.UtcNow; }
-        return result;
-    }
-
-    private static async Task<Dictionary<string, object?>> FetchLatestAsync()
-    {
-        var cur = Current;
-        var res = new Dictionary<string, object?>
-        {
-            ["ok"] = false,
-            ["current"] = $"{cur.Major}.{cur.Minor}.{cur.Build}",
-            ["available"] = false,
-        };
-        try
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            using var resp = await Http.GetAsync(ApiLatest, cts.Token);
-            if (!resp.IsSuccessStatusCode) return res;
-
-            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(cts.Token));
-            var root = doc.RootElement;
-            var tag = root.GetProperty("tag_name").GetString() ?? "";
-            if (!Version.TryParse(tag.TrimStart('v', 'V'), out var latest)) return res;
-
-            string? assetUrl = null;
-            if (root.TryGetProperty("assets", out var assets))
-                foreach (var a in assets.EnumerateArray())
-                    if (a.GetProperty("name").GetString() == AssetName)
-                    { assetUrl = a.GetProperty("browser_download_url").GetString(); break; }
-
-            res["ok"] = true;
-            res["latest"] = $"{latest.Major}.{latest.Minor}.{Math.Max(latest.Build, 0)}";
-            res["available"] = latest > new Version(cur.Major, cur.Minor, Math.Max(cur.Build, 0)) && assetUrl is not null;
-            res["url"] = assetUrl;
-            res["notes_url"] = root.TryGetProperty("html_url", out var hu) ? hu.GetString() : null;
-        }
-        catch {  }
-        return res;
-    }
+    public static Task<Dictionary<string, object?>> CheckAsync() => Checker.CheckAsync();
 
     public static object Status() => new { phase = _phase, percent = _percent, error = _error };
 

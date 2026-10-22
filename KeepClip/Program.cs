@@ -78,7 +78,7 @@ AppDomain.CurrentDomain.ProcessExit += (_, _) => ReplayService.Shutdown();
 
 if (serverOnly)
 {
-    app.Run();
+    await app.RunAsync();
     ReplayService.Shutdown();
     return;
 }

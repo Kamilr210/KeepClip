@@ -46,6 +46,8 @@ internal static class TestDb
 
     public static void Reset()
     {
+        ThumbnailWorker.Completion?.GetAwaiter().GetResult();
+        TranscribeWorker.Completion?.GetAwaiter().GetResult();
         Db.InitDb();
         using var con = Db.Open();
         con.Exec("DELETE FROM folder_clips; DELETE FROM segments; DELETE FROM folders; DELETE FROM clips;");

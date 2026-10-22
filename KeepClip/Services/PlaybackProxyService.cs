@@ -22,11 +22,16 @@ public sealed class PlaybackProxyService
         public string? Error { get; set; }
         public bool Finished { get; set; }
         public bool Canceled { get; set; }
+        public Task Completion { get; set; } = Task.CompletedTask;
     }
 
     private readonly ConcurrentDictionary<long, Job> _jobs = new();
     private readonly ConcurrentDictionary<long, (string Fingerprint, Media.PlaybackVideoInfo? Info)> _probes = new();
     private readonly object _jobGate = new();
+    private readonly ClipOperations _operations;
+
+    public PlaybackProxyService() : this(new ClipOperations()) { }
+    internal PlaybackProxyService(ClipOperations operations) => _operations = operations;
 
     public Status GetOrStart(Clip clip, bool start = true)
     {
@@ -36,10 +41,10 @@ public sealed class PlaybackProxyService
             return new(false, false, 0, "error", "Plik nie istnieje na dysku.", null, false, 0);
 
         var fingerprint = Fingerprint(clip.Filepath);
-        var probe = _probes.GetOrAdd(clip.Id, _ => (fingerprint, Media.ProbePlaybackVideo(clip.Filepath)));
+        var probe = _probes.GetOrAdd(clip.Id, _ => (fingerprint, _operations.ProbePlaybackVideo(clip.Filepath)));
         if (probe.Fingerprint != fingerprint)
         {
-            probe = (fingerprint, Media.ProbePlaybackVideo(clip.Filepath));
+            probe = (fingerprint, _operations.ProbePlaybackVideo(clip.Filepath));
             _probes[clip.Id] = probe;
             CancelJob(clip.Id);
         }
@@ -55,7 +60,6 @@ public sealed class PlaybackProxyService
             return new(false, false, 0, "notReady", null, null, true, fps);
 
         Job job;
-        bool startJob = false;
         lock (_jobGate)
         {
             if (!_jobs.TryGetValue(clip.Id, out job!))
@@ -63,10 +67,9 @@ public sealed class PlaybackProxyService
                 RemoveOldFiles(clip.Id, output);
                 job = new Job { Fingerprint = fingerprint, Progress = 0, Stage = "preparing" };
                 _jobs[clip.Id] = job;
-                startJob = true;
+                job.Completion = Task.Run(() => Generate(clip, job, output));
             }
         }
-        if (startJob) _ = Task.Run(() => Generate(clip, job, output));
 
         if (job.Fingerprint != fingerprint)
         {
@@ -101,6 +104,11 @@ public sealed class PlaybackProxyService
         RemoveOldFiles(clipId, keep: null);
     }
 
+    internal Task WaitForCurrentJobAsync(long clipId)
+    {
+        lock (_jobGate) return _jobs.TryGetValue(clipId, out var job) ? job.Completion : Task.CompletedTask;
+    }
+
     private void CancelJob(long clipId)
     {
         if (!_jobs.TryRemove(clipId, out var job)) return;
@@ -121,14 +129,15 @@ public sealed class PlaybackProxyService
         return $"{info.Length:x}_{info.LastWriteTimeUtc.Ticks:x}";
     }
 
-    private static void Generate(Clip clip, Job job, string output)
+    private void Generate(Clip clip, Job job, string output)
     {
+        var jobOutput = Path.Combine(Config.PlaybackDir, $".{clip.Id}_{Guid.NewGuid():N}.mp4");
         try
         {
             var duration = clip.Duration > 0
                 ? clip.Duration
-                : Media.ProbeDuration(clip.Filepath!) ?? 0;
-            var result = Media.CreatePlaybackProxy(clip.Filepath!, output, duration, value =>
+                : _operations.ProbeDuration(clip.Filepath!) ?? 0;
+            var result = _operations.CreatePlaybackProxy(clip.Filepath!, jobOutput, duration, value =>
             {
                 lock (job)
                 {
@@ -139,11 +148,8 @@ public sealed class PlaybackProxyService
 
             lock (job)
             {
-                if (job.Canceled)
-                {
-                    try { if (File.Exists(output)) File.Delete(output); } catch (IOException) { }
-                    return;
-                }
+                if (job.Canceled) return;
+                if (result.Ok) File.Move(jobOutput, output, overwrite: true);
                 job.Finished = result.Ok;
                 job.Progress = result.Ok ? 1 : job.Progress;
                 job.Stage = result.Ok ? "ready" : "error";
@@ -157,6 +163,10 @@ public sealed class PlaybackProxyService
                 job.Stage = "error";
                 job.Error = $"Nie udało się przygotować podglądu: {ex.Message}";
             }
+        }
+        finally
+        {
+            try { if (File.Exists(jobOutput)) File.Delete(jobOutput); } catch (IOException) { }
         }
     }
 

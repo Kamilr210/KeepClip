@@ -1,12 +1,11 @@
 using System.Diagnostics;
-using System.Text;
 using NAudio.CoreAudioApi;
 
 namespace KeepClip;
 
 public static class ReplayService
 {
-    private const int SegmentSeconds = 2;
+    internal const int SegmentSeconds = 2;
     private static readonly object Gate = new();
 
     private static Process? _ff;
@@ -16,7 +15,7 @@ public static class ReplayService
     private static bool _audioOn;
     private static string? _encoder;
 
-    private const int TierGpu = 0, TierCpu = 1, TierGdi = 2;
+    internal const int TierGpu = 0, TierCpu = 1, TierGdi = 2;
     private static int _captureTier = -1;
     private static string? _error;
     private static string? _runningSig;
@@ -153,88 +152,17 @@ public static class ReplayService
         PlayCue(ok: true);
         try { Notifier?.Invoke(true, Strings.Get("replay.savingTitle"), Strings.Get("replay.savingSubtitle")); } catch { }
 
-        string? listPath = null, snapPath = null, tmpOut = null;
         try
         {
-            var files = Directory.GetFiles(SegDir, "seg_*.ts")
-                .OrderBy(f => f, StringComparer.Ordinal)
-                .ToList();
-            if (files.Count == 0)
-                throw new InvalidOperationException(Strings.Get("replay.bufferEmpty"));
-
-            var current = files[^1];
-            var completed = files.Take(files.Count - 1).ToList();
-
-            int needed = (DurationS + SegmentSeconds - 1) / SegmentSeconds;
-            var take = completed.Skip(Math.Max(0, completed.Count - needed)).ToList();
-
-            snapPath = Path.Combine(Config.TmpDir, $"replay_part_{Guid.NewGuid():N}.ts");
-            try
-            {
-                using var src = new FileStream(current, FileMode.Open, FileAccess.Read,
-                    FileShare.ReadWrite | FileShare.Delete);
-                using var dst = File.Create(snapPath);
-                await src.CopyToAsync(dst);
-            }
-            catch { snapPath = null; }
-            if (snapPath is not null && new FileInfo(snapPath).Length > 50_000)
-                take.Add(snapPath);
-            if (take.Count == 0)
-                throw new InvalidOperationException(Strings.Get("replay.bufferEmpty"));
-
-            listPath = Path.Combine(Config.TmpDir, $"replay_list_{Guid.NewGuid():N}.txt");
-            var sb = new StringBuilder();
-            foreach (var f in take)
-                sb.Append("file '").Append(f.Replace('\\', '/').Replace("'", "'\\''")).Append("'\n");
-            await File.WriteAllTextAsync(listPath, sb.ToString());
-
-            var outDir = Path.Combine(Settings.GetClipsRoot(), game);
-            Directory.CreateDirectory(outDir);
-            foreach (var stale in Directory.GetFiles(outDir, "replay_out_*.part"))
-                try { File.Delete(stale); } catch { }
-            var outPath = AvailableReplayPath(outDir, $"{game} {DateTime.Now:yyyy-MM-dd HH-mm-ss}");
-            var outName = Path.GetFileName(outPath);
-
-            tmpOut = Path.Combine(outDir, $"replay_out_{Guid.NewGuid():N}.mp4.part");
-            bool hevc = _encoder?.StartsWith("hevc", StringComparison.Ordinal) == true;
-            var args = new List<string>
-            {
-                "-y", "-f", "concat", "-safe", "0", "-i", listPath,
-                "-map", "0:v:0", "-c:v", "copy",
-            };
-            if (hevc) { args.Add("-tag:v"); args.Add("hvc1"); }
-            if (_audioOn)
-                args.AddRange(new[] { "-map", "0:a:0?", "-c:a", "aac", "-b:a", "192k",
-                                      "-af", "aresample=async=1:first_pts=0,apad", "-shortest" });
-            args.AddRange(new[] { "-f", "mp4", tmpOut });
-            var (code, err) = await RunFfmpegAsync(args.ToArray(), timeoutMs: 120_000);
-            if (code != 0 || !File.Exists(tmpOut) || new FileInfo(tmpOut).Length < 10_000)
-                throw new Exception(Strings.Get("replay.muxFailed", Tail(err)));
-
-            for (int attempt = 0; ; attempt++)
-            {
-                try { File.Move(tmpOut, outPath, overwrite: true); break; }
-                catch (IOException) when (attempt < 5) { await Task.Delay(400); }
-            }
-            tmpOut = null;
-
-            try { Notifier?.Invoke(true, Strings.Get("replay.savedTitle"), outName); } catch { }
-            Console.Error.WriteLine($"Powtórka zapisana ({source}): {outPath}");
-
+            var writer = new ReplayWriter(RunFfmpegAsync);
+            var result = await writer.SaveAsync(SegDir, game, DurationS, _audioOn, _encoder?.StartsWith("hevc", StringComparison.Ordinal) == true);
+            try { Notifier?.Invoke(true, Strings.Get("replay.savedTitle"), (string)result["file"]!); } catch { }
+            await Console.Error.WriteLineAsync($"Powtórka zapisana ({source}): {result["path"]}");
             Scanner.Scan();
             ThumbnailWorker.Ensure();
-
-            return new Dictionary<string, object?>
-            {
-                ["ok"] = true, ["file"] = outName, ["game"] = game, ["path"] = outPath,
-            };
+            return result;
         }
-        finally
-        {
-            Interlocked.Exchange(ref _saving, 0);
-            foreach (var p in new[] { listPath, snapPath, tmpOut })
-                try { if (p is not null && File.Exists(p)) File.Delete(p); } catch { }
-        }
+        finally { Interlocked.Exchange(ref _saving, 0); }
     }
 
     private static void StartLocked(bool freshRing)
@@ -312,77 +240,8 @@ public static class ReplayService
 
     private static Process SpawnCapture(int tier)
     {
-        var psi = new ProcessStartInfo
-        {
-            FileName = Config.Ffmpeg,
-            RedirectStandardInput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        var a = psi.ArgumentList;
-        void Add(params string[] xs) { foreach (var x in xs) a.Add(x); }
-
-        Add("-hide_banner", "-loglevel", "error");
-
-        if (_audioOn)
-        {
-            Add("-f", _audio!.SampleFormat, "-ar", _audio.SampleRate.ToString(),
-                "-ac", _audio.Channels.ToString(),
-                "-thread_queue_size", "2048", "-i", "pipe:0");
-        }
-
-        string normCpu = $"scale={_capW}:{_capH}:force_original_aspect_ratio=decrease," +
-                         $"pad={_capW}:{_capH}:(ow-iw)/2:(oh-ih)/2,format=nv12[v]";
-        if (tier == TierGdi)
-        {
-            Add("-f", "gdigrab", "-framerate", Fps.ToString(), "-thread_queue_size", "128",
-                "-draw_mouse", "0",
-                "-offset_x", "0", "-offset_y", "0", "-video_size", $"{_grabW}x{_grabH}",
-                "-i", "desktop");
-            Add("-filter_complex", $"[{(_audioOn ? 1 : 0)}:v]{normCpu}");
-        }
-        else if (tier == TierCpu)
-        {
-            Add("-filter_complex",
-                $"ddagrab=framerate={Fps}:draw_mouse=0,hwdownload,format=bgra,{normCpu}");
-        }
-        else
-        {
-            Add("-filter_complex",
-                $"ddagrab=framerate={Fps}:draw_mouse=0,null[v]");
-        }
-        Add("-map", "[v]");
-        if (_audioOn)
-        {
-            Add("-map", "0:a");
-            Add("-c:a", "aac", "-b:a", "192k");
-        }
-
-        int qp = Quality switch { "low" => 28, "medium" => 24, _ => 20 };
-        int gop = Fps;
-        switch (_encoder)
-        {
-            case "h264_nvenc":
-                Add("-c:v", "h264_nvenc", "-preset", "p7", "-rc", "constqp", "-qp", qp.ToString(), "-bf", "2");
-                break;
-            case "h264_amf":
-                Add("-c:v", "h264_amf", "-usage", "transcoding", "-quality", "quality",
-                    "-rc", "cqp", "-qp_i", qp.ToString(), "-qp_p", qp.ToString(), "-qp_b", qp.ToString());
-                break;
-            case "h264_qsv":
-                Add("-c:v", "h264_qsv", "-preset", "slow", "-global_quality", qp.ToString(), "-bf", "2");
-                break;
-            default:
-                Add("-c:v", "libx264", "-preset", "veryfast", "-crf", qp.ToString());
-                break;
-        }
-        Add("-g", gop.ToString());
-        Add("-f", "segment", "-segment_time", SegmentSeconds.ToString(),
-            "-segment_start_number", _segStart.ToString(),
-            "-reset_timestamps", "1", "-segment_format", "mpegts",
-            Path.Combine(SegDir, "seg_%06d.ts"));
+        var audio = _audioOn && _audio is not null ? new ReplayAudioFormat(_audio.SampleFormat, _audio.SampleRate, _audio.Channels) : null;
+        var psi = ReplayCaptureCommand.Create(new(tier, Fps, Quality, _encoder, _grabW, _grabH, _capW, _capH, _segStart, SegDir, audio));
 
         var proc = new Process { StartInfo = psi };
         if (!proc.Start()) throw new Exception(Strings.Get("replay.ffmpegStart"));
@@ -517,14 +376,6 @@ public static class ReplayService
         TierGpu => "ddagrab-gpu", TierGdi => "gdigrab", _ => "ddagrab",
     };
 
-    private static string AvailableReplayPath(string directory, string stem)
-    {
-        var path = Path.Combine(directory, stem + ".mp4");
-        for (int copy = 2; File.Exists(path); copy++)
-            path = Path.Combine(directory, $"{stem} ({copy}).mp4");
-        return path;
-    }
-
     private static string ProbeEncoder()
     {
         foreach (var enc in new[] { "h264_nvenc", "h264_amf", "h264_qsv" })
@@ -561,7 +412,7 @@ public static class ReplayService
         return (p.ExitCode, await errTask);
     }
 
-    private static string Tail(string s)
+    internal static string Tail(string s)
     {
         s = (s ?? "").Trim();
         return s.Length <= 220 ? s : "…" + s[^220..];

@@ -6,17 +6,22 @@ public static class ThumbnailWorker
     private static Task? _task;
 
     public static void Ensure()
+        => Ensure(new ClipOperations());
+
+    internal static Task? Completion { get { lock (Lock) return _task; } }
+
+    internal static void Ensure(ClipOperations operations)
     {
         lock (Lock)
         {
             if (_task is { IsCompleted: false }) return;
-            _task = Task.Run(Work);
+            _task = Task.Run(() => Work(operations));
         }
     }
 
-    private static void Work()
+    private static void Work(ClipOperations operations)
     {
-        var attempted = new HashSet<long>();
+        long lastId = 0;
 
         while (true)
         {
@@ -27,14 +32,14 @@ public static class ThumbnailWorker
             using (var con = Db.Open())
             {
                 var row = con.QueryOne(
-                    "SELECT id, filepath, duration FROM clips WHERE has_thumb=0 OR duration IS NULL LIMIT 1");
+                    "SELECT id, filepath, duration FROM clips WHERE id > $after AND (has_thumb=0 OR duration IS NULL) ORDER BY id LIMIT 1", ("$after", lastId));
                 if (row is null) return;
                 cid = Convert.ToInt64(row["id"]);
                 filepath = (string)row["filepath"]!;
                 durationObj = row["duration"];
             }
 
-            if (!attempted.Add(cid)) return;
+            lastId = cid;
 
             if (!File.Exists(filepath))
             {
@@ -44,12 +49,12 @@ public static class ThumbnailWorker
             }
 
             double? newDuration = durationObj is null
-                ? Media.ProbeDuration(filepath)
+                ? operations.ProbeDuration(filepath)
                 : Convert.ToDouble(durationObj);
 
             int hasThumbNow = 1;
             if (!File.Exists(Config.ThumbPath(cid)))
-                hasThumbNow = Media.MakeThumbnail(cid, filepath) ? 1 : 2;
+                hasThumbNow = operations.MakeThumbnail(cid, filepath) ? 1 : 2;
 
             using (var con = Db.Open())
             {

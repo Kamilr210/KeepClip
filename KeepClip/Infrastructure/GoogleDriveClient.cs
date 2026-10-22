@@ -1,0 +1,331 @@
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
+using static KeepClip.Infrastructure.GoogleDrive;
+
+namespace KeepClip.Infrastructure;
+
+internal sealed class GoogleDriveClient
+{
+    private readonly HttpClient Api;
+    private readonly HttpClient Transfer;
+
+    internal GoogleDriveClient(HttpClient api, HttpClient transfer)
+    {
+        Api = api;
+        Transfer = transfer;
+    }
+
+    public async Task<TokenResult> ExchangeCodeAsync(
+        string clientId, string clientSecret, string code, string codeVerifier, string redirectUri)
+    {
+        using var resp = await Api.PostAsync(TokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret,
+            ["code"] = code,
+            ["code_verifier"] = codeVerifier,
+            ["grant_type"] = "authorization_code",
+            ["redirect_uri"] = redirectUri,
+        }));
+        var json = await ReadJsonOrThrow(resp);
+        return new TokenResult(
+            json.GetProperty("access_token").GetString()!,
+            json.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null,
+            json.TryGetProperty("expires_in", out var ei) ? ei.GetInt32() : 3600);
+    }
+
+    public async Task<TokenResult> RefreshAsync(string clientId, string clientSecret, string refreshToken)
+    {
+        using var resp = await Api.PostAsync(TokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret,
+            ["refresh_token"] = refreshToken,
+            ["grant_type"] = "refresh_token",
+        }));
+        var json = await ReadJsonOrThrow(resp);
+        return new TokenResult(
+            json.GetProperty("access_token").GetString()!,
+            json.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null,
+            json.TryGetProperty("expires_in", out var ei) ? ei.GetInt32() : 3600);
+    }
+
+    public async Task RevokeAsync(string token)
+    {
+        try
+        {
+            using var _ = await Api.PostAsync(RevokeEndpoint,
+                new FormUrlEncodedContent(new Dictionary<string, string> { ["token"] = token }));
+        }
+        catch { }
+    }
+
+    public async Task<AboutInfo> GetAboutAsync(string accessToken)
+    {
+        using var req = Authorized(HttpMethod.Get,
+            "https://www.googleapis.com/drive/v3/about?fields=user(displayName,emailAddress,photoLink),storageQuota(limit,usage)",
+            accessToken);
+        using var resp = await Api.SendAsync(req);
+        var json = await ReadJsonOrThrow(resp);
+
+        string? name = null, email = null, photo = null;
+        if (json.TryGetProperty("user", out var u))
+        {
+            name = u.TryGetProperty("displayName", out var n) ? n.GetString() : null;
+            email = u.TryGetProperty("emailAddress", out var e) ? e.GetString() : null;
+            photo = u.TryGetProperty("photoLink", out var p) ? p.GetString() : null;
+        }
+        long? usage = null, limit = null;
+        if (json.TryGetProperty("storageQuota", out var q))
+        {
+            if (q.TryGetProperty("usage", out var us) && long.TryParse(us.GetString(), out var uv)) usage = uv;
+            if (q.TryGetProperty("limit", out var li) && long.TryParse(li.GetString(), out var lv)) limit = lv;
+        }
+        return new AboutInfo(name, email, photo, usage, limit);
+    }
+
+    public async Task<ProfilePhoto> DownloadProfilePhotoAsync(string photoUrl)
+    {
+        if (!Uri.TryCreate(photoUrl, UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps
+            || !(uri.Host.Equals("googleusercontent.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".googleusercontent.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.Equals("ggpht.com", StringComparison.OrdinalIgnoreCase)
+                || uri.Host.EndsWith(".ggpht.com", StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException(Strings.Get("drive.badPhotoUrl"));
+
+        using var response = await Api.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+
+        const int maxPhotoBytes = 1024 * 1024;
+        if (response.Content.Headers.ContentLength is > maxPhotoBytes)
+            throw new InvalidOperationException(Strings.Get("drive.photoTooLarge"));
+
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
+        if (!contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(Strings.Get("drive.badPhoto"));
+
+        await using var source = await response.Content.ReadAsStreamAsync();
+        using var data = new MemoryStream();
+        var buffer = new byte[16 * 1024];
+        while (true)
+        {
+            int read = await source.ReadAsync(buffer.AsMemory(0, (int)Math.Min(buffer.Length, maxPhotoBytes + 1 - data.Length)));
+            if (read == 0) break;
+            await data.WriteAsync(buffer.AsMemory(0, read));
+            if (data.Length > maxPhotoBytes)
+                throw new InvalidOperationException(Strings.Get("drive.photoTooLarge"));
+        }
+        if (data.Length == 0)
+            throw new InvalidOperationException(Strings.Get("drive.badPhotoSize"));
+
+        return new ProfilePhoto(data.ToArray(), contentType);
+    }
+
+    public async Task<string> EnsureFolderAsync(string accessToken, string folderName, string? knownId)
+    {
+        if (!string.IsNullOrEmpty(knownId))
+        {
+            using var req = Authorized(HttpMethod.Get,
+                $"https://www.googleapis.com/drive/v3/files/{knownId}?fields=id,trashed", accessToken);
+            using var resp = await Api.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+            {
+                using var document = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                var j = document.RootElement;
+                if (!(j.TryGetProperty("trashed", out var tr) && tr.GetBoolean()))
+                    return j.GetProperty("id").GetString()!;
+            }
+        }
+
+        string q = Uri.EscapeDataString(
+            $"mimeType = 'application/vnd.google-apps.folder' and name = '{folderName.Replace("'", "\\'")}' and trashed = false");
+        using (var sreq = Authorized(HttpMethod.Get,
+            $"https://www.googleapis.com/drive/v3/files?q={q}&spaces=drive&fields=files(id,name)", accessToken))
+        using (var sresp = await Api.SendAsync(sreq))
+        {
+            var sj = await ReadJsonOrThrow(sresp);
+            if (sj.TryGetProperty("files", out var files) && files.GetArrayLength() > 0)
+                return files[0].GetProperty("id").GetString()!;
+        }
+
+        var meta = JsonSerializer.Serialize(new { name = folderName, mimeType = "application/vnd.google-apps.folder" });
+        using var creq = Authorized(HttpMethod.Post,
+            "https://www.googleapis.com/drive/v3/files?fields=id", accessToken);
+        creq.Content = new StringContent(meta, Encoding.UTF8, "application/json");
+        using var cresp = await Api.SendAsync(creq);
+        var cj = await ReadJsonOrThrow(cresp);
+        return cj.GetProperty("id").GetString()!;
+    }
+
+    public async Task<string> UploadResumableAsync(
+        string accessToken, string name, string parentId, string filePath, string mimeType,
+        IReadOnlyDictionary<string, string>? appProperties = null)
+    {
+        long length = new FileInfo(filePath).Length;
+
+        using var init = Authorized(HttpMethod.Post,
+            "https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id", accessToken);
+        init.Headers.Add("X-Upload-Content-Type", mimeType);
+        init.Headers.Add("X-Upload-Content-Length", length.ToString());
+        var metadata = new Dictionary<string, object?>
+        {
+            ["name"] = name,
+            ["parents"] = new[] { parentId },
+        };
+        if (appProperties is { Count: > 0 }) metadata["appProperties"] = appProperties;
+        var meta = JsonSerializer.Serialize(metadata);
+        init.Content = new StringContent(meta, Encoding.UTF8, "application/json");
+        using var initResp = await Api.SendAsync(init);
+        if (!initResp.IsSuccessStatusCode) await ThrowFrom(initResp);
+        var session = initResp.Headers.Location
+            ?? throw new InvalidOperationException(Strings.Get("drive.noUploadUrl"));
+
+        using var fs = File.OpenRead(filePath);
+        using var put = new HttpRequestMessage(HttpMethod.Put, session);
+        put.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        var body = new StreamContent(fs);
+        body.Headers.ContentType = new MediaTypeHeaderValue(mimeType);
+        body.Headers.ContentLength = length;
+        put.Content = body;
+        using var putResp = await Transfer.SendAsync(put);
+        var pj = await ReadJsonOrThrow(putResp);
+        return pj.GetProperty("id").GetString()!;
+    }
+
+    public async Task<List<DriveFile>> ListFolderFilesAsync(
+        string accessToken, string folderId)
+    {
+        var result = new List<DriveFile>();
+        string? pageToken = null;
+        do
+        {
+            string query = Uri.EscapeDataString($"'{folderId}' in parents and trashed = false");
+            string url = "https://www.googleapis.com/drive/v3/files" +
+                         $"?q={query}&spaces=drive&pageSize=1000" +
+                         "&fields=nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,appProperties)";
+            if (!string.IsNullOrEmpty(pageToken))
+                url += "&pageToken=" + Uri.EscapeDataString(pageToken);
+
+            using var req = Authorized(HttpMethod.Get, url, accessToken);
+            using var resp = await Api.SendAsync(req);
+            var json = await ReadJsonOrThrow(resp);
+
+            if (json.TryGetProperty("files", out var files))
+            {
+                foreach (var file in files.EnumerateArray())
+                {
+                    string? id = file.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+                    string? name = file.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name)) continue;
+
+                    var properties = new Dictionary<string, string>(StringComparer.Ordinal);
+                    if (file.TryGetProperty("appProperties", out var props) && props.ValueKind == JsonValueKind.Object)
+                    {
+                        foreach (var prop in props.EnumerateObject())
+                            if (prop.Value.ValueKind == JsonValueKind.String)
+                                properties[prop.Name] = prop.Value.GetString() ?? "";
+                    }
+
+                    result.Add(new DriveFile(
+                        id,
+                        name,
+                        file.TryGetProperty("mimeType", out var mimeEl) ? mimeEl.GetString() ?? "" : "",
+                        ReadLong(file, "size"),
+                        ReadDate(file, "createdTime"),
+                        ReadDate(file, "modifiedTime"),
+                        properties));
+                }
+            }
+
+            pageToken = json.TryGetProperty("nextPageToken", out var next)
+                ? next.GetString()
+                : null;
+        }
+        while (!string.IsNullOrEmpty(pageToken));
+
+        return result;
+    }
+
+    public async Task DownloadAsync(string accessToken, string fileId, string destPath)
+    {
+        using var req = Authorized(HttpMethod.Get,
+            $"https://www.googleapis.com/drive/v3/files/{fileId}?alt=media", accessToken);
+        using var resp = await Transfer.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
+        if (!resp.IsSuccessStatusCode) await ThrowFrom(resp);
+        await using var src = await resp.Content.ReadAsStreamAsync();
+        await using var dst = File.Create(destPath);
+        await src.CopyToAsync(dst);
+    }
+
+    public async Task<HttpResponseMessage> OpenMediaAsync(
+        string accessToken, string fileId, string? range, CancellationToken ct)
+    {
+        using var req = Authorized(HttpMethod.Get,
+            $"https://www.googleapis.com/drive/v3/files/{fileId}?alt=media", accessToken);
+        if (!string.IsNullOrEmpty(range) && RangeHeaderValue.TryParse(range, out var rh))
+            req.Headers.Range = rh;
+        return await Transfer.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+    }
+
+    public async Task TrashAsync(string accessToken, string fileId)
+    {
+        using var req = Authorized(HttpMethod.Patch,
+            $"https://www.googleapis.com/drive/v3/files/{fileId}", accessToken);
+        req.Content = new StringContent("{\"trashed\":true}", Encoding.UTF8, "application/json");
+        using var resp = await Api.SendAsync(req);
+        if (!resp.IsSuccessStatusCode) await ThrowFrom(resp);
+    }
+
+    private static HttpRequestMessage Authorized(HttpMethod method, string url, string accessToken)
+    {
+        var req = new HttpRequestMessage(method, url);
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        return req;
+    }
+
+    private static long ReadLong(JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var value)) return 0;
+        if (value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number)) return number;
+        return value.ValueKind == JsonValueKind.String && long.TryParse(value.GetString(), out number)
+            ? number
+            : 0;
+    }
+
+    private static DateTimeOffset? ReadDate(JsonElement element, string property)
+    {
+        if (!element.TryGetProperty(property, out var value) || value.ValueKind != JsonValueKind.String)
+            return null;
+        return DateTimeOffset.TryParse(value.GetString(), out var parsed) ? parsed : null;
+    }
+
+    private static async Task<JsonElement> ReadJsonOrThrow(HttpResponseMessage resp)
+    {
+        var text = await resp.Content.ReadAsStringAsync();
+        if (!resp.IsSuccessStatusCode) throw new GoogleApiException(ExtractError(text, resp));
+        using var document = JsonDocument.Parse(text);
+        return document.RootElement.Clone();
+    }
+
+    private static async Task ThrowFrom(HttpResponseMessage resp)
+        => throw new GoogleApiException(ExtractError(await resp.Content.ReadAsStringAsync(), resp));
+
+    private static string ExtractError(string body, HttpResponseMessage resp)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+            if (root.TryGetProperty("error_description", out var ed)) return ed.GetString() ?? body;
+            if (root.TryGetProperty("error", out var err))
+            {
+                if (err.ValueKind == JsonValueKind.String) return err.GetString() ?? body;
+                if (err.TryGetProperty("message", out var m)) return m.GetString() ?? body;
+            }
+        }
+        catch { }
+        return $"HTTP {(int)resp.StatusCode} {resp.ReasonPhrase}";
+    }
+}

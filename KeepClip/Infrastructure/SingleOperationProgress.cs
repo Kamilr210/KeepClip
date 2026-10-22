@@ -32,7 +32,7 @@ public static class SingleOperationProgress
     {
         lock (Gate)
         {
-            if (!_active || _id != id) return;
+            if (!_active || _id != id || !double.IsFinite(progress)) return;
             _progress = Math.Max(_progress, Math.Clamp(progress, 0, 0.99));
             _stage = stage;
         }
@@ -42,7 +42,7 @@ public static class SingleOperationProgress
     {
         lock (Gate)
         {
-            if (_id != id) return;
+            if (!_active || _id != id) return;
             _active = false;
             _success = success;
             _error = error;

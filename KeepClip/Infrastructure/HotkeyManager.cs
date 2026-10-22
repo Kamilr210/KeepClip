@@ -54,8 +54,9 @@ internal static class HotkeyManager
     {
         mods = 0; vk = 0;
         if (string.IsNullOrWhiteSpace(combo)) return false;
-        foreach (var raw in combo.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        foreach (var raw in combo.Split('+', StringSplitOptions.TrimEntries))
         {
+            if (raw.Length == 0) return false;
             switch (raw.ToLowerInvariant())
             {
                 case "ctrl" or "control": mods |= MOD_CONTROL; continue;
@@ -64,8 +65,9 @@ internal static class HotkeyManager
                 case "win" or "meta": mods |= MOD_WIN; continue;
             }
             if (vk != 0) return false;
-            var token = raw.Length == 1 ? raw.ToUpperInvariant() : raw;
+            var token = raw.Length == 1 && raw[0] is >= '0' and <= '9' ? "D" + raw : raw.Length == 1 ? raw.ToUpperInvariant() : raw;
             if (!Enum.TryParse<Keys>(token, ignoreCase: true, out var key)) return false;
+            if (!Enum.IsDefined(key) || (uint)key > 255 || key is Keys.ShiftKey or Keys.ControlKey or Keys.Menu or Keys.LWin or Keys.RWin or Keys.LShiftKey or Keys.RShiftKey or Keys.LControlKey or Keys.RControlKey or Keys.LMenu or Keys.RMenu) return false;
             vk = (uint)key;
         }
         return vk != 0 && mods != 0;

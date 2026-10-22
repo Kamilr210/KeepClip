@@ -126,26 +126,29 @@ public static class Transcriber
     {
         if (Config.WhisperModelOverride is { } forced) return new[] { forced };
 
-        var ladder = Config.WhisperModelLadder;
-        int start = _ladderFloor;
-
         long vram = GpuInfo.LargestDedicatedVideoMemory();
+        DetectCrashedModel();
+        var models = SelectModels(vram, _ladderFloor, Settings.GetString(BlockedSetting));
+        if (models.Count > 0 && models[0] != Config.WhisperModelLadder[0])
+            TranscribeState.PushLog($"Dobór modelu: {GpuInfo.Describe(vram)} → {models[0]}");
+        return models;
+    }
+
+    internal static IReadOnlyList<string> SelectModels(long vram, int floor, string? blocked)
+    {
+        var ladder = Config.WhisperModelLadder;
+        int start = floor;
         while (start < ladder.Length - 1 &&
                Config.WhisperModelMinVram.GetValueOrDefault(ladder[start]) > vram)
             start++;
 
-        DetectCrashedModel();
-        var blocked = Settings.GetString(BlockedSetting);
         if (blocked is not null)
         {
             int i = Array.IndexOf(ladder, blocked);
             if (i >= 0) start = Math.Max(start, i + 1);
         }
 
-        if (start > 0)
-            TranscribeState.PushLog(
-                $"Dobór modelu: {GpuInfo.Describe(vram)} → {ladder[Math.Min(start, ladder.Length - 1)]}");
-        return ladder.Skip(Math.Min(start, ladder.Length - 1));
+        return ladder.Skip(start).ToArray();
     }
 
     private static void DetectCrashedModel()
@@ -236,7 +239,7 @@ public static class Transcriber
             return list;
         }).GetAwaiter().GetResult();
 
-    private static void SplitOnInternalGaps(SegmentData seg, double maxGap, List<Segment> outSegs)
+    internal static void SplitOnInternalGaps(SegmentData seg, double maxGap, List<Segment> outSegs)
     {
         double segStart = seg.Start.TotalSeconds;
         double segEnd = seg.End.TotalSeconds;
