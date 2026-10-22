@@ -11,12 +11,21 @@ implementations are loaded from the operating system and are not redistributed.
 Optional libraries are disabled by `--disable-autodetect`. No nonfree code is enabled.
 
 The supplied source archives are the exact unmodified inputs consumed by this
-recipe: FFmpeg, x264, nv-codec-headers, AMD's header-only AMF release, oneVPL and
+recipe: FFmpeg, x264, nv-codec-headers, AMD's AMF header snapshot, oneVPL and
 the MinGW CRT/winpthreads upstream source plus Debian packaging/patches. See
 `sources.lock.json` for versions, official download locations and SHA-256 hashes.
 The GPL, dependency copyrights and notices accompany the source archives.
 The GCC runtime license and Runtime Library Exception are in `GCC-COPYRIGHT`;
 compiler tools are not themselves distributed as part of the application.
+
+AMF headers and their MIT license are vendored under `vendor/` and checked against
+the same SHA-256 lock as downloaded inputs. All 57 headers were verified byte for
+byte against `amf/public/include/` at upstream commit
+`8c648005e07d4309033282bfd9947df2c7e76104`. `Version.h` identifies them as 1.5.2;
+the archive's top-level directory has a historical v1.5.3 name. The old v1.5.3
+release URL serves a different snapshot and must not replace these tested inputs.
+The upstream license is preserved unchanged alongside the archive. No AMD driver
+binary is included. Git attributes preserve exact archive and license bytes.
 
 To build on Windows with Docker Desktop in Linux-container mode and Node 20+,
 or on an Ubuntu GitHub Actions runner with Docker and Node 20+:
@@ -39,8 +48,10 @@ To rebuild directly from an installed source package, copy the files from
 node build.mjs --sources /absolute/path/to/input-directory --output /absolute/path/to/empty/output-directory
 ```
 
-`--sources` uses the bundled source archives without downloading them. Missing
-inputs are fetched from the pinned URLs and every input is checked against its
+`--sources` uses the bundled source archives without downloading them. In a repository
+checkout, AMF inputs fall back to `vendor/`; source-package rebuilds must supply
+both AMF files in the input directory. Other missing inputs are fetched from the
+pinned URLs and every input is checked against its
 locked SHA-256. No upstream code patches are applied. FFmpeg configuration and
 the exact toolchain package list are included under `build/`. Toolchain packages
 and container identity are recorded; the recipe does not promise byte-identical

@@ -2,3 +2,5 @@
 licenses/third-party/** -text
 # Cross-platform builds and their recipe hashes require identical LF bytes.
 build/ffmpeg/** text eol=lf
+# Vendored upstream archives and license bytes must not be normalized.
+build/ffmpeg/vendor/** -text

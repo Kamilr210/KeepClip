@@ -33,18 +33,20 @@
     },
     {
       "component": "AMF headers",
-      "version": "v1.5.3 (8c648005e07d4309033282bfd9947df2c7e76104)",
+      "version": "1.5.2 headers at 8c648005e07d4309033282bfd9947df2c7e76104",
       "file": "amf.tar.gz",
-      "url": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/releases/download/v1.5.3/AMF-headers-v1.5.3.tar.gz",
+      "url": "https://github.com/GPUOpen-LibrariesAndSDKs/AMF/tree/8c648005e07d4309033282bfd9947df2c7e76104/amf/public/include",
+      "vendored": "vendor/amf-headers-8c64800.tar.gz",
       "license": "MIT",
       "sha256": "570c8f6593b8c24a6e47a0a9c59b216a7198138e660ba4011590ae913343d5c3",
       "bundlePath": "sources/amf.tar.gz"
     },
     {
       "component": "AMF license",
-      "version": "v1.5.3",
+      "version": "8c648005e07d4309033282bfd9947df2c7e76104",
       "file": "AMF-LICENSE.txt",
-      "url": "https://raw.githubusercontent.com/GPUOpen-LibrariesAndSDKs/AMF/v1.5.3/LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/GPUOpen-LibrariesAndSDKs/AMF/8c648005e07d4309033282bfd9947df2c7e76104/LICENSE.txt",
+      "vendored": "vendor/AMF-LICENSE.txt",
       "license": "MIT",
       "sha256": "eb297397aaa455b5668ab67d216b83828466152dab123fa92384c6ec16b74170",
       "bundlePath": "AMF-LICENSE.txt"

@@ -40,6 +40,7 @@ try {
         const destination=path.join(work,'sources',entry.file);
         const saved=sourceDir&&path.join(sourceDir,entry.file);
         if (saved&&fs.existsSync(saved)) fs.copyFileSync(saved,destination);
+        else if (entry.vendored) fs.copyFileSync(path.join(recipe,entry.vendored),destination);
         else {
             console.log(`Downloading ${entry.component} ${entry.version}`);
             await download(entry.url,destination);
