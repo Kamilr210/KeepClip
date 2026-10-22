@@ -116,12 +116,17 @@ internal static class DisplayHelper
         return null;
     }
 
-    public static string SafeFolderName(string name)
+    public static string SanitizeFileName(string name)
     {
-        var cleaned = name.Trim();
+        var cleaned = name;
         foreach (var c in Path.GetInvalidFileNameChars())
             cleaned = cleaned.Replace(c, '_');
+        return cleaned;
+    }
 
+    public static string SafeFolderName(string name)
+    {
+        var cleaned = SanitizeFileName(name.Trim());
         cleaned = cleaned.TrimEnd('.', ' ');
         if (cleaned.Length > 80) cleaned = cleaned[..80].TrimEnd('.', ' ');
         if (string.IsNullOrWhiteSpace(cleaned) || cleaned is "." or "..") return "Pulpit";

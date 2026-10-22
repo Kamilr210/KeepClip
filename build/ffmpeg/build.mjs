@@ -5,6 +5,7 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import {resolveDocker} from './docker-cli.mjs';
 
 const recipe = path.dirname(fileURLToPath(import.meta.url));
 const lock = JSON.parse(fs.readFileSync(path.join(recipe,'sources.lock.json'),'utf8').replace(/^\uFEFF/,''));
@@ -12,12 +13,13 @@ const args=process.argv.slice(2);
 const output=path.resolve(args[args.indexOf('--output')+1] || '');
 if (!args.includes('--output') || output===recipe) throw Error('Use --output with a separate artifact directory.');
 const sourceDir=args.includes('--sources')?path.resolve(args[args.indexOf('--sources')+1]):null;
+const docker=resolveDocker();
 const work=fs.mkdtempSync(path.join(os.tmpdir(),'keepclip-ffmpeg-build-'));
 const image='keepclip-ffmpeg:'+crypto.randomBytes(8).toString('hex');
 let container;
 const sha=file=>crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 function run(command,parameters,options={}) {
-    const result=spawnSync(command,parameters,{stdio:'inherit',...options});
+    const result=spawnSync(command,parameters,{stdio:'inherit',windowsHide:true,...options});
     if (result.error || result.status!==0) throw result.error||Error(`${command} failed (${result.status}).`);
     return result;
 }
@@ -31,7 +33,7 @@ try {
     if (fs.existsSync(output) && fs.readdirSync(output).length) throw Error('Artifact output must be empty; existing files are preserved.');
     fs.mkdirSync(output,{recursive:true});
     fs.mkdirSync(path.join(work,'sources'));
-    for (const file of ['Dockerfile','build.sh','sources.lock.json','build.mjs','README.md']) {
+    for (const file of ['Dockerfile','build.sh','sources.lock.json','build.mjs','docker-cli.mjs','README.md']) {
         fs.copyFileSync(path.join(recipe,file),path.join(work,file));
     }
     for (const entry of lock.sources) {
@@ -44,14 +46,14 @@ try {
         }
         if (sha(destination)!==entry.sha256) throw Error(`Source checksum mismatch: ${entry.file}`);
     }
-    run('docker',['build','--progress=plain','-t',image,work]);
-    container=spawnSync('docker',['create',image],{encoding:'utf8'});
+    run(docker,['build','--progress=plain','-t',image,work]);
+    container=spawnSync(docker,['create',image],{encoding:'utf8',windowsHide:true});
     if (container.status!==0) throw Error(container.stderr);
     container=container.stdout.trim();
-    run('docker',['cp',`${container}:/out/.`,output]);
+    run(docker,['cp',`${container}:/out/.`,output]);
     const notices=path.join(output,'notices');
     const build=path.join(notices,'build');
-    for (const file of ['Dockerfile','build.sh','sources.lock.json','build.mjs','README.md']) {
+    for (const file of ['Dockerfile','build.sh','sources.lock.json','build.mjs','docker-cli.mjs','README.md']) {
         fs.copyFileSync(path.join(recipe,file),path.join(build,file));
     }
     fs.copyFileSync(path.join(recipe,'README.md'),path.join(notices,'README.md'));
@@ -68,7 +70,7 @@ try {
     fs.writeFileSync(path.join(notices,'provenance.json'),JSON.stringify({schemaVersion:2,buildId:lock.buildId,correspondingSourceStatus:'built-from-bundled-sources',distributionAllowed:true,sourceLicense:'GPL-3.0-or-later',binaries,files,sources:lock.sources,baseImage:lock.baseImage},null,2)+'\n');
     console.log(`Built binaries and corresponding sources: ${output}`);
 } finally {
-    if (typeof container==='string') spawnSync('docker',['rm',container],{stdio:'ignore'});
-    spawnSync('docker',['image','rm',image],{stdio:'ignore'});
+    if (typeof container==='string') spawnSync(docker,['rm',container],{stdio:'ignore',windowsHide:true});
+    spawnSync(docker,['image','rm',image],{stdio:'ignore',windowsHide:true});
     fs.rmSync(work,{recursive:true,force:true});
 }

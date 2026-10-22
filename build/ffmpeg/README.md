@@ -25,6 +25,12 @@ or on an Ubuntu GitHub Actions runner with Docker and Node 20+:
 node build/ffmpeg/build.mjs --output /absolute/path/to/an/empty/artifact-directory
 ```
 
+The script uses Docker Desktop from the Windows Program Files directory, or
+`/usr/bin/docker`, `/usr/local/bin/docker`, or `/opt/homebrew/bin/docker` on Unix.
+It does not search `PATH` or the working directory for executables. For a custom
+installation, set `KEEPCLIP_DOCKER` to the absolute path of the trusted Docker
+executable. The `docker-cli.mjs` helper must accompany `build.mjs` in source packages.
+
 To rebuild directly from an installed source package, copy the files from
 `licenses/ffmpeg-build/build/` into a working directory, copy the installed
 `sources/` and `AMF-LICENSE.txt` into an input directory, then run:

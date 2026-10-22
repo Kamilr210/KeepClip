@@ -109,7 +109,7 @@ END;
         return con;
     }
 
-    private static void Migrate(SqliteConnection con)
+    internal static void Migrate(SqliteConnection con)
     {
         var cols = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         using (var cmd = con.CreateCommand())
@@ -123,15 +123,15 @@ END;
         {
             if (cols.Contains(name)) return;
             using var c = con.CreateCommand();
-            c.CommandText = $"ALTER TABLE clips ADD COLUMN {ddl}";
+            c.CommandText = ddl;
             c.ExecuteNonQuery();
         }
 
-        AddColumn("favorite", "favorite INTEGER NOT NULL DEFAULT 0");
+        AddColumn("favorite", "ALTER TABLE clips ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0");
 
-        AddColumn("storage", "storage TEXT NOT NULL DEFAULT 'local'");
-        AddColumn("remote_id", "remote_id TEXT");
-        AddColumn("remote_uploaded_at", "remote_uploaded_at TEXT");
+        AddColumn("storage", "ALTER TABLE clips ADD COLUMN storage TEXT NOT NULL DEFAULT 'local'");
+        AddColumn("remote_id", "ALTER TABLE clips ADD COLUMN remote_id TEXT");
+        AddColumn("remote_uploaded_at", "ALTER TABLE clips ADD COLUMN remote_uploaded_at TEXT");
 
         cols.Clear();
         using (var cmd = con.CreateCommand())

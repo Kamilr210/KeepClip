@@ -40,6 +40,9 @@ jobs:
       - name: Sprawdź tłumaczenia interfejsu
         run: node tests/i18n-check.js
 
+      - name: Testy wyboru programu Docker
+        run: node --test tests/docker-cli.test.mjs
+
       - name: Testy xUnit
         run: dotnet test tests/KeepClip.Tests/KeepClip.Tests.csproj -c Release --nologo
 

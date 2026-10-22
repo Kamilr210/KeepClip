@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Text.RegularExpressions;
 
 namespace KeepClip.Services;
 
@@ -86,7 +85,7 @@ public class ClipService
         var sLbl = ((int)start).ToString(CultureInfo.InvariantCulture);
         var eLbl = ((int)end).ToString(CultureInfo.InvariantCulture);
         var sizeLbl = targetSizeMb is > 0 ? $"_{(int)targetSizeMb.Value}MB" : "";
-        var outName = Regex.Replace($"{stem}_cut_{sLbl}-{eLbl}{sizeLbl}.mp4", "[<>:\"/\\\\|?*]", "_");
+        var outName = DisplayHelper.SanitizeFileName($"{stem}_cut_{sLbl}-{eLbl}{sizeLbl}.mp4");
         var output = Path.Combine(cutsRoot, outName);
 
         var baseName = Path.GetFileNameWithoutExtension(output);

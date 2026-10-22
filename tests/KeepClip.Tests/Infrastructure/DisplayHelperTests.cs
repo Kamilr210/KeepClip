@@ -2,6 +2,23 @@ namespace KeepClip.Tests.Infrastructure;
 
 public class DisplayHelperTests
 {
+    [Fact]
+    public void SanitizeFileName_replaces_all_invalid_characters_without_truncating_the_extension()
+    {
+        var input = new string('a', 100) + new string(Path.GetInvalidFileNameChars()) + "_cut_0-10.mp4";
+
+        var name = DisplayHelper.SanitizeFileName(input);
+
+        Assert.Equal(new string('a', 100) + new string('_', Path.GetInvalidFileNameChars().Length) + "_cut_0-10.mp4", name);
+        Assert.Equal(".mp4", Path.GetExtension(name));
+    }
+
+    [Theory]
+    [InlineData("Zażółć gęślą_cut_0-10_25MB.mp4")]
+    [InlineData("clip,with & punctuation.mp4")]
+    public void SanitizeFileName_preserves_valid_names(string name)
+        => Assert.Equal(name, DisplayHelper.SanitizeFileName(name));
+
     [Theory]
     [InlineData("Counter-Strike 2", "Counter-Strike 2")]
     [InlineData("  Elden Ring  ", "Elden Ring")]

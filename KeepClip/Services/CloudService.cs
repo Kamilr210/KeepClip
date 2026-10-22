@@ -252,15 +252,21 @@ public static class CloudService
         (file.CreatedTime ?? file.ModifiedTime ?? DateTimeOffset.UtcNow)
         .ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
 
-    private static string RemoteGame(GoogleDrive.DriveFile file)
+    internal static string RemoteGame(GoogleDrive.DriveFile file)
     {
         if (file.AppProperties.TryGetValue("game", out var game) && !string.IsNullOrWhiteSpace(game))
             return game == "_root" ? game : DisplayHelper.SafeFolderName(game);
 
         var stem = Path.GetFileNameWithoutExtension(file.Name);
-        var match = Regex.Match(stem,
-            @"^(?<game>.+?)\s+\d{4}-\d{2}-\d{2}[ _-]\d{2}[-:.]\d{2}[-:.]\d{2}",
-            RegexOptions.CultureInvariant);
+        if (stem.Length > 255) return "Chmura";
+        Match match;
+        try
+        {
+            match = Regex.Match(stem,
+                @"^(?<game>.+?)\s+\d{4}-\d{2}-\d{2}[ _-]\d{2}[-:.]\d{2}[-:.]\d{2}",
+                RegexOptions.CultureInvariant | RegexOptions.NonBacktracking, TimeSpan.FromMilliseconds(250));
+        }
+        catch (RegexMatchTimeoutException) { return "Chmura"; }
         if (!match.Success) return "Chmura";
         var detected = match.Groups["game"].Value.Trim();
         if (detected.Equals("cs2", StringComparison.OrdinalIgnoreCase))

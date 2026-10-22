@@ -18,7 +18,7 @@ foreach ($name in @('ffmpeg.exe','ffprobe.exe')) {
 }
 foreach ($entry in $Provenance.files) { Assert-Hash $NoticesDir $entry.file $entry.sha256 }
 foreach ($source in $Lock.sources) { Assert-Hash $NoticesDir $source.bundlePath $source.sha256 }
-foreach ($recipe in @('Dockerfile','build.sh','build.mjs','sources.lock.json','README.md')) {
+foreach ($recipe in @('Dockerfile','build.sh','build.mjs','docker-cli.mjs','sources.lock.json','README.md')) {
     Assert-Hash $NoticesDir ('build/'+$recipe) (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $recipe) -Algorithm SHA256).Hash
 }
 foreach ($required in @('COPYING.GPLv3','COPYING.GPLv2','LICENSE.md','X264-COPYING','AMF-LICENSE.txt','LIBVPL-LICENSE','LIBVPL-THIRD-PARTY-PROGRAMS.txt','MINGW-COPYRIGHT','GCC-COPYRIGHT','NV-CODEC-LICENSES.txt','build/config.log','build/config.h','build/config_components.h','build/toolchain-packages.tsv','build/ffmpeg-imports.txt','build/ffprobe-imports.txt')) {

@@ -45,10 +45,7 @@ public static class MediaEndpoints
             if (!Path.Exists(p)) return Api.Detail(404, Strings.Get("media.pathMissing"));
             try
             {
-                var psi = new ProcessStartInfo { FileName = "explorer.exe", UseShellExecute = false };
-
-                psi.ArgumentList.Add(File.Exists(p) ? $"/select,{p}" : p);
-                Process.Start(psi);
+                Process.Start(ExplorerLauncher.CreateStartInfo(p));
             }
             catch (Exception ex) { return Api.Detail(500, Strings.Get("media.explorerFailed", ex.Message)); }
             return Results.Json(new { ok = true });
