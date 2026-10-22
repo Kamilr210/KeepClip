@@ -1007,6 +1007,20 @@
         </div>
       </div>
 
+    <section id="player-demo" class="clip-demo" aria-labelledby="player-demo-title">
+      <div class="clip-demo-heading">
+        <strong id="player-demo-title" data-i18n="demo.title">Demo CS2</strong>
+        <span id="player-demo-status" class="subtle" role="status" aria-live="polite"></span>
+      </div>
+      <p id="player-demo-hint" class="subtle" data-i18n="demo.hint">Powiązanie z plikiem w folderze CS2. Demo pozostaje na swoim miejscu i możesz je odtwarzać w grze.</p>
+      <div class="clip-demo-row">
+        <input id="player-demo-path" type="text" maxlength="32767" spellcheck="false" autocomplete="off" aria-labelledby="player-demo-title" aria-describedby="player-demo-hint" data-i18n-placeholder="demo.placeholder" placeholder="Pełna ścieżka do pliku .dem" />
+        <button id="player-demo-browse" class="btn ghost" type="button" data-i18n="demo.browse">Wybierz plik</button>
+        <button id="player-demo-save" class="btn primary" type="button" data-i18n="demo.assign">Przypisz</button>
+        <button id="player-demo-show" class="btn ghost" type="button" data-i18n="demo.show" hidden>Pokaż w folderze</button>
+        <button id="player-demo-remove" class="btn danger" type="button" data-i18n="demo.detach" hidden>Odłącz</button>
+      </div>
+    </section>
     <div id="player-segments" class="segments"></div>
   </div>
 </div>
@@ -1132,6 +1146,7 @@
   }
 })();
 </script>
+<script src="/static/clip-demo.js"></script>
 <script src="/static/app.js"></script>
 <script src="/static/onboarding.js"></script>
 

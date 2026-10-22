@@ -19,6 +19,12 @@ internal static class Strings
     {
         ["pl"] = new()
         {
+            ["demo.invalidPath"] = "Wskaż pełną ścieżkę do pliku na lokalnym dysku, np. C:\\gry\\csgo\\mecz.dem.",
+            ["demo.invalidExtension"] = "Wybierz rozpakowany plik .dem. Archiwum .zip, .bz2 lub .zst trzeba najpierw rozpakować.",
+            ["demo.fileMissing"] = "Plik demo nie istnieje lub wskazana ścieżka jest katalogiem.",
+            ["demo.invalidHeader"] = "Plik nie ma poprawnego nagłówka dema Source 2 lub jest zbyt krótki.",
+            ["demo.unreadable"] = "Nie można odczytać demo. Sprawdź uprawnienia i czy plik nie jest zablokowany.",
+            ["demo.pickTitle"] = "Wybierz demo CS2 z folderu gry",
             ["clip.notFound"]          = "Klip nie istnieje.",
             ["transcript.empty"]       = "Ten klip nie ma jeszcze transkrypcji.",
             ["clip.fileMissing"]       = "Plik nie istnieje na dysku.",
@@ -80,6 +86,12 @@ internal static class Strings
         },
         ["en"] = new()
         {
+            ["demo.invalidPath"] = "Enter the full path to a file on a local drive, e.g. C:\\games\\csgo\\match.dem.",
+            ["demo.invalidExtension"] = "Choose an unpacked .dem file. Extract .zip, .bz2 or .zst archives first.",
+            ["demo.fileMissing"] = "The demo file does not exist or the path points to a directory.",
+            ["demo.invalidHeader"] = "The file has no valid Source 2 demo header or is too short.",
+            ["demo.unreadable"] = "The demo cannot be read. Check file permissions and whether it is locked.",
+            ["demo.pickTitle"] = "Choose a CS2 demo from the game folder",
             ["clip.notFound"]          = "The clip does not exist.",
             ["transcript.empty"]       = "This clip has no transcription yet.",
             ["clip.fileMissing"]       = "The file no longer exists on disk.",
@@ -141,6 +153,12 @@ internal static class Strings
         },
         ["ru"] = new()
         {
+            ["demo.invalidPath"] = "Укажите полный путь к файлу на локальном диске, например C:\\games\\csgo\\match.dem.",
+            ["demo.invalidExtension"] = "Выберите распакованный файл .dem. Сначала распакуйте архив .zip, .bz2 или .zst.",
+            ["demo.fileMissing"] = "Файл демо не существует или путь указывает на папку.",
+            ["demo.invalidHeader"] = "Файл не содержит корректного заголовка демо Source 2 или слишком короткий.",
+            ["demo.unreadable"] = "Не удалось прочитать демо. Проверьте права доступа и блокировку файла.",
+            ["demo.pickTitle"] = "Выберите демо CS2 в папке игры",
             ["clip.notFound"]          = "Клип не существует.",
             ["transcript.empty"]       = "У этого клипа ещё нет транскрипции.",
             ["clip.fileMissing"]       = "Файла больше нет на диске.",
@@ -202,6 +220,12 @@ internal static class Strings
         },
         ["uk"] = new()
         {
+            ["demo.invalidPath"] = "Укажіть повний шлях до файлу на локальному диску, наприклад C:\\games\\csgo\\match.dem.",
+            ["demo.invalidExtension"] = "Виберіть розпакований файл .dem. Спочатку розпакуйте архів .zip, .bz2 або .zst.",
+            ["demo.fileMissing"] = "Файл демо не існує або шлях указує на папку.",
+            ["demo.invalidHeader"] = "Файл не містить коректного заголовка демо Source 2 або закороткий.",
+            ["demo.unreadable"] = "Не вдалося прочитати демо. Перевірте права доступу й блокування файлу.",
+            ["demo.pickTitle"] = "Виберіть демо CS2 з папки гри",
             ["clip.notFound"]          = "Кліп не існує.",
             ["transcript.empty"]       = "Цей кліп ще не має транскрипції.",
             ["clip.fileMissing"]       = "Файла більше немає на диску.",

@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
+using FormsApplication = System.Windows.Forms.Application;
 
 namespace KeepClip.Infrastructure;
 
@@ -11,15 +12,15 @@ internal static class DesktopShell
 {
     public static void Run(string baseUrl)
     {
-        Application.EnableVisualStyles();
-        Application.SetCompatibleTextRenderingDefault(false);
-        try { Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); } catch { }
+        FormsApplication.EnableVisualStyles();
+        FormsApplication.SetCompatibleTextRenderingDefault(false);
+        try { FormsApplication.SetHighDpiMode(HighDpiMode.PerMonitorV2); } catch { }
 
-        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-        Application.ThreadException += (_, e) => CrashLog.Write("wątek okna", e.Exception);
+        FormsApplication.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        FormsApplication.ThreadException += (_, e) => CrashLog.Write("wątek okna", e.Exception);
 
         using var form = new ShellForm(baseUrl);
-        Application.Run(form);
+        FormsApplication.Run(form);
     }
 
     [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
@@ -347,6 +348,7 @@ internal sealed class ShellForm : Form
 
     private void OnWebMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
+        if (!LocalAppOrigin.Matches(e.Source, _baseUrl)) return;
         BridgeRequest? req;
         try { req = JsonSerializer.Deserialize<BridgeRequest>(e.WebMessageAsJson); }
         catch { return; }
@@ -380,6 +382,9 @@ internal sealed class ShellForm : Form
             case "pick_folder":
                 return PickFolder();
 
+            case "pick_demo":
+                return PickDemo();
+
             case "toggle_maximize_window":
                 ToggleMaximize(Arg(args, 0), Arg(args, 1), Arg(args, 2), Arg(args, 3));
                 return null;
@@ -411,6 +416,20 @@ internal sealed class ShellForm : Form
     {
         using var dlg = new FolderBrowserDialog { ShowNewFolderButton = true };
         return dlg.ShowDialog(this) == DialogResult.OK ? dlg.SelectedPath : null;
+    }
+
+    private string? PickDemo()
+    {
+        using var dialog = new OpenFileDialog
+        {
+            Title = Strings.Get("demo.pickTitle"),
+            Filter = "Demo CS2 (*.dem)|*.dem",
+            CheckFileExists = true,
+            CheckPathExists = true,
+            Multiselect = false,
+            RestoreDirectory = true,
+        };
+        return dialog.ShowDialog(this) == DialogResult.OK ? dialog.FileName : null;
     }
 
     private void RestoreWindowState()
@@ -514,6 +533,7 @@ internal sealed class ShellForm : Form
   window.pywebview = window.pywebview || {};
   window.pywebview.api = {
     pick_folder: function () { return call('pick_folder', []); },
+    pick_demo: function () { return call('pick_demo', []); },
     minimize_window: function () { return call('minimize_window', []); },
     close_window: function () { return call('close_window', []); },
     toggle_maximize_window: function (aw, ah, al, at) { return call('toggle_maximize_window', [aw, ah, al, at]); },

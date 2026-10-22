@@ -24,6 +24,11 @@
     <ProjectReference Include="..\..\KeepClip\KeepClip.csproj" />
   </ItemGroup>
 
+  <!-- Testy natywne wymagają narzędzi z setup.ps1; wydanie uruchamia je po przygotowaniu FFmpeg. -->
+  <ItemGroup Condition="'$(RunFfmpegTests)' != 'true'">
+    <Compile Remove="Integration\**\*.cs" />
+  </ItemGroup>
+
   <!-- To samo co w KeepClip.csproj: pakiet WebView2 ciągnie nieużywaną wersję WPF,
        która kłóci się z WindowsBase z platformy. -->
   <Target Name="DropWebView2Wpf" BeforeTargets="ResolveAssemblyReferences">

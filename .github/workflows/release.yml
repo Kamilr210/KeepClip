@@ -43,6 +43,9 @@ jobs:
       - name: Testy wyboru programu Docker
         run: node --test tests/docker-cli.test.mjs
 
+      - name: Testy powiązania demo w odtwarzaczu
+        run: node --test tests/clip-demo.test.cjs
+
       - name: Testy xUnit
         run: dotnet test tests/KeepClip.Tests/KeepClip.Tests.csproj -c Release --nologo
 
@@ -58,6 +61,9 @@ jobs:
       - name: Test FFmpeg na syntetycznym obrazie i audio
         shell: powershell
         run: powershell -ExecutionPolicy Bypass -File tests\ffmpeg-smoke.ps1 -WorkDir "$env:RUNNER_TEMP\ffmpeg-smoke"
+
+      - name: Test wycinania przez aplikację z prawdziwym FFmpeg
+        run: dotnet test tests/KeepClip.Tests/KeepClip.Tests.csproj -c Release -p:RunFfmpegTests=true --filter Category=FFmpeg --nologo
 
       - name: Wbuduj klienta OAuth Google (wymagany)
         env:
@@ -101,4 +107,5 @@ jobs:
             "installer/dist/KeepClip-FFmpeg-Source.zip#KeepClip-FFmpeg-Source-$env:GITHUB_REF_NAME.zip" `
             "installer/dist/KeepClip-Setup.provenance.json" `
             --title "KeepClip $env:GITHUB_REF_NAME" `
-            --generate-notes
+            --verify-tag --latest `
+            --notes-file "docs/releases/$env:GITHUB_REF_NAME.md"

@@ -250,33 +250,38 @@ internal sealed class MediaProcessor(MediaProcessRunner runner)
         const long sizeMarginBytes = 100_000;
         const long containerOverheadBytes = 50_000;
 
-        List<string> BuildArgs(int? videoKbps)
+        List<string> BuildArgs(int? videoKbps, bool hardware)
         {
             var args = new List<string>
             {
                 "-y", "-hide_banner", "-loglevel", "error",
                 "-progress", "pipe:1", "-nostats",
+                "-abort_on", "empty_output+empty_output_stream",
 
                 "-ss", start.ToString("F3", CultureInfo.InvariantCulture),
                 "-to", end.ToString("F3", CultureInfo.InvariantCulture),
                 "-i", src,
-                "-c:v", "h264_nvenc", "-preset", "p5", "-tune", "hq",
+                "-pix_fmt", "yuv420p",
             };
+
+            if (hardware)
+                args.AddRange(new[] { "-c:v", "h264_nvenc", "-preset", "p5", "-tune", "hq", "-rc", "vbr" });
+            else
+                args.AddRange(new[] { "-c:v", "libx264", "-preset", "veryfast" });
 
             if (videoKbps is > 0)
             {
                 args.AddRange(new[]
                 {
-                    "-rc", "vbr",
                     "-b:v", $"{videoKbps}k",
                     "-maxrate", $"{videoKbps}k",
                     "-bufsize", $"{videoKbps * 2}k",
                 });
             }
+            else if (hardware)
+                args.AddRange(new[] { "-cq", "19", "-b:v", "0" });
             else
-            {
-                args.AddRange(new[] { "-rc", "vbr", "-cq", "19", "-b:v", "0" });
-            }
+                args.AddRange(new[] { "-crf", "19" });
 
             args.AddRange(new[]
             {
@@ -308,6 +313,8 @@ internal sealed class MediaProcessor(MediaProcessRunner runner)
         }
 
         int attempts = hardLimitBytes.HasValue ? maximumAttempts : 1;
+        bool hardware = true;
+        string? hardwareError = null;
         for (int attempt = 1; attempt <= attempts; attempt++)
         {
             var stage = attempt == 1 ? "cutting" : "cuttingRetry";
@@ -338,22 +345,26 @@ internal sealed class MediaProcessor(MediaProcessRunner runner)
                 progress?.Invoke(current, stage);
             }
 
-            var r = Run(
-                Config.Ffmpeg,
-                BuildArgs(targetVideoKbps),
-                timeoutSeconds: 600,
-                onOutputLine: ReportFfmpegProgress);
-            if (r.Faulted)
+            while (true)
             {
+                var r = Run(
+                    Config.Ffmpeg,
+                    BuildArgs(targetVideoKbps, hardware),
+                    timeoutSeconds: 600,
+                    onOutputLine: ReportFfmpegProgress);
+                if (!r.Faulted && r.ExitCode == 0 && File.Exists(output) && new FileInfo(output).Length > 0)
+                    break;
+
                 TryDelete(output);
-                return (false, "ffmpeg padło: przekroczono limit czasu lub nie udało się uruchomić.", new());
-            }
-            if (r.ExitCode != 0 || !File.Exists(output))
-            {
-                TryDelete(output);
-                var lines = r.StdErr.Replace("\r\n", "\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                var msg = lines.Length > 0 ? lines[^1] : "nieznany";
-                return (false, $"ffmpeg zakończył się błędem: {msg}", new());
+                var error = $"{(hardware ? "h264_nvenc" : "libx264")}: {CutFailureDetail(r)}";
+                if (!hardware || r.Faulted)
+                    return (false, "ffmpeg zakończył się błędem: " + (hardwareError is null ? error : hardwareError + Environment.NewLine + error), new());
+
+                // Awaria GPU nie zużywa próby dopasowania rozmiaru. Kolejne próby korzystają już z CPU.
+                hardwareError = error;
+                hardware = false;
+                lastReported = 0;
+                progress?.Invoke(0.02, stage);
             }
 
             var fi = new FileInfo(output);
@@ -382,6 +393,16 @@ internal sealed class MediaProcessor(MediaProcessRunner runner)
         return (false,
             $"Nie udało się zmieścić wycinka w limicie {PyFloat(targetSizeMb!.Value)} MB.",
             new());
+    }
+
+    private static string CutFailureDetail(MediaRunResult result)
+    {
+        var detail = string.Join(Environment.NewLine, result.StdErr.Replace("\r\n", "\n")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Take(8));
+        if (detail.Length > 2000) detail = detail[..2000];
+        if (result.Faulted) return "Przekroczono limit czasu lub nie udało się uruchomić FFmpeg. " + detail;
+        if (detail.Length > 0) return detail;
+        return result.ExitCode == 0 ? "Nie utworzono niepustego pliku wyjściowego." : $"Kod wyjścia: {result.ExitCode}.";
     }
 
     private static void TryDelete(string path)

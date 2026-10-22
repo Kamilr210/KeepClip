@@ -1176,6 +1176,21 @@ let segmentTickerInterval = null;
 let editingSegId = null;
 let _playbackRequestToken = 0;
 
+const clipDemoPanel = createClipDemoPanel({
+  elements: {
+    path: $("#player-demo-path"), status: $("#player-demo-status"),
+    save: $("#player-demo-save"), remove: $("#player-demo-remove"),
+    browse: $("#player-demo-browse"), show: $("#player-demo-show"),
+  },
+  request: (url, options) => fetch(url, options),
+  t,
+  notify: toast,
+  pickFile: window.pywebview?.api?.pick_demo ? () => {
+    els.video.pause();
+    return window.pywebview.api.pick_demo();
+  } : null,
+});
+
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function hidePlaybackPreparation() {
@@ -1228,6 +1243,7 @@ async function resolvePlaybackSource(clipId) {
 
 async function openPlayer(clipId, startAt) {
   _stopActivePreview();
+  clipDemoPanel.close();
   _cloudPlaybackErrorClipId = null;
   currentClipId = clipId;
   const data = await fetch(`/api/segments/${clipId}`).then((r) => r.json());
@@ -1285,6 +1301,7 @@ async function openPlayer(clipId, startAt) {
   });
 
   els.overlay.hidden = false;
+  void clipDemoPanel.open(clipId);
   const playbackUrl = await resolvePlaybackSource(clipId);
   if (!playbackUrl || currentClipId !== clipId || els.overlay.hidden) return;
   els.video.src = playbackUrl;
@@ -1451,6 +1468,7 @@ function enterSegEdit(segEl) {
 
 function closePlayer() {
   _playbackRequestToken++;
+  clipDemoPanel.close();
   currentClipId = null;
   currentClipStorage = "local";
   _cloudPlaybackErrorClipId = null;

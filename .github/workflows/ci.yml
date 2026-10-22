@@ -25,6 +25,9 @@ jobs:
       - name: Testy wyboru programu Docker
         run: node --test tests/docker-cli.test.mjs
 
+      - name: Testy powiązania demo w odtwarzaczu
+        run: node --test tests/clip-demo.test.cjs
+
       - name: Testy xUnit
         run: dotnet test tests/KeepClip.Tests/KeepClip.Tests.csproj -c Release --nologo --logger "trx;LogFileName=results.trx"
 

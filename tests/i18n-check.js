@@ -41,7 +41,7 @@ const patterns = [
   /setAttr\([^,]+,\s*'[^']+',\s*'([\w.\-]+)'\)/g,
 ];
 const used = new Set();
-for (const file of ["app.js", "index.html"]) {
+for (const file of ["app.js", "clip-demo.js", "index.html"]) {
   const src = fs.readFileSync(path.join(root, file), "utf8");
   for (const re of patterns) for (const m of src.matchAll(re)) used.add(m[1]);
 }

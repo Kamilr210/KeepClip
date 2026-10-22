@@ -20,6 +20,7 @@ public class DbMigrationTests
         Assert.Equal("local", clip["storage"]);
         Assert.Null(clip["remote_id"]);
         Assert.Null(clip["remote_uploaded_at"]);
+        Assert.Null(clip["demo_path"]);
         Assert.Equal(0L, con.QueryOne("SELECT hidden_from_home FROM folders WHERE id=2")!["hidden_from_home"]);
     }
 
@@ -61,5 +62,17 @@ public class DbMigrationTests
         con.Open();
         con.Exec("CREATE TABLE clips(id INTEGER PRIMARY KEY, filename TEXT); CREATE TABLE folders(id INTEGER PRIMARY KEY, name TEXT)");
         return con;
+    }
+
+    [Fact]
+    public void Repeated_migration_preserves_an_existing_demo_reference()
+    {
+        using var con = LegacyDatabase();
+        Db.Migrate(con);
+        var path = @"C:\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\faceit.dem";
+        con.Exec("INSERT INTO clips(id, filename, demo_path) VALUES(1, 'clip.mp4', $path)", ("$path", path));
+        Db.Migrate(con);
+        Assert.Equal(path, con.QueryOne("SELECT demo_path FROM clips WHERE id=1")!["demo_path"]);
+        Assert.Equal(1, con.ScalarLong("SELECT count(*) FROM pragma_table_info('clips') WHERE name='demo_path'"));
     }
 }

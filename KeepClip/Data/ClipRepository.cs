@@ -97,6 +97,12 @@ public class ClipRepository
         con.Exec("DELETE FROM clips WHERE id=$id", ("$id", id));
     }
 
+    public bool SetDemoPath(long id, string? path)
+    {
+        using var con = Db.Open();
+        return con.Exec("UPDATE clips SET demo_path=$path WHERE id=$id", ("$path", path), ("$id", id)) > 0;
+    }
+
     private static Clip Map(Dictionary<string, object?> r) => new(
         Convert.ToInt64(r["id"]),
         r["game"] as string ?? "",

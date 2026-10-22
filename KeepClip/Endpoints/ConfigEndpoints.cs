@@ -26,7 +26,7 @@ public static class ConfigEndpoints
             if (accentTheme == "green")
                 html = html.Replace("/icons/favicon.svg", "/icons/favicon-green.svg");
 
-            foreach (var name in new[] { "styles.css", "app.js", "onboarding.css", "onboarding.js" })
+            foreach (var name in new[] { "styles.css", "app.js", "clip-demo.js", "onboarding.css", "onboarding.js" })
             {
                 var f = Path.Combine(Config.FrontendDir, name);
                 if (File.Exists(f))

@@ -238,6 +238,147 @@ public class MediaProcessorTests
         Assert.False(processor.CutClip(source, Path.Combine(Path.GetDirectoryName(source)!, "cut.mp4"), 0, 30, 0.01).Ok);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData(20.0)]
+    public void Cut_falls_back_to_cpu_after_encoder_failure_and_preserves_the_requested_range_and_limit(double? targetSize)
+    {
+        var source = TempFile();
+        var original = File.ReadAllBytes(source);
+        var output = Path.Combine(Path.GetDirectoryName(source)!, "cut.mp4");
+        var encoders = new List<string>();
+        string? firstBitrate = null;
+        var processor = new MediaProcessor(new Runner((_, args, _, _) =>
+        {
+            var encoder = Value(args, "-c:v");
+            encoders.Add(encoder);
+            Assert.Equal(source, Value(args, "-i"));
+            Assert.Equal(output, args[^1]);
+            Assert.Equal("171.020", Value(args, "-ss"));
+            Assert.Equal("211.420", Value(args, "-to"));
+            Assert.Equal("yuv420p", Value(args, "-pix_fmt"));
+            if (encoder == "h264_nvenc")
+            {
+                firstBitrate = Value(args, "-b:v");
+                File.WriteAllText(output, "incomplete GPU output");
+                return new(false, 1, "", "InitializeEncoder failed: 10-bit encoding not supported with this profile.\nNothing was written into output file, because at least one of its streams received no packets.");
+            }
+            Assert.False(File.Exists(output));
+            Assert.DoesNotContain("-rc", args);
+            Assert.DoesNotContain("-cq", args);
+            Assert.DoesNotContain("-tune", args);
+            if (targetSize.HasValue)
+            {
+                Assert.Equal(firstBitrate, Value(args, "-b:v"));
+                Assert.Equal(firstBitrate, Value(args, "-maxrate"));
+            }
+            else Assert.Equal("19", Value(args, "-crf"));
+            File.WriteAllBytes(output, new byte[2048]);
+            return Success();
+        }));
+
+        var result = processor.CutClip(source, output, 171.02, 211.42, targetSize);
+
+        Assert.True(result.Ok, result.Message);
+        Assert.Equal(new[] { "h264_nvenc", "libx264" }, encoders);
+        Assert.Equal(40.4, (double)result.Stats["duration_s"]!, 6);
+        Assert.Equal(2048L, result.Stats["size_bytes"]);
+        Assert.Equal(original, File.ReadAllBytes(source));
+    }
+
+    [Fact]
+    public void Cut_keeps_using_cpu_for_size_retries_and_removes_oversized_output_after_exhaustion()
+    {
+        var source = TempFile();
+        var output = Path.Combine(Path.GetDirectoryName(source)!, "cut.mp4");
+        var encoders = new List<string>();
+        var cpuBitrates = new List<int>();
+        var processor = new MediaProcessor(new Runner((_, args, _, _) =>
+        {
+            var encoder = Value(args, "-c:v");
+            encoders.Add(encoder);
+            if (encoder == "h264_nvenc") return new(false, 1, "", "Driver does not support the required nvenc API version");
+            cpuBitrates.Add(int.Parse(Value(args, "-b:v").TrimEnd('k'), CultureInfo.InvariantCulture));
+            File.WriteAllBytes(output, new byte[1_100_000]);
+            return Success();
+        }));
+
+        var result = processor.CutClip(source, output, 0, 5, 1);
+
+        Assert.False(result.Ok);
+        Assert.Contains("limicie", result.Message);
+        Assert.Equal(new[] { "h264_nvenc", "libx264", "libx264", "libx264" }, encoders);
+        Assert.True(cpuBitrates[1] < cpuBitrates[0]);
+        Assert.True(cpuBitrates[2] < cpuBitrates[1]);
+        Assert.False(File.Exists(output));
+        Assert.True(File.Exists(source));
+        Assert.Empty(result.Stats);
+    }
+
+    [Fact]
+    public void Cut_reports_original_errors_from_both_encoders_instead_of_only_the_final_muxer_message()
+    {
+        var source = TempFile();
+        var output = Path.Combine(Path.GetDirectoryName(source)!, "cut.mp4");
+        var processor = new MediaProcessor(new Runner((_, args, _, _) =>
+        {
+            var cause = Value(args, "-c:v") == "h264_nvenc" ? "InitializeEncoder failed: unsupported format" : "Error opening output: Permission denied";
+            File.WriteAllText(output, "partial");
+            return new(false, 1, "", cause + "\r\n" + string.Join('\n', Enumerable.Repeat("Nothing was written into output file.", 200)));
+        }));
+
+        var result = processor.CutClip(source, output, 0, 5);
+
+        Assert.False(result.Ok);
+        Assert.Contains("InitializeEncoder failed: unsupported format", result.Message);
+        Assert.Contains("Error opening output: Permission denied", result.Message);
+        Assert.Contains("h264_nvenc", result.Message);
+        Assert.Contains("libx264", result.Message);
+        Assert.True(result.Message.Length < 5000);
+        Assert.False(File.Exists(output));
+        Assert.Empty(result.Stats);
+    }
+
+    [Fact]
+    public void Cut_does_not_retry_a_timeout_or_a_failure_to_start_the_process()
+    {
+        var source = TempFile();
+        var output = Path.Combine(Path.GetDirectoryName(source)!, "cut.mp4");
+        int attempts = 0;
+        var processor = new MediaProcessor(new Runner((_, _, _, _) =>
+        {
+            attempts++;
+            File.WriteAllText(output, "partial");
+            return new(true, -1, "", "");
+        }));
+
+        var result = processor.CutClip(source, output, 0, 5);
+
+        Assert.False(result.Ok);
+        Assert.Equal(1, attempts);
+        Assert.False(File.Exists(output));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Cut_rejects_missing_or_empty_output_even_when_ffmpeg_returns_zero(bool createEmptyFile)
+    {
+        var source = TempFile();
+        var output = Path.Combine(Path.GetDirectoryName(source)!, "cut.mp4");
+        var processor = new MediaProcessor(new Runner((_, _, _, _) =>
+        {
+            if (createEmptyFile) File.WriteAllBytes(output, Array.Empty<byte>());
+            return Success();
+        }));
+
+        var result = processor.CutClip(source, output, 0, 5);
+
+        Assert.False(result.Ok);
+        Assert.False(File.Exists(output));
+        Assert.Empty(result.Stats);
+    }
+
     [Fact]
     public void Thumbnail_uses_the_midpoint_for_short_videos()
     {

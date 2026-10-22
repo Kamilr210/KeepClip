@@ -39,6 +39,7 @@ builder.Services.AddSingleton<StatsRepository>();
 
 builder.Services.AddSingleton<PlaybackProxyService>();
 builder.Services.AddSingleton<ClipService>();
+builder.Services.AddSingleton<ClipDemoService>();
 #if KEEPCLIP_DEV
 builder.Services.AddSingleton<DevResourceMonitor>();
 #endif
@@ -61,6 +62,7 @@ app.UseStaticFiles(new StaticFileOptions
 app.MapConfigEndpoints();
 app.MapStatsEndpoints();
 app.MapClipEndpoints();
+app.MapClipDemoEndpoints();
 app.MapSegmentEndpoints();
 app.MapFolderEndpoints();
 app.MapSearchEndpoints();

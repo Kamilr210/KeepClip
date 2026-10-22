@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS clips (
     favorite INTEGER NOT NULL DEFAULT 0,
     storage TEXT NOT NULL DEFAULT 'local',
     remote_id TEXT,
-    remote_uploaded_at TEXT
+    remote_uploaded_at TEXT,
+    demo_path TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_clips_game ON clips(game);
@@ -132,6 +133,7 @@ END;
         AddColumn("storage", "ALTER TABLE clips ADD COLUMN storage TEXT NOT NULL DEFAULT 'local'");
         AddColumn("remote_id", "ALTER TABLE clips ADD COLUMN remote_id TEXT");
         AddColumn("remote_uploaded_at", "ALTER TABLE clips ADD COLUMN remote_uploaded_at TEXT");
+        AddColumn("demo_path", "ALTER TABLE clips ADD COLUMN demo_path TEXT");
 
         cols.Clear();
         using (var cmd = con.CreateCommand())
