@@ -17,12 +17,11 @@ internal sealed class GoogleDriveClient
     }
 
     public async Task<TokenResult> ExchangeCodeAsync(
-        string clientId, string clientSecret, string code, string codeVerifier, string redirectUri)
+        string clientId, string code, string codeVerifier, string redirectUri)
     {
         using var resp = await Api.PostAsync(TokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["client_id"] = clientId,
-            ["client_secret"] = clientSecret,
             ["code"] = code,
             ["code_verifier"] = codeVerifier,
             ["grant_type"] = "authorization_code",
@@ -35,12 +34,11 @@ internal sealed class GoogleDriveClient
             json.TryGetProperty("expires_in", out var ei) ? ei.GetInt32() : 3600);
     }
 
-    public async Task<TokenResult> RefreshAsync(string clientId, string clientSecret, string refreshToken)
+    public async Task<TokenResult> RefreshAsync(string clientId, string refreshToken)
     {
         using var resp = await Api.PostAsync(TokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["client_id"] = clientId,
-            ["client_secret"] = clientSecret,
             ["refresh_token"] = refreshToken,
             ["grant_type"] = "refresh_token",
         }));
@@ -102,8 +100,8 @@ internal sealed class GoogleDriveClient
         if (response.Content.Headers.ContentLength is > maxPhotoBytes)
             throw new InvalidOperationException(Strings.Get("drive.photoTooLarge"));
 
-        var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
-        if (!contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        var contentType = response.Content.Headers.ContentType?.MediaType?.ToLowerInvariant() ?? "image/jpeg";
+        if (contentType is not ("image/jpeg" or "image/png" or "image/webp" or "image/gif" or "image/bmp" or "image/avif"))
             throw new InvalidOperationException(Strings.Get("drive.badPhoto"));
 
         await using var source = await response.Content.ReadAsStreamAsync();

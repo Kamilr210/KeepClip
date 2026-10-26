@@ -27,6 +27,30 @@ public class TranscribeWorkerTests
     private static async Task Complete() => await TranscribeWorker.Completion!.WaitAsync(TimeSpan.FromSeconds(10));
 
     [Fact]
+    public async Task Cancel_interrupts_current_decoding_and_preserves_the_previous_transcript()
+    {
+        var id = Clip("cancelled.mp4");
+        new SegmentRepository().Insert(id, 0, 1, "keep this transcript");
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _operations.CancellableTranscription = (_, _, cancellationToken) =>
+        {
+            entered.TrySetResult();
+            Task.Delay(Timeout.Infinite, cancellationToken).GetAwaiter().GetResult();
+            throw new InvalidOperationException("Cancelled decoding must not return segments");
+        };
+        Assert.True(TranscribeWorker.Start(true, out _, _operations));
+        try { await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+        finally { Assert.True(TranscribeWorker.Cancel()); }
+        await Complete();
+        Assert.Equal("keep this transcript", Assert.Single(new SegmentRepository().ListByClipId(id))["text"]);
+        Assert.Null(new ClipRepository().GetById(id)!.TranscribedAt);
+        Assert.False(TranscribeState.Snapshot().running);
+        Assert.Null(TranscribeState.Snapshot().error);
+        Assert.Null(TranscribeState.Snapshot().current);
+        Assert.False(TranscribeWorker.Cancel());
+    }
+
+    [Fact]
     public async Task Empty_library_completes_and_releases_the_running_state()
     {
         Assert.True(TranscribeWorker.Start(false, out var total, _operations));

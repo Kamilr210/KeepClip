@@ -31,6 +31,11 @@ dotnet run --project KeepClip
 
 Pierwsze uruchomienie chwilę potrwa (NuGet + kompilacja) — to normalne.
 
+Okno desktopowe automatycznie używa prywatnej sesji bieżącego uruchomienia.
+Tryb `server-only` wymaga jawnego klucza `KEEPCLIP_API_TOKEN`; instrukcja
+uruchomienia, logowania w przeglądarce i testowania przez Insomnię jest w
+[opisie prywatnego API](docs/private-api.md).
+
 ### Pierwsze kroki w aplikacji
 1. W ustawieniach wskaż **folder z klipami** (domyślnie `…\Videos\NVIDIA`).
 2. Kliknij **Skanuj folder**, potem **Transkrybuj nowe**.
@@ -45,10 +50,17 @@ zakładkę **Chmura**, klika **Połącz z Google Drive** i loguje się na własn
 nie tworzy projektu w Google Cloud. KeepClip prosi tylko o zakres `drive.file`, więc widzi
 wyłącznie pliki, które sam utworzył.
 
-Przy uruchamianiu aplikacji bez instalatora (np. `dotnet run`) deweloper zapisuje pobrany
-klient OAuth typu **Desktop app** jako `data\google_client.json`. Build instalatora wymaga
-tego samego pliku pod `installer\embed\google_client.json`; workflow wydania odtwarza go
-z sekretu repozytorium `GOOGLE_CLIENT_JSON_B64` i przerywa publikację, jeśli sekretu brak.
+Przy uruchamianiu aplikacji bez instalatora (np. `dotnet run`) deweloper zapisuje klienta
+OAuth typu **Desktop app** jako `data\google_client.json`. Używany jest publiczny
+`installed.client_id`, PKCE S256 i `state`; aplikacja nie odczytuje ani nie wysyła
+`client_secret`. Konfiguracje klienta webowego są odrzucane.
+
+Build instalatora przyjmuje plik pod `installer\embed\google_client.json`, ale generuje
+osobną publiczną konfigurację zawierającą wyłącznie `installed.client_id`. Surowy plik
+nie trafia do instalatora. Workflow odtwarza `GOOGLE_CLIENT_JSON_B64` w katalogu
+tymczasowym, filtruje dozwolone pole i usuwa surowy plik. Kontrola Inno Setup odrzuca
+brak konfiguracji lub dodatkowe pola, także przy bezpośrednim wywołaniu kompilatora.
+Testy pakowania można uruchomić poleceniem `powershell -NoProfile -ExecutionPolicy Bypass -File tests/oauth-packaging.Tests.ps1`.
 Projekt Google OAuth używany w oficjalnym wydaniu musi mieć odbiorców **External** oraz
 status publikacji **In production**. Tryb **Testing** służy wyłącznie deweloperom: dopuszcza
 tylko wpisanych testerów, a ich autoryzacja Drive wygasa po 7 dniach.

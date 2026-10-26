@@ -23,11 +23,11 @@ public static class GoogleDrive
         DateTimeOffset? ModifiedTime,
         IReadOnlyDictionary<string, string> AppProperties);
 
-    public static Task<TokenResult> ExchangeCodeAsync(string clientId, string clientSecret, string code, string codeVerifier, string redirectUri)
-        => Client.ExchangeCodeAsync(clientId, clientSecret, code, codeVerifier, redirectUri);
+    public static Task<TokenResult> ExchangeCodeAsync(string clientId, string code, string codeVerifier, string redirectUri)
+        => Client.ExchangeCodeAsync(clientId, code, codeVerifier, redirectUri);
 
-    public static Task<TokenResult> RefreshAsync(string clientId, string clientSecret, string refreshToken)
-        => Client.RefreshAsync(clientId, clientSecret, refreshToken);
+    public static Task<TokenResult> RefreshAsync(string clientId, string refreshToken)
+        => Client.RefreshAsync(clientId, refreshToken);
 
     public static Task RevokeAsync(string token) => Client.RevokeAsync(token);
     public static Task<AboutInfo> GetAboutAsync(string accessToken) => Client.GetAboutAsync(accessToken);

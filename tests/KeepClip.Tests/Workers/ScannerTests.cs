@@ -120,4 +120,85 @@ public class ScannerTests
         Assert.Equal(0, result["found"]);
         Assert.NotNull(result["error"]);
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Incomplete_scan_never_removes_existing_library_records(bool cancel)
+    {
+        var original = AddFile("original.mp4");
+        Scanner.Scan();
+        TestDb.Exec("UPDATE clips SET has_thumb=2");
+        File.Delete(original);
+        for (int i = 0; i < 4; i++) AddFile($"unrelated{i}.txt");
+        using var cts = new CancellationTokenSource();
+        if (cancel) cts.Cancel();
+
+        var result = Scanner.Scan(cts.Token, 2, TimeSpan.FromSeconds(5));
+
+        Assert.NotNull(result["error"]);
+        Assert.Equal(0, result["removed"]);
+        Assert.Equal(1, _clips.Count());
+        Assert.Equal(2, TestDb.ScalarLong("SELECT has_thumb FROM clips LIMIT 1"));
+        Assert.Equal(1, Scanner.Scan()["removed"]);
+    }
+
+    [Fact]
+    public void Junctions_to_the_root_and_external_directories_are_not_followed()
+    {
+        AddFile("normal.mp4");
+        var outside = TestEnvironment.NewTempDir("outside-library");
+        var outsideFile = Path.Combine(outside, "private.mp4");
+        File.WriteAllBytes(outsideFile, new byte[8]);
+        File.SetLastWriteTimeUtc(outsideFile, DateTime.UtcNow.AddMinutes(-1));
+        var loop = Path.Combine(_root, "loop");
+        var escape = Path.Combine(_root, "escape");
+        try
+        {
+            Junction(loop, _root);
+            Junction(escape, outside);
+
+            var result = Scanner.Scan(CancellationToken.None, 10, TimeSpan.FromSeconds(5));
+
+            Assert.False(result.ContainsKey("error"));
+            Assert.Equal(1, result["found"]);
+            Assert.Equal("normal.mp4", Assert.Single(_clips.List(null, null, 10, false))["filename"]);
+            Settings.SetClipsRoot(escape);
+            Assert.NotNull(Scanner.Scan()["error"]);
+            Assert.Equal(1, _clips.Count());
+            Assert.True(File.Exists(outsideFile));
+        }
+        finally
+        {
+            if (Directory.Exists(loop)) Directory.Delete(loop);
+            if (Directory.Exists(escape)) Directory.Delete(escape);
+        }
+    }
+
+    [Fact]
+    public void Excessive_directory_depth_aborts_instead_of_publishing_a_partial_scan()
+    {
+        var current = _root;
+        for (int i = 0; i <= LibraryTraversal.MaximumDepth; i++) current = Directory.CreateDirectory(Path.Combine(current, "d")).FullName;
+        var result = Scanner.Scan();
+        Assert.NotNull(result["error"]);
+        Assert.Equal(0, _clips.Count());
+    }
+
+    private static void Junction(string link, string target)
+    {
+        var info = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"),
+            Arguments = $"/d /c mklink /J \"{link}\" \"{target}\"",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        using var process = System.Diagnostics.Process.Start(info)!;
+        Assert.True(process.WaitForExit(5000));
+        Assert.True(process.ExitCode == 0, process.StandardError.ReadToEnd());
+        Assert.True((File.GetAttributes(link) & FileAttributes.ReparsePoint) != 0);
+    }
 }

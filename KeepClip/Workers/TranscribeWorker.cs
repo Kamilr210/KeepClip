@@ -6,6 +6,7 @@ public static class TranscribeWorker
 {
     private static readonly object StartLock = new();
     private static Task? _task;
+    private static CancellationTokenSource? _cancellation;
 
     public static string NowIso() =>
         DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:sszzz", CultureInfo.InvariantCulture);
@@ -14,6 +15,20 @@ public static class TranscribeWorker
         => Start(force, out total, new ClipOperations());
 
     internal static Task? Completion { get { lock (StartLock) return _task; } }
+
+    public static bool Cancel()
+    {
+        lock (StartLock)
+        {
+            lock (TranscribeState.Lock)
+            {
+                if (!TranscribeState.Running) return false;
+                TranscribeState.Cancel = true;
+            }
+            _cancellation?.Cancel();
+            return true;
+        }
+    }
 
     internal static bool Start(bool force, out int total, ClipOperations operations)
     {
@@ -42,12 +57,15 @@ public static class TranscribeWorker
             total = clips.Count;
             lock (TranscribeState.Lock) TranscribeState.Total = total;
 
-            _task = Task.Run(() => Work(clips, operations));
+            _cancellation?.Dispose();
+            _cancellation = new CancellationTokenSource();
+            var cancellationToken = _cancellation.Token;
+            _task = Task.Run(() => Work(clips, operations, cancellationToken));
             return true;
         }
     }
 
-    private static void Work(List<Dictionary<string, object?>> clips, ClipOperations operations)
+    private static void Work(List<Dictionary<string, object?>> clips, ClipOperations operations, CancellationToken cancellationToken)
     {
         try
         {
@@ -112,7 +130,8 @@ public static class TranscribeWorker
 
                 try
                 {
-                    var segs = operations.Transcribe(fp);
+                    var segs = operations.Transcribe(fp, cancellationToken: cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
                     using (var con = Db.Open())
                     {
                         using var transaction = con.BeginTransaction();
@@ -128,6 +147,11 @@ public static class TranscribeWorker
                     sw.Stop();
                     TranscribeState.PushLog(
                         $"   OK ({segs.Count} segm., {sw.Elapsed.TotalSeconds.ToString("F1", CultureInfo.InvariantCulture)}s)");
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    TranscribeState.PushLog("Anulowano.");
+                    break;
                 }
                 catch (Exception ex)
                 {
@@ -152,6 +176,7 @@ public static class TranscribeWorker
             lock (TranscribeState.Lock)
             {
                 TranscribeState.Running = false;
+                TranscribeState.Current = null;
                 TranscribeState.Cancel = false;
                 TranscribeState.FinishedAt = NowIso();
             }

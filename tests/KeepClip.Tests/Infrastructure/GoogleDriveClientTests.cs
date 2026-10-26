@@ -33,7 +33,7 @@ public class GoogleDriveClientTests
         using var http = new HttpClient(handler);
         var client = new GoogleDriveClient(http, http);
 
-        var token = await client.ExchangeCodeAsync("id+1", "secret&test", "a=b", "verifier /", "http://127.0.0.1:1234/");
+        var token = await client.ExchangeCodeAsync("id+1", "a=b", "verifier /", "http://127.0.0.1:1234/");
 
         Assert.Equal(new GoogleDrive.TokenResult("test-access", "test-refresh", 120), token);
         var request = Assert.Single(handler.Requests);
@@ -43,7 +43,7 @@ public class GoogleDriveClientTests
         Assert.Equal("application/x-www-form-urlencoded", request.ContentType);
         var form = Form(request);
         Assert.Equal("id+1", form["client_id"]);
-        Assert.Equal("secret&test", form["client_secret"]);
+        Assert.False(form.ContainsKey("client_secret"));
         Assert.Equal("a=b", form["code"]);
         Assert.Equal("verifier /", form["code_verifier"]);
         Assert.Equal("authorization_code", form["grant_type"]);
@@ -56,12 +56,13 @@ public class GoogleDriveClientTests
         using var handler = new Handler(_ => Json("{\"access_token\":\"new-access\"}"));
         using var http = new HttpClient(handler);
 
-        var token = await new GoogleDriveClient(http, http).RefreshAsync("id", "secret", "refresh+&");
+        var token = await new GoogleDriveClient(http, http).RefreshAsync("id", "refresh+&");
 
         Assert.Equal(new GoogleDrive.TokenResult("new-access", null, 3600), token);
         var form = Form(Assert.Single(handler.Requests));
         Assert.Equal("refresh_token", form["grant_type"]);
         Assert.Equal("refresh+&", form["refresh_token"]);
+        Assert.False(form.ContainsKey("client_secret"));
         Assert.False(form.ContainsKey("code_verifier"));
     }
 
@@ -76,7 +77,7 @@ public class GoogleDriveClientTests
         using var handler = new Handler(_ => Json(json, HttpStatusCode.BadRequest));
         using var http = new HttpClient(handler);
 
-        var error = await Assert.ThrowsAsync<GoogleDrive.GoogleApiException>(() => new GoogleDriveClient(http, http).RefreshAsync("id", "secret", "refresh"));
+        var error = await Assert.ThrowsAsync<GoogleDrive.GoogleApiException>(() => new GoogleDriveClient(http, http).RefreshAsync("id", "refresh"));
 
         Assert.Equal(message, error.Message);
         Assert.Equal(invalidGrant, error.IsInvalidGrant);
@@ -148,6 +149,7 @@ public class GoogleDriveClientTests
     [InlineData(0, "image/png")]
     [InlineData(1048577, "image/png")]
     [InlineData(10, "text/html")]
+    [InlineData(10, "image/svg+xml")]
     public async Task Profile_photo_rejects_empty_oversized_or_non_image_responses(int size, string contentType)
     {
         using var handler = new Handler(_ => Image(new byte[size], contentType));

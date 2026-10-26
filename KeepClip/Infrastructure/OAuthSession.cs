@@ -97,10 +97,10 @@ internal sealed class OAuthSession
                 refresh = _backend.ReadToken()
                     ?? throw new InvalidOperationException(Strings.Get("cloud.notConnected"));
             }
-            var (id, secret) = _backend.LoadClient();
+            var id = _backend.LoadClientId();
             try
             {
-                var tok = await _backend.RefreshAsync(id, secret, refresh);
+                var tok = await _backend.RefreshAsync(id, refresh);
                 lock (TokenStateGate)
                 {
                     if (version != _connectionVersion) throw new OperationCanceledException("OAuth session changed while refreshing the token.");
@@ -154,7 +154,7 @@ internal sealed class OAuthSession
 
     public string BeginConnect()
     {
-        var (clientId, _) = _backend.LoadClient();
+        var clientId = _backend.LoadClientId();
 
         int port = FreeLoopbackPort();
         string redirectUri = $"http://127.0.0.1:{port}/";
@@ -226,8 +226,7 @@ internal sealed class OAuthSession
                 {
                     try
                     {
-                        var (_, secret) = _backend.LoadClient();
-                        var tok = await _backend.ExchangeCodeAsync(clientId, secret, code, verifier, redirectUri);
+                        var tok = await _backend.ExchangeCodeAsync(clientId, code, verifier, redirectUri);
                         if (string.IsNullOrEmpty(tok.RefreshToken))
                             throw new InvalidOperationException(Strings.Get("drive.noRefreshToken"));
 

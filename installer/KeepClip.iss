@@ -11,6 +11,11 @@
   #define PublishDir "..\publish"
 #endif
 
+#define PublicClientCheckCommand "-NoProfile -ExecutionPolicy Bypass -File """ + SourcePath + "prepare-public-oauth.ps1"" -InputPath """ + PublishDir + "\data\google_client.json"" -VerifyOnly"
+#if Exec("powershell.exe", PublicClientCheckCommand, SourcePath, 1, SW_HIDE) != 0
+  #error "Public OAuth configuration missing or contains non-public fields. Run installer/build.ps1."
+#endif
+
 #define LicenseCheckCommand "-NoProfile -ExecutionPolicy Bypass -File """ + SourcePath + "verify-licenses.ps1"" -PublishDir """ + PublishDir + """ -RequireFfmpeg"
 #ifndef VerificationOnly
   #define LicenseCheckCommand LicenseCheckCommand + " -ForDistribution"
@@ -72,14 +77,13 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
-Source: "{#PublishDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "{#PublishDir}\*"; DestDir: "{app}"; Excludes: "\data\*"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 ; Bootstrapper uruchamia się tylko wtedy, gdy WebView2 nie ma na komputerze.
 Source: "redist\MicrosoftEdgeWebview2Setup.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall skipifsourcedoesntexist
 
-; Wbudowany klient OAuth jest wymagany, aby użytkownik dostał zwykłe logowanie Google.
-; Plik nie trafia do repozytorium; CI odtwarza go z sekretu.
-Source: "embed\google_client.json"; DestDir: "{app}\data"; Flags: ignoreversion
+; Tylko publiczny identyfikator klienta Desktop; plik jest sprawdzany przed kompilacja.
+Source: "{#PublishDir}\data\google_client.json"; DestDir: "{app}\data"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExe}"; WorkingDir: "{app}"

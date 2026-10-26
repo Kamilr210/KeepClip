@@ -209,6 +209,8 @@ public static class CloudService
 
     internal static async Task ProxyVideoAsync(HttpContext http, string remoteId, CloudConnection connection)
     {
+        http.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        http.Response.Headers.ContentSecurityPolicy = "sandbox; default-src 'none'";
         string token;
         try { token = await connection.GetAccessTokenAsync(); }
         catch (Exception ex)
@@ -223,9 +225,21 @@ public static class CloudService
 
         using var resp = await connection.OpenMediaAsync(token, remoteId, range, http.RequestAborted);
 
-        http.Response.StatusCode = (int)resp.StatusCode;
         var rc = resp.Content.Headers;
-        if (rc.ContentType is not null) http.Response.ContentType = rc.ContentType.ToString();
+        if (resp.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
+        {
+            http.Response.StatusCode = 416;
+            if (rc.ContentRange is not null) http.Response.Headers.ContentRange = rc.ContentRange.ToString();
+            return;
+        }
+        var mediaType = rc.ContentType?.MediaType?.ToLowerInvariant();
+        if (!resp.IsSuccessStatusCode || mediaType is not ("video/mp4" or "video/webm" or "video/quicktime" or "video/x-matroska" or "video/x-msvideo"))
+        {
+            http.Response.StatusCode = 502;
+            return;
+        }
+        http.Response.StatusCode = (int)resp.StatusCode;
+        http.Response.ContentType = mediaType;
         if (rc.ContentLength is not null) http.Response.ContentLength = rc.ContentLength;
         if (rc.ContentRange is not null) http.Response.Headers["Content-Range"] = rc.ContentRange.ToString();
         http.Response.Headers["Accept-Ranges"] = "bytes";

@@ -10,7 +10,7 @@ namespace KeepClip.Infrastructure;
 
 internal static class DesktopShell
 {
-    public static void Run(string baseUrl)
+    public static void Run(string baseUrl, string credential)
     {
         FormsApplication.EnableVisualStyles();
         FormsApplication.SetCompatibleTextRenderingDefault(false);
@@ -19,7 +19,7 @@ internal static class DesktopShell
         FormsApplication.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         FormsApplication.ThreadException += (_, e) => CrashLog.Write("wątek okna", e.Exception);
 
-        using var form = new ShellForm(baseUrl);
+        using var form = new ShellForm(baseUrl, credential);
         FormsApplication.Run(form);
     }
 
@@ -70,6 +70,7 @@ internal sealed class ShellForm : Form
     private static readonly Color AppBg = Color.FromArgb(0x07, 0x0A, 0x10);
 
     private readonly string _baseUrl;
+    private readonly DesktopRequestAuthentication _authentication;
     private readonly WebView2 _web = new();
 
     private bool _isMaximized;
@@ -78,9 +79,10 @@ internal sealed class ShellForm : Form
     private NotifyIcon? _tray;
     private bool _exitRequested;
 
-    public ShellForm(string baseUrl)
+    public ShellForm(string baseUrl, string credential)
     {
         _baseUrl = baseUrl;
+        _authentication = new DesktopRequestAuthentication(baseUrl, credential);
 
         Text = "KeepClip";
         FormBorderStyle = FormBorderStyle.None;
@@ -131,6 +133,7 @@ internal sealed class ShellForm : Form
     private void ForwardF10ToPage(Keys keyData)
     {
         var core = _web.CoreWebView2;
+        _authentication.Attach(core);
         if (core is null) return;
 
         static string Js(bool value) => value ? "true" : "false";

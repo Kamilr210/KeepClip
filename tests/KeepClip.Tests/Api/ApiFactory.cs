@@ -7,6 +7,12 @@ namespace KeepClip.Tests.Api;
 
 public sealed class ApiFactory : WebApplicationFactory<Program>
 {
+    protected override void ConfigureClient(HttpClient client)
+    {
+        base.ConfigureClient(client);
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", TestEnvironment.ApiToken);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
         => builder.UseEnvironment("Development");
 }

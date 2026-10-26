@@ -66,7 +66,7 @@ public static class ConfigEndpoints
             });
         });
 
-        app.MapPost("/api/config", (ConfigPayload body) =>
+        app.MapPost("/api/config", (ConfigPayload body, CancellationToken ct) =>
         {
             Heartbeat.Touch();
             if (TranscribeState.Snapshot().running)
@@ -79,7 +79,7 @@ public static class ConfigEndpoints
             if (!Directory.Exists(newRoot))
                 return Api.Detail(400, Strings.Get("config.notAFolder", newRoot));
             Settings.SetClipsRoot(newRoot);
-        var scan = Scanner.Scan();
+        var scan = Scanner.Scan(ct);
             ThumbnailWorker.Ensure();
             DevLog.Add($"Zmieniono folder klipów na: {newRoot} (skan: +{scan.GetValueOrDefault("added")} / −{scan.GetValueOrDefault("removed")})");
             return Results.Json(new Dictionary<string, object?>
@@ -130,10 +130,10 @@ public static class ConfigEndpoints
 
         app.MapPost("/api/heartbeat", () => { Heartbeat.Touch(); return Results.Json(new { ok = true }); });
 
-        app.MapPost("/api/scan", () =>
+        app.MapPost("/api/scan", (CancellationToken ct) =>
         {
             Heartbeat.Touch();
-            var result = Scanner.Scan();
+            var result = Scanner.Scan(ct);
             ThumbnailWorker.Ensure();
             DevLog.Add($"Skan folderu: znaleziono {result.GetValueOrDefault("found")}, dodano {result.GetValueOrDefault("added")}, usunięto {result.GetValueOrDefault("removed")}");
             return Results.Json(result);

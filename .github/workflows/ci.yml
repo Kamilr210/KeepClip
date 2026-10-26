@@ -31,6 +31,10 @@ jobs:
       - name: Testy xUnit
         run: dotnet test tests/KeepClip.Tests/KeepClip.Tests.csproj -c Release --nologo --logger "trx;LogFileName=results.trx"
 
+      - name: Testy publicznej konfiguracji OAuth
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests/oauth-packaging.Tests.ps1
+
       - name: Sprawdź pakowanie licencji i notices
         shell: powershell
         run: |

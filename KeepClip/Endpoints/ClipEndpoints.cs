@@ -50,14 +50,14 @@ public static class ClipEndpoints
                 DisplayHelper.SafeFolderName($"{name}.txt"));
         });
 
-        app.MapPost("/api/clips/{clipId:long}/retranscribe", (long clipId, ClipService clips) =>
+        app.MapPost("/api/clips/{clipId:long}/retranscribe", (long clipId, ClipService clips, CancellationToken ct) =>
         {
             Heartbeat.Touch();
             var operationId = SingleOperationProgress.Start("transcription", clipId);
             try
             {
                 var result = clips.Retranscribe(clipId,
-                    (progress, stage) => SingleOperationProgress.Report(operationId, progress, stage));
+                    (progress, stage) => SingleOperationProgress.Report(operationId, progress, stage), ct);
                 SingleOperationProgress.Finish(operationId, result.IsSuccess, result.Error);
                 return Respond(result);
             }

@@ -24,13 +24,9 @@ public static class TranscribeEndpoints
         app.MapPost("/api/transcribe/cancel", () =>
         {
             Heartbeat.Touch();
-            lock (TranscribeState.Lock)
-            {
-                if (!TranscribeState.Running)
-                    return Results.Json(new { cancelled = false, reason = "not_running" });
-        TranscribeState.Cancel = true;
-            }
-            DevLog.Add("Transkrypcja: anulowano (zatrzyma się po bieżącym klipie)");
+            if (!TranscribeWorker.Cancel())
+                return Results.Json(new { cancelled = false, reason = "not_running" });
+            DevLog.Add("Transkrypcja: zażądano anulowania bieżącego zadania");
             return Results.Json(new { cancelled = true });
         });
 

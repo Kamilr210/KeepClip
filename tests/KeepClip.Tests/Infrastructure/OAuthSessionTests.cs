@@ -29,20 +29,18 @@ public class OAuthSessionTests
         public override string? ReadToken() => StoredToken;
         public override void WriteToken(string token, string? email = null) => StoredToken = token;
         public override void DeleteToken() => StoredToken = null;
-        public override (string clientId, string clientSecret) LoadClient() => ("test-client", "test-secret");
-        public override Task<GoogleDrive.TokenResult> RefreshAsync(string id, string secret, string refresh)
+        public override string LoadClientId() => "test-client";
+        public override Task<GoogleDrive.TokenResult> RefreshAsync(string id, string refresh)
         {
             Assert.Equal("test-client", id);
-            Assert.Equal("test-secret", secret);
             Assert.Equal(StoredToken, refresh);
             RefreshCalls++;
             return Refresh();
         }
         public override Task<GoogleDrive.AboutInfo> GetAboutAsync(string token) { AboutCalls++; return About(); }
-        public override Task<GoogleDrive.TokenResult> ExchangeCodeAsync(string id, string secret, string code, string verifier, string redirect)
+        public override Task<GoogleDrive.TokenResult> ExchangeCodeAsync(string id, string code, string verifier, string redirect)
         {
             Assert.Equal("test-client", id);
-            Assert.Equal("test-secret", secret);
             Assert.Equal("test-code", code);
             Verifier = verifier;
             ExchangeCalls++;

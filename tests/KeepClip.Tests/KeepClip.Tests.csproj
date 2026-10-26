@@ -28,6 +28,9 @@
   <ItemGroup Condition="'$(RunFfmpegTests)' != 'true'">
     <Compile Remove="Integration\**\*.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(RunDesktopTests)' != 'true'">
+    <Compile Remove="DesktopIntegration\**\*.cs" />
+  </ItemGroup>
 
   <!-- To samo co w KeepClip.csproj: pakiet WebView2 ciągnie nieużywaną wersję WPF,
        która kłóci się z WindowsBase z platformy. -->

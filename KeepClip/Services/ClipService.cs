@@ -191,7 +191,7 @@ public class ClipService
 
     public Result<Dictionary<string, object?>> Retranscribe(
         long clipId,
-        Action<double, string>? progress = null)
+        Action<double, string>? progress = null, CancellationToken cancellationToken = default)
     {
         progress?.Invoke(0, "preparing");
         if (TranscribeState.Snapshot().running)
@@ -204,7 +204,8 @@ public class ClipService
 
         var sw = Stopwatch.StartNew();
         List<Transcriber.Segment> segs;
-        try { segs = _operations.Transcribe(fp, progress); }
+        try { segs = _operations.Transcribe(fp, progress, cancellationToken); cancellationToken.ThrowIfCancellationRequested(); }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex) { return Fail(500, $"Transkrypcja nie powiodła się: {ex.Message}"); }
         sw.Stop();
 

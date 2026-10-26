@@ -23,6 +23,10 @@ builder.Logging.AddFilter("Microsoft.AspNetCore.Routing.EndpointMiddleware", Log
 string baseUrl = serverOnly
     ? (builder.Configuration["urls"] ?? "http://127.0.0.1:8770")
     : $"http://127.0.0.1:{FreeLoopbackPort()}";
+if (builder.Configuration.GetSection("Kestrel:Endpoints").GetChildren().Any())
+    throw new InvalidOperationException("Konfiguruj nasłuchiwanie KeepClip przez --urls; alternatywne endpointy Kestrel są niedozwolone.");
+var privateSession = PrivateApiSession.Create(serverOnly, baseUrl, Environment.GetEnvironmentVariable("KEEPCLIP_API_TOKEN"), Environment.GetEnvironmentVariable("KEEPCLIP_ALLOW_REMOTE") == "1");
+builder.Services.AddSingleton(privateSession);
 builder.WebHost.UseUrls(baseUrl);
 
 builder.Services.ConfigureHttpJsonOptions(o =>
@@ -45,6 +49,7 @@ builder.Services.AddSingleton<DevResourceMonitor>();
 #endif
 
 var app = builder.Build();
+app.UseMiddleware<PrivateApiMiddleware>();
 
 Db.InitDb();
 Directory.CreateDirectory(Config.ThumbsDir);
@@ -86,7 +91,7 @@ if (serverOnly)
 }
 
 await app.StartAsync();
-var ui = new Thread(() => DesktopShell.Run(baseUrl)) { Name = "KeepClip-UI" };
+var ui = new Thread(() => DesktopShell.Run(baseUrl, privateSession.Credential)) { Name = "KeepClip-UI" };
 ui.SetApartmentState(ApartmentState.STA);
 ui.Start();
 ui.Join();

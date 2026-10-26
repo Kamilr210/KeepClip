@@ -4,13 +4,29 @@ public static class Scanner
 {
     private static readonly object ScanLock = new();
 
-    public static Dictionary<string, object?> Scan()
+    public static Dictionary<string, object?> Scan() => Scan(CancellationToken.None);
+
+    public static Dictionary<string, object?> Scan(CancellationToken cancellationToken) => Scan(cancellationToken, LibraryTraversal.MaximumEntries, TimeSpan.FromSeconds(30));
+
+    internal static Dictionary<string, object?> Scan(CancellationToken cancellationToken, int maximumEntries, TimeSpan timeout)
     {
-        lock (ScanLock)
-            return ScanCore();
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(timeout);
+        bool entered = false;
+        try
+        {
+            while (!(entered = Monitor.TryEnter(ScanLock, 50))) deadline.Token.ThrowIfCancellationRequested();
+            deadline.Token.ThrowIfCancellationRequested();
+            return ScanCore(deadline.Token, maximumEntries);
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or IOException or UnauthorizedAccessException)
+        {
+            return new() { ["found"] = 0, ["added"] = 0, ["removed"] = 0, ["updated"] = 0, ["error"] = ex is OperationCanceledException ? "Skanowanie anulowano lub przekroczono limit czasu." : ex.Message };
+        }
+        finally { if (entered) Monitor.Exit(ScanLock); }
     }
 
-    private static Dictionary<string, object?> ScanCore()
+    private static Dictionary<string, object?> ScanCore(CancellationToken cancellationToken, int maximumEntries)
     {
         Db.InitDb();
         int found = 0, added = 0, removed = 0, updated = 0;
@@ -31,7 +47,7 @@ public static class Scanner
 
         var settledOnDisk = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var settledBefore = DateTime.UtcNow.AddMilliseconds(-1500);
-        foreach (var path in Directory.EnumerateFiles(clipsRoot, "*", SearchOption.AllDirectories))
+        foreach (var path in LibraryTraversal.Files(clipsRoot, cancellationToken, maximumEntries))
         {
             if (Config.VideoExts.Contains(Path.GetExtension(path)))
             {
@@ -41,6 +57,7 @@ public static class Scanner
             }
         }
         found = onDisk.Count;
+        cancellationToken.ThrowIfCancellationRequested();
 
         using var con = Db.Open();
         using var tx = con.BeginTransaction();

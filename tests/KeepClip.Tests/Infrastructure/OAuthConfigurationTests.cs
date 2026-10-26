@@ -3,10 +3,22 @@ namespace KeepClip.Tests.Infrastructure;
 public class OAuthConfigurationTests
 {
     [Theory]
-    [InlineData("{\"installed\":{\"client_id\":\"test-id\",\"client_secret\":\"test-secret\"}}", "test-secret")]
-    [InlineData("{\"web\":{\"client_id\":\"test-id\",\"client_secret\":\"test-secret\"}}", "test-secret")]
-    [InlineData("{\"client_id\":\"test-id\"}", "")]
-    public void Supported_client_json_formats_are_loaded_from_the_isolated_test_directory(string json, string expectedSecret)
+    [InlineData("{\"web\":{\"client_id\":\"test-id\",\"client_secret\":\"private-web-secret\"}}")]
+    [InlineData("{\"client_id\":\"test-id\",\"client_secret\":\"untyped-secret\"}")]
+    public void Confidential_or_untyped_clients_are_not_used_in_the_desktop_flow(string json)
+    {
+        try
+        {
+            File.WriteAllText(Config.GoogleClientPath, json);
+            Assert.Throws<InvalidOperationException>(() => new OAuthBackend().LoadClientId());
+        }
+        finally { File.Delete(Config.GoogleClientPath); }
+    }
+
+    [Theory]
+    [InlineData("{\"installed\":{\"client_id\":\"test-id\",\"client_secret\":\"legacy-value-is-ignored\"}}")]
+    [InlineData("{\"installed\":{\"client_id\":\"test-id\"}}")]
+    public void Only_the_public_desktop_client_id_is_loaded_even_from_legacy_configuration(string json)
     {
         Assert.StartsWith(TestEnvironment.DataDir, Config.GoogleClientPath);
         Assert.False(File.Exists(Config.GoogleClientPath));
@@ -15,7 +27,7 @@ public class OAuthConfigurationTests
             File.WriteAllText(Config.GoogleClientPath, json);
             var backend = new OAuthBackend();
             Assert.True(backend.IsConfigured);
-            Assert.Equal(("test-id", expectedSecret), backend.LoadClient());
+            Assert.Equal("test-id", backend.LoadClientId());
         }
         finally { File.Delete(Config.GoogleClientPath); }
     }
@@ -28,7 +40,7 @@ public class OAuthConfigurationTests
         try
         {
             File.WriteAllText(Config.GoogleClientPath, "{\"installed\":{}}");
-            Assert.Throws<InvalidOperationException>(() => new OAuthBackend().LoadClient());
+            Assert.Throws<InvalidOperationException>(() => new OAuthBackend().LoadClientId());
         }
         finally { File.Delete(Config.GoogleClientPath); }
     }

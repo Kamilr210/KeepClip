@@ -7,6 +7,7 @@ namespace KeepClip.Tests;
 
 internal static class TestEnvironment
 {
+    public static readonly string ApiToken = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
     public static readonly string DataDir =
         Path.Combine(Path.GetTempPath(), "KeepClip.Tests", Guid.NewGuid().ToString("N"));
 
@@ -16,6 +17,7 @@ internal static class TestEnvironment
         Directory.CreateDirectory(DataDir);
         Environment.SetEnvironmentVariable("KEEPCLIP_DATA_DIR", DataDir);
         Environment.SetEnvironmentVariable("KEEPCLIP_SERVER_ONLY", "1");
+        Environment.SetEnvironmentVariable("KEEPCLIP_API_TOKEN", ApiToken);
         Environment.SetEnvironmentVariable("KEEPCLIP_IDLE_EXIT", "0");
         AppDomain.CurrentDomain.ProcessExit += (_, _) => Cleanup();
     }

@@ -13,7 +13,8 @@ param(
   # Wydanie publiczne usuwa panel logów; GitHub Actions włącza ten tryb automatycznie.
   [switch]$PublicRelease,
   [switch]$VerifyPackaging,
-  [string]$OutputRoot
+  [string]$OutputRoot,
+  [string]$GoogleClientPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,6 +42,7 @@ $RedistDir    = Join-Path $InstallerDir 'redist'
 $IssFile      = Join-Path $InstallerDir 'KeepClip.iss'
 $DistDir      = Join-Path $InstallerDir 'dist'
 $GoogleClient = Join-Path $InstallerDir 'embed\google_client.json'
+if ($GoogleClientPath) { $GoogleClient = [IO.Path]::GetFullPath($GoogleClientPath) }
 if ($OutputRoot) {
   $OutputRoot = [IO.Path]::GetFullPath($OutputRoot)
   if ($OutputRoot -eq $RepoRoot -or $OutputRoot -eq $InstallerDir) { throw 'OutputRoot musi wskazywac osobny katalog wynikowy.' }
@@ -53,7 +55,7 @@ try {
   # Kazdy instalator przeznaczony dla uzytkownikow musi miec wspolnego klienta
   # OAuth autora. Bez niego aplikacja zamiast zwyklego logowania Google pokazalaby
   # uzytkownikowi instrukcje tworzenia projektu w Google Cloud.
-  if (-not $NoInstaller) {
+  if (-not $NoInstaller -or $GoogleClientPath) {
     Step "Sprawdzam klienta OAuth Google dla instalatora"
     if (-not (Test-Path -LiteralPath $GoogleClient)) {
       throw "Brak $GoogleClient. Skopiuj pobrany klient OAuth typu Desktop app do installer\embed\google_client.json."
@@ -61,12 +63,11 @@ try {
     try {
       $oauthJson = Get-Content -LiteralPath $GoogleClient -Raw | ConvertFrom-Json
     } catch {
-      throw "Niepoprawny JSON w ${GoogleClient}: $($_.Exception.Message)"
+      throw 'Niepoprawny JSON konfiguracji klienta OAuth.'
     }
-    if ($null -eq $oauthJson.installed `
-        -or [string]::IsNullOrWhiteSpace($oauthJson.installed.client_id) `
-        -or [string]::IsNullOrWhiteSpace($oauthJson.installed.client_secret)) {
-      throw "$GoogleClient musi zawierac klienta Google OAuth typu Desktop app (installed.client_id i installed.client_secret)."
+    if ($oauthJson.installed -isnot [PSCustomObject] -or $oauthJson.PSObject.Properties.Name -contains 'web' `
+        -or $oauthJson.installed.client_id -isnot [string] -or [string]::IsNullOrWhiteSpace($oauthJson.installed.client_id)) {
+      throw 'Wymagana konfiguracja Google OAuth typu Desktop app z installed.client_id.'
     }
     Write-Host "Klient OAuth jest gotowy; instalator pokaze zwykle logowanie Google."
   }
@@ -115,6 +116,13 @@ try {
     Write-Host ("Tryb: {0}" -f $(if ($Public) { 'PUBLICZNY (bez funkcji deweloperskich)' } else { 'deweloperski' }))
     & dotnet @pubArgs
     if ($LASTEXITCODE -ne 0) { throw "dotnet publish zwrocil kod $LASTEXITCODE." }
+  }
+
+  if (-not $NoInstaller -or $GoogleClientPath) {
+    Step 'Przygotowuje publiczna konfiguracje OAuth bez sekretu'
+    $publicClient = Join-Path $PublishDir 'data\google_client.json'
+    & (Join-Path $InstallerDir 'prepare-public-oauth.ps1') -InputPath $GoogleClient -OutputPath $publicClient
+    & (Join-Path $InstallerDir 'prepare-public-oauth.ps1') -InputPath $publicClient -VerifyOnly
   }
 
   # Samo wyłączenie backendu nie wystarcza: usuwa również kod panelu z plików instalatora.

@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Whisper.net;
 using Whisper.net.Ggml;
 using Whisper.net.LibraryLoader;
@@ -25,20 +24,20 @@ public static class Transcriber
 
     public static List<Segment> Transcribe(
         string path,
-        Action<double, string>? progress = null)
+        Action<double, string>? progress = null, CancellationToken cancellationToken = default)
     {
         progress?.Invoke(0.02, "audio");
-        var samples = LoadAudioNormalized(path)
+        var samples = AudioExtractor.LoadAsync(path, cancellationToken).GetAwaiter().GetResult()
             ?? throw new InvalidOperationException(Strings.Get("transcribe.decodeFailed", path));
 
         while (true)
         {
-            try { return RunOnce(samples, progress); }
-            catch (Exception ex) when (CanStepDown()) { StepDown(ex); }
+            try { cancellationToken.ThrowIfCancellationRequested(); return RunOnce(samples, progress, cancellationToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException && CanStepDown()) { StepDown(ex); }
         }
     }
 
-    private static List<Segment> RunOnce(float[] samples, Action<double, string>? progress)
+    private static List<Segment> RunOnce(float[] samples, Action<double, string>? progress, CancellationToken cancellationToken)
     {
         var factory = GetFactory();
         progress?.Invoke(0.15, "transcribing");
@@ -53,7 +52,7 @@ public static class Transcriber
 
         var outSegs = new List<Segment>();
         var audioDuration = samples.Length / 16000.0;
-        foreach (var seg in ProcessAll(processor, samples, audioDuration, progress))
+        foreach (var seg in ProcessAll(processor, samples, audioDuration, progress, cancellationToken))
             SplitOnInternalGaps(seg, Config.WhisperSplitGapSeconds, outSegs);
 
         ClearProbe();
@@ -223,11 +222,11 @@ public static class Transcriber
         WhisperProcessor processor,
         float[] samples,
         double audioDuration,
-        Action<double, string>? progress)
+        Action<double, string>? progress, CancellationToken cancellationToken)
         => Task.Run(async () =>
         {
             var list = new List<SegmentData>();
-            await foreach (var seg in processor.ProcessAsync(samples))
+            await foreach (var seg in processor.ProcessAsync(samples, cancellationToken))
             {
                 list.Add(seg);
                 if (audioDuration > 0)
@@ -285,52 +284,4 @@ public static class Transcriber
         Flush();
     }
 
-    private static float[]? LoadAudioNormalized(string path)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = Config.Ffmpeg,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        foreach (var a in new[]
-        {
-            "-v", "error",
-            "-i", path,
-            "-af", "dynaudnorm=f=150:g=15",
-            "-vn", "-ac", "1", "-ar", "16000",
-            "-f", "s16le", "-",
-        }) psi.ArgumentList.Add(a);
-
-        using var proc = new Process { StartInfo = psi };
-        try { if (!proc.Start()) return null; }
-        catch { return null; }
-
-        using var pcm = new MemoryStream();
-        var copyTask = proc.StandardOutput.BaseStream.CopyToAsync(pcm);
-        var errTask = proc.StandardError.ReadToEndAsync();
-
-        if (!proc.WaitForExit(300_000))
-        {
-            try { proc.Kill(entireProcessTree: true); } catch { }
-            return null;
-        }
-        try { copyTask.GetAwaiter().GetResult(); _ = errTask.GetAwaiter().GetResult(); }
-        catch { return null; }
-        proc.WaitForExit();
-
-        if (proc.ExitCode != 0) return null;
-
-        int byteLen = (int)pcm.Length;
-        if (byteLen < 2) return null;
-
-        int n = byteLen / 2;
-        var shorts = MemoryMarshal.Cast<byte, short>(pcm.GetBuffer().AsSpan(0, n * 2));
-        var samples = new float[n];
-        for (int i = 0; i < n; i++)
-            samples[i] = shorts[i] / 32768f;
-        return samples;
-    }
 }
