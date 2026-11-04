@@ -133,7 +133,6 @@ internal sealed class ShellForm : Form
     private void ForwardF10ToPage(Keys keyData)
     {
         var core = _web.CoreWebView2;
-        _authentication.Attach(core);
         if (core is null) return;
 
         static string Js(bool value) => value ? "true" : "false";
@@ -211,14 +210,22 @@ internal sealed class ShellForm : Form
             Visible = false,
         };
         _tray.DoubleClick += (_, _) => RestoreFromTray();
+    }
 
-        FormClosed += (_, _) =>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
         {
-            if (_tray is null) return;
-            _tray.Visible = false;
-            _tray.Dispose();
-            _tray = null;
-        };
+            if (_tray is not null)
+            {
+                _tray.Visible = false;
+                _tray.ContextMenuStrip?.Dispose();
+                _tray.Dispose();
+                _tray = null;
+            }
+            _web.Dispose();
+        }
+        base.Dispose(disposing);
     }
 
     private void HideToTray()
@@ -316,6 +323,7 @@ internal sealed class ShellForm : Form
         var env = await CoreWebView2Environment.CreateAsync(null, userData, opts);
         await _web.EnsureCoreWebView2Async(env);
         var core = _web.CoreWebView2;
+        _authentication.Attach(core);
 #if KEEPCLIP_DEV
         void UpdateResourceProcesses()
         {

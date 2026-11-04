@@ -14,6 +14,7 @@ for component in ffmpeg x264 nv-codec-headers amf libvpl; do
     cp "$archive" /out/notices/sources/
 done
 cp /recipe/build.sh /out/notices/build/
+cp /recipe/gdigrab-sandbox.patch /out/notices/build/
 dpkg-query -W -f='${Package}\t${Version}\n' > /out/notices/build/toolchain-packages.tsv
 cd /work/nv-codec-headers
 make PREFIX=/prefix install
@@ -34,6 +35,7 @@ cmake -S /work/libvpl -B /work/libvpl-build -G Ninja \
 cmake --build /work/libvpl-build -j4
 cmake --install /work/libvpl-build
 cd /work/ffmpeg
+patch --batch --forward --fuzz=0 -p1 < /recipe/gdigrab-sandbox.patch
 ./configure --prefix=/prefix --target-os=mingw32 --arch=x86_64 \
     --cross-prefix=x86_64-w64-mingw32- --enable-cross-compile \
     --disable-autodetect --enable-gpl --enable-version3 --disable-nonfree \
@@ -42,7 +44,7 @@ cd /work/ffmpeg
     --enable-cuda-llvm --enable-d3d11va --enable-dxva2 --enable-schannel \
     --pkg-config=pkg-config --pkg-config-flags=--static --extra-cflags=-I/prefix/include \
     --extra-ldflags='-L/prefix/lib -static -static-libgcc -static-libstdc++' --extra-libs='-lstdc++ -lole32 -lcfgmgr32' \
-    --extra-version=KeepClip-source-build-1
+    --extra-version=KeepClip-source-build-2
 make -j4
 cp ffmpeg.exe ffprobe.exe /out/bin/
 cp COPYING* LICENSE.md /out/notices/

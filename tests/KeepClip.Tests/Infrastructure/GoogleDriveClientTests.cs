@@ -13,9 +13,11 @@ public class GoogleDriveClientTests
     {
         private readonly Queue<Func<Request, HttpResponseMessage>> _responses = new(responses);
         public List<Request> Requests { get; } = new();
+        public List<HttpContent> Contents { get; } = new();
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
+            if (request.Content is not null) Contents.Add(request.Content);
             var captured = new Request(request.Method, request.RequestUri!, request.Headers.Authorization?.ToString(), request.Content is null ? Array.Empty<byte>() : await request.Content.ReadAsByteArrayAsync(ct), request.Content?.Headers.ContentType?.MediaType, request.Headers.Range?.ToString());
             Requests.Add(captured);
             Assert.NotEmpty(_responses);
@@ -294,6 +296,92 @@ public class GoogleDriveClientTests
         Assert.Equal(HttpMethod.Patch, request.Method);
         Assert.True((bool)JsonNode.Parse(request.Body)!["trashed"]!);
         await Assert.ThrowsAsync<GoogleDrive.GoogleApiException>(() => client.TrashAsync("token", "remote"));
+    }
+
+    [Theory]
+    [InlineData("exchange", false)]
+    [InlineData("exchange", true)]
+    [InlineData("refresh", false)]
+    [InlineData("refresh", true)]
+    [InlineData("revoke", false)]
+    [InlineData("revoke", true)]
+    public async Task Token_requests_dispose_form_content_after_success_or_transport_failure(string operation, bool fail)
+    {
+        using var handler = new Handler(_ => fail ? throw new HttpRequestException("synthetic transport failure") : Json("{\"access_token\":\"test-access\"}"));
+        using var http = new HttpClient(handler);
+        var client = new GoogleDriveClient(http, http);
+        Task Send() => operation switch
+        {
+            "exchange" => client.ExchangeCodeAsync("test-client", "test-code", "test-verifier", "http://127.0.0.1:1234/"),
+            "refresh" => client.RefreshAsync("test-client", "test-refresh"),
+            _ => client.RevokeAsync("test-refresh"),
+        };
+
+        if (fail && operation != "revoke") await Assert.ThrowsAsync<HttpRequestException>(Send);
+        else await Send();
+
+        var content = Assert.Single(handler.Contents);
+        await Assert.ThrowsAsync<ObjectDisposedException>(() => content.ReadAsStringAsync());
+    }
+
+    [Theory]
+    [InlineData("http")]
+    [InlineData("json")]
+    [InlineData("network")]
+    public async Task Failed_upload_releases_the_source_file_and_preserves_its_bytes(string failure)
+    {
+        var path = Path.Combine(TestEnvironment.NewTempDir("failed-upload-handle"), "clip.mp4");
+        var bytes = new byte[] { 8, 4, 2, 1 };
+        File.WriteAllBytes(path, bytes);
+        using var handler = new Handler(
+            _ => { var response = Json("{}"); response.Headers.Location = new Uri("https://www.googleapis.com/upload/session/test"); return response; },
+            _ => failure switch
+            {
+                "http" => Json("{\"error\":\"unavailable\"}", HttpStatusCode.ServiceUnavailable),
+                "json" => Json("{ incomplete response"),
+                _ => throw new HttpRequestException("synthetic connection failure"),
+            });
+        using var http = new HttpClient(handler);
+        var client = new GoogleDriveClient(http, http);
+        Task<string> Upload() => client.UploadResumableAsync("test-token", "clip.mp4", "test-folder", path, "video/mp4");
+
+        if (failure == "http") await Assert.ThrowsAsync<GoogleDrive.GoogleApiException>(Upload);
+        else if (failure == "json") await Assert.ThrowsAnyAsync<System.Text.Json.JsonException>(Upload);
+        else await Assert.ThrowsAsync<HttpRequestException>(Upload);
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.Equal(bytes, handler.Requests[1].Body);
+        using var source = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        var actual = new byte[bytes.Length];
+        source.ReadExactly(actual);
+        Assert.Equal(bytes, actual);
+        Assert.Equal(bytes.Length, source.Length);
+    }
+
+    [Fact]
+    public async Task Interrupted_download_releases_the_destination_and_response_stream()
+    {
+        var path = Path.Combine(TestEnvironment.NewTempDir("failed-download-handle"), "clip.mp4");
+        using var stream = new InterruptedDownloadStream();
+        using var handler = new Handler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StreamContent(stream) });
+        using var http = new HttpClient(handler);
+
+        var error = await Assert.ThrowsAsync<IOException>(() => new GoogleDriveClient(http, http).DownloadAsync("test-token", "test-file", path));
+
+        Assert.Equal("synthetic transfer interruption", error.Message);
+        Assert.False(stream.CanRead);
+        using var destination = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        Assert.Equal(1, destination.Length);
+        Assert.Equal(42, destination.ReadByte());
+    }
+
+    private sealed class InterruptedDownloadStream : MemoryStream
+    {
+        public override async Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
+        {
+            await destination.WriteAsync(new byte[] { 42 }, cancellationToken);
+            throw new IOException("synthetic transfer interruption");
+        }
     }
 
     private static HttpResponseMessage Image(byte[] bytes, string contentType)

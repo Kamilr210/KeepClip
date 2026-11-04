@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "buildId": "keepclip-ffmpeg-9.0.2-1",
+  "buildId": "keepclip-ffmpeg-9.0.2-2",
   "sourceDateEpoch": 1789776000,
   "baseImage": "debian:bookworm-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251",
   "sources": [
@@ -77,6 +77,13 @@
       "license": "multiple; see Debian copyright in archive",
       "sha256": "3ba56abfee3dc1fe3fad3b66105c5abde1f5aaa93df216f9938fc918b319de58",
       "bundlePath": "sources/mingw-w64-debian.tar.xz"
+    }
+  ],
+  "patches": [
+    {
+      "file": "gdigrab-sandbox.patch",
+      "bundlePath": "build/gdigrab-sandbox.patch",
+      "sha256": "fd3942ad144376465c93e899814ece09a398db438a99ef287025aab0dc230679"
     }
   ]
 }

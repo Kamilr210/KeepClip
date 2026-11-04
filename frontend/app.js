@@ -2718,6 +2718,9 @@ function renderReplayStatus(st) {
   else if (st.running) {
     const enc = REPLAY_ENC_LABELS[st.encoder] || st.encoder || "?";
     text = t("replay.stOn").replace("{enc}", enc + (st.audio ? "" : " · bez audio"));
+    if (st.capture === "gdigrab" && Number.isFinite(st.recorded_fps)) {
+      text += " · " + t("replay.measuredFps").replace("{actual}", Math.round(st.recorded_fps)).replace("{target}", st.fps);
+    }
   } else if (st.enabled && !st.error) text = t("replay.stStarting");
   else text = t("replay.stOff");
   els.replayStatusText.textContent = text;
@@ -3042,7 +3045,7 @@ async function saveSelection() {
         fetch(`/api/folders/${folderId}/clips/${cid}`, { method: "POST" })
       )
     );
-    toast(t("toast.folderAdded").replace("{n}", ids.length).replace("{word}", t("selection.selectedWord")).replace("{folder}", _selectionTargetFolderName));
+    toast(t("toast.folderAdded").replace("{n}", ids.length).replace("{word}", clipsWord(ids.length)).replace("{folder}", _selectionTargetFolderName));
     const fid = folderId;
     exitSelectionMode();
     setView("folders");

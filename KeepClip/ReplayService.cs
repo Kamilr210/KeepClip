@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using NAudio.CoreAudioApi;
 
 namespace KeepClip;
@@ -14,6 +15,7 @@ public static class ReplayService
     private static bool _stopRequested;
     private static bool _audioOn;
     private static string? _encoder;
+    private static double _recordedFps;
 
     internal const int TierGpu = 0, TierCpu = 1, TierGdi = 2;
     private static int _captureTier = -1;
@@ -61,6 +63,7 @@ public static class ReplayService
         var ff = _ff;
         bool running;
         try { running = ff is { HasExited: false }; } catch { running = false; }
+        var recordedFps = Volatile.Read(ref _recordedFps);
         return new Dictionary<string, object?>
         {
             ["enabled"] = Enabled,
@@ -69,6 +72,7 @@ public static class ReplayService
             ["saving"] = _saving != 0,
             ["duration_s"] = DurationS,
             ["fps"] = Fps,
+            ["recorded_fps"] = running && _captureTier == TierGdi && recordedFps > 0 ? recordedFps : null,
             ["quality"] = Quality,
             ["hotkey"] = Hotkey,
             ["hotkey_active"] = HotkeyManager.IsActive,
@@ -192,6 +196,8 @@ public static class ReplayService
             if (_captureTier < 0)
                 _captureTier = DisplayHelper.PreferGdiCapture() ? TierGdi : TierCpu;
 
+            if (_captureTier == TierGdi) ReplayCaptureCapabilities.RequireSafeGdi(new MediaProcessRunner());
+
             _audio = AudioPump.TryCreate(MicEnabled, AudioOutputId, AudioInputId);
             _audioOn = _audio is not null;
 
@@ -236,6 +242,7 @@ public static class ReplayService
         }
 
         _runningSig = null;
+        Volatile.Write(ref _recordedFps, 0);
     }
 
     private static Process SpawnCapture(int tier)
@@ -245,6 +252,18 @@ public static class ReplayService
 
         var proc = new Process { StartInfo = psi };
         if (!proc.Start()) throw new Exception(Strings.Get("replay.ffmpegStart"));
+        if (psi.RedirectStandardOutput)
+        {
+            proc.OutputDataReceived += (_, e) =>
+            {
+                if (e.Data is not { } line || !line.StartsWith("fps=", StringComparison.Ordinal)
+                    || !double.TryParse(line.AsSpan(4), NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var fps)
+                    || !double.IsFinite(fps) || fps <= 0) return;
+                lock (Gate)
+                    if (ReferenceEquals(_ff, proc)) Volatile.Write(ref _recordedFps, fps);
+            };
+            proc.BeginOutputReadLine();
+        }
 
         _ = Task.Run(async () =>
         {

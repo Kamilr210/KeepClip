@@ -1,0 +1,125 @@
+--- a/libavdevice/gdigrab.c
++++ b/libavdevice/gdigrab.c
+@@ -29,14 +29,24 @@
+  */
+ 
+ #include "config.h"
++
++#if !defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0601
++#undef _WIN32_WINNT
++#define _WIN32_WINNT 0x0601
++#endif
+ #include "libavformat/demux.h"
+ #include "libavformat/internal.h"
++#include "libavformat/url.h"
+ #include "libavutil/mem.h"
+ #include "libavutil/opt.h"
+ #include "libavutil/time.h"
+ #include "libavutil/wchar_filename.h"
+ #include <windows.h>
+ 
++#ifndef CREATE_WAITABLE_TIMER_HIGH_RESOLUTION
++#define CREATE_WAITABLE_TIMER_HIGH_RESOLUTION 0x00000002
++#endif
++
+ /**
+  * GDI Device Demuxer context
+  */
+@@ -49,6 +59,9 @@
+     int64_t    time_frame;  /**< Current time */
+ 
+     int        draw_mouse;  /**< Draw mouse cursor (private option) */
++    int        use_captureblt; /**< Include layered windows in the capture */
++    int        high_precision; /**< Use a high-resolution frame wait timer */
++    HANDLE     frame_timer;
+     int        show_region; /**< Draw border (private option) */
+     AVRational framerate;   /**< Capture framerate (private option) */
+     int        width;       /**< Width of the grab frame (private option) */
+@@ -404,6 +417,16 @@
+         av_log(s1, AV_LOG_ERROR, "Invalid properties, aborting\n");
+         ret = AVERROR(EIO);
+         goto error;
++    }
++
++    if (gdigrab->high_precision) {
++        gdigrab->frame_timer = CreateWaitableTimerExW(NULL, NULL,
++            CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_MODIFY_STATE | SYNCHRONIZE);
++        if (!gdigrab->frame_timer) {
++            WIN32_API_ERROR("Creating high-resolution capture timer");
++            ret = AVERROR(EIO);
++            goto error;
++        }
+     }
+ 
+     dest_hdc = CreateCompatibleDC(source_hdc);
+@@ -481,6 +504,10 @@
+     return 0;
+ 
+ error:
++    if (gdigrab->frame_timer) {
++        CloseHandle(gdigrab->frame_timer);
++        gdigrab->frame_timer = NULL;
++    }
+     if (source_hdc)
+         ReleaseDC(hwnd, source_hdc);
+     if (dest_hdc)
+@@ -606,6 +633,8 @@
+ 
+     /* wait based on the frame rate */
+     for (;;) {
++        if (gdigrab->frame_timer && ff_check_interrupt(&s1->interrupt_callback))
++            return AVERROR_EXIT;
+         curtime = av_gettime_relative();
+         delay = time_frame * av_q2d(time_base) - curtime;
+         if (delay <= 0) {
+@@ -616,6 +645,21 @@
+         }
+         if (s1->flags & AVFMT_FLAG_NONBLOCK) {
+             return AVERROR(EAGAIN);
++        } else if (gdigrab->frame_timer) {
++            LARGE_INTEGER due;
++            DWORD wait_result;
++            int64_t wait_us = FFMIN(delay, INT64_C(100000));
++
++            due.QuadPart = -wait_us * 10;
++            if (!SetWaitableTimerEx(gdigrab->frame_timer, &due, 0, NULL, NULL, NULL, 0)) {
++                WIN32_API_ERROR("Arming high-resolution capture timer");
++                return AVERROR(EIO);
++            }
++            wait_result = WaitForSingleObject(gdigrab->frame_timer, (DWORD)((wait_us + 999) / 1000 + 1000));
++            if (wait_result != WAIT_OBJECT_0) {
++                av_log(s1, AV_LOG_ERROR, "High-resolution capture timer wait failed (%lu)\n", (unsigned long)wait_result);
++                return AVERROR(EIO);
++            }
+         } else {
+             av_usleep(delay);
+         }
+@@ -630,7 +674,7 @@
+                 clip_rect.right - clip_rect.left,
+                 clip_rect.bottom - clip_rect.top,
+                 source_hdc,
+-                clip_rect.left, clip_rect.top, SRCCOPY | CAPTUREBLT)) {
++                clip_rect.left, clip_rect.top, SRCCOPY | (gdigrab->use_captureblt ? CAPTUREBLT : 0))) {
+         WIN32_API_ERROR("Failed to capture image");
+         return AVERROR(EIO);
+     }
+@@ -670,6 +714,10 @@
+ {
+     struct gdigrab *s = s1->priv_data;
+ 
++    if (s->frame_timer) {
++        CloseHandle(s->frame_timer);
++        s->frame_timer = NULL;
++    }
+     if (s->show_region)
+         gdigrab_region_wnd_destroy(s1, s);
+ 
+@@ -689,6 +737,8 @@
+ #define DEC AV_OPT_FLAG_DECODING_PARAM
+ static const AVOption options[] = {
+     { "draw_mouse", "draw the mouse pointer", OFFSET(draw_mouse), AV_OPT_TYPE_INT, {.i64 = 1}, 0, 1, DEC },
++    { "use_captureblt", "include layered windows when capturing", OFFSET(use_captureblt), AV_OPT_TYPE_INT, {.i64 = 1}, 0, 1, DEC },
++    { "high_precision", "use a high-resolution capture wait timer", OFFSET(high_precision), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, DEC },
+     { "show_region", "draw border around capture area", OFFSET(show_region), AV_OPT_TYPE_INT, {.i64 = 0}, 0, 1, DEC },
+     { "framerate", "set video frame rate", OFFSET(framerate), AV_OPT_TYPE_VIDEO_RATE, {.str = "ntsc"}, 0, INT_MAX, DEC },
+     { "video_size", "set video frame size", OFFSET(width), AV_OPT_TYPE_IMAGE_SIZE, {.str = NULL}, 0, 0, DEC },

@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>KeepClip · Wyniki testów</title>
+  <style>
+    :root { color-scheme:dark; --bg:#0b111a; --panel:#111b27; --panel-alt:#162230; --border:#293746; --text:#edf3f9; --muted:#a8b8c9; --mint:#7ae9bc; --red:#ff9f9f; --amber:#f6cb79; --blue:#9cc9ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:15px/1.55 "Segoe UI",system-ui,sans-serif; }
+    a { color:var(--mint); text-underline-offset:3px; }
+    button,input,select,textarea { font:inherit; }
+    button,a,summary,input,select,textarea { -webkit-tap-highlight-color:transparent; }
+    :focus-visible { outline:3px solid var(--mint); outline-offset:4px; }
+    button { cursor:pointer; }
+    button:disabled { opacity:.5; cursor:default; }
+    [hidden] { display:none !important; }
+    .wrap { max-width:1400px; margin:auto; padding:28px 36px 48px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:26px; border-bottom:1px solid var(--border); }
+    .brand { display:flex; align-items:center; gap:12px; font-size:19px; font-weight:700; letter-spacing:-.5px; }
+    .brand-mark { display:grid; place-items:center; width:35px; height:35px; border:1px solid #44836d; border-radius:10px; background:#17362e; color:var(--mint); font-size:15px; letter-spacing:-1px; }
+    .brand span:last-child { font-weight:400; font-size:13px; letter-spacing:0; color:var(--muted); border-left:1px solid var(--border); margin-left:4px; padding-left:14px; }
+    .run-meta { text-align:right; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
+    .hero { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; margin:32px 0 24px; }
+    .eyebrow { color:var(--muted); font-size:12px; letter-spacing:1.5px; font-weight:600; text-transform:uppercase; margin:0 0 10px; }
+    h1 { font-size:clamp(25px,3vw,37px); line-height:1.15; letter-spacing:-1.2px; margin:0 0 13px; }
+    h2 { font-size:19px; letter-spacing:-.35px; margin:0; }
+    h3 { font-size:15px; margin:0; }
+    p { margin:0; }
+    .description { max-width:720px; color:var(--muted); }
+    .hero-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding-top:13px; justify-content:flex-end; }
+    .button { display:inline-flex; align-items:center; justify-content:center; gap:9px; padding:10px 15px; min-height:43px; border:1px solid var(--border); border-radius:9px; background:var(--panel-alt); color:var(--text); text-decoration:none; font-size:13px; font-weight:600; }
+    .button:hover { background:#213144; }
+    .button.primary { background:var(--mint); color:#082318; border-color:var(--mint); }
+    .button.primary:hover { background:#a1f4d2; }
+    .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:28px; }
+    .stat { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 21px; }
+    .stat-top { color:var(--muted); font-size:12px; display:flex; justify-content:space-between; gap:10px; }
+    .stat-value { display:block; margin:6px 0 3px; font-size:32px; line-height:1.25; font-weight:650; letter-spacing:-1px; }
+    .stat-note { display:block; color:var(--muted); font-size:12px; }
+    .good { color:var(--mint); } .bad { color:var(--red); } .warn { color:var(--amber); }
+    .panel { border:1px solid var(--border); border-radius:13px; background:var(--panel); margin-bottom:22px; overflow:hidden; }
+    .panel-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:19px 22px; }
+    .panel-heading p { color:var(--muted); font-size:12px; margin-top:4px; }
+    .panel-heading .subtle { font-size:12px; color:var(--muted); white-space:nowrap; }
+    .notice { border-left:3px solid var(--amber); padding:16px 19px; background:#29251c; border-radius:0 9px 9px 0; margin-bottom:22px; }
+    .notice p { color:#f0d49b; font-size:13px; margin-top:5px; }
+    .notice ul { margin:8px 0 0; padding-left:20px; font-size:13px; }
+    .status { display:inline-flex; align-items:center; gap:6px; border:1px solid transparent; border-radius:5px; padding:2px 8px; font-size:11px; font-weight:650; line-height:1.7; white-space:nowrap; }
+    .status::before { content:""; width:5px; height:5px; background:currentColor; border-radius:50%; }
+    .status.passed { color:var(--mint); background:#14382d; border-color:#24543f; }
+    .status.failed { color:var(--red); background:#3a2228; border-color:#644047; }
+    .status.skipped,.status.blocked,.status.unknown { color:var(--amber); background:#322b20; border-color:#5b4a2b; }
+    .status.not-requested { color:var(--muted); background:#202b36; border-color:#3a4755; }
+    details > summary { list-style:none; cursor:pointer; }
+    summary::-webkit-details-marker { display:none; }
+    summary::before { content:"›"; display:inline-block; color:var(--muted); font-size:23px; line-height:1; width:13px; flex:0 0 13px; transition:transform .12s; }
+    details[open] > summary::before { transform:rotate(90deg); }
+    .steps-list { border-top:1px solid var(--border); }
+    .step { border-bottom:1px solid var(--border); }
+    .step:last-child { border-bottom:0; }
+    .step > summary { display:flex; align-items:center; gap:10px; padding:12px 22px; }
+    .step-name { flex:1; font-size:13px; }
+    .time { color:var(--muted); font:12px/1.4 ui-monospace,Consolas,monospace; min-width:62px; text-align:right; white-space:nowrap; }
+    .step-body { padding:0 22px 18px 45px; font-size:13px; }
+    .detail-text { white-space:pre-wrap; overflow-wrap:anywhere; color:var(--muted); margin:8px 0; }
+    pre { margin:10px 0 0; padding:15px; border:1px solid var(--border); background:#0b131e; border-radius:8px; color:#c3d2e0; font:12px/1.65 ui-monospace,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; max-height:360px; overflow:auto; }
+    .step-body a { display:inline-block; margin-top:8px; font-size:12px; }
+    .toolbar { padding:0 22px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .search-wrap { position:relative; flex:1; min-width:230px; }
+    .search-wrap::before { content:"⌕"; position:absolute; left:12px; top:5px; color:var(--muted); font-size:22px; pointer-events:none; }
+    input[type=search] { background:#0d1722; border:1px solid var(--border); border-radius:8px; width:100%; min-height:40px; padding:8px 12px 8px 37px; color:var(--text); font-size:13px; }
+    input::placeholder { color:#8c9db1; }
+    .filters { display:flex; flex-wrap:wrap; gap:4px; padding:3px; background:#0d1722; border:1px solid var(--border); border-radius:8px; }
+    .filter { border:0; border-radius:5px; background:transparent; color:var(--muted); font-size:12px; padding:6px 11px; }
+    .filter[aria-pressed=true] { color:var(--text); background:#2b3a4b; }
+    .filter:hover { color:var(--text); }
+    .test-options { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 22px 13px; font-size:12px; color:var(--muted); }
+    .text-button { padding:3px 0; background:none; border:0; color:var(--mint); font-size:12px; }
+    .text-button:hover { text-decoration:underline; }
+    .test-options-actions { display:flex; gap:16px; }
+    .suite { border-top:1px solid var(--border); }
+    .suite > summary { display:flex; align-items:center; gap:11px; background:#16212e; padding:15px 22px; }
+    .suite-name { flex:1; font-size:14px; font-weight:650; }
+    .count { color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .group { border-top:1px solid #243140; }
+    .group > summary { display:flex; align-items:center; gap:10px; padding:11px 22px 11px 43px; }
+    .group-name { flex:1; font:12px/1.5 ui-monospace,Consolas,monospace; overflow-wrap:anywhere; min-width:0; }
+    .test { border-top:1px solid #1e2d3c; margin-left:43px; }
+    .test > summary { display:flex; align-items:flex-start; gap:10px; padding:11px 22px 11px 21px; }
+    .test > summary::before { font-size:20px; }
+    .test-name { flex:1; min-width:0; overflow-wrap:anywhere; font-size:12px; line-height:1.6; }
+    .test.failed > summary { background:#281b23; }
+    .test-body { padding:0 22px 17px 44px; }
+    .test-body h3 { font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--muted); margin:15px 0 5px; }
+    .test-body .message { color:var(--red); font-size:13px; white-space:pre-wrap; overflow-wrap:anywhere; }
+    .location { font:12px/1.7 ui-monospace,Consolas,monospace; color:var(--blue); overflow-wrap:anywhere; }
+    .empty { padding:38px 24px; text-align:center; color:var(--muted); border-top:1px solid var(--border); }
+    .empty strong { display:block; color:var(--text); font-size:15px; margin-bottom:5px; }
+    .empty p { font-size:13px; }
+    .prompt-details > summary { display:flex; align-items:center; gap:10px; padding:18px 22px; }
+    .prompt-details > summary span { flex:1; font-weight:600; }
+    .prompt-body { padding:0 22px 20px; }
+    .prompt-body p { color:var(--muted); font-size:13px; }
+    .prompt-actions { display:flex; gap:14px; align-items:center; margin-top:14px; flex-wrap:wrap; }
+    .copy-status { color:var(--mint); font-size:13px; }
+    .copy-status.manual { color:var(--amber); }
+    textarea { display:block; width:100%; min-height:180px; resize:vertical; margin-top:12px; border:1px solid var(--border); border-radius:8px; padding:14px; background:#0b131e; color:var(--text); font:12px/1.6 ui-monospace,Consolas,monospace; }
+    footer { display:flex; justify-content:space-between; gap:20px; color:var(--muted); font-size:11px; border-top:1px solid var(--border); padding-top:20px; }
+    .footer-links { display:flex; gap:18px; white-space:nowrap; }
+    .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+    @media (max-width:900px) { .wrap{padding:20px}.hero{display:block}.hero-actions{justify-content:flex-start;padding-top:20px}.stats{gap:10px}.stat{padding:15px}.toolbar{display:block}.filters{display:inline-flex;margin-top:12px}.search-wrap{width:100%} }
+    @media (max-width:580px) { .wrap{padding:16px 12px}.topbar{align-items:flex-start}.brand span:last-child{display:none}.run-meta{font-size:10px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stat-value{font-size:27px}.panel-heading{padding:16px}.toolbar{padding:0 16px 15px}.test-options{padding:0 16px 12px}.step > summary{padding:12px 14px;gap:7px}.time{min-width:43px;font-size:10px}.suite > summary{padding:13px 14px}.group > summary{padding:11px 14px 11px 23px}.group .status{display:none}.test{margin-left:20px}.test > summary{padding:11px 12px;flex-wrap:wrap}.test-name{flex-basis:calc(100% - 30px)}.test > summary .status{margin-left:23px}.test > summary .time{margin-left:auto}.test-body{padding:0 14px 15px 15px}.step-body{padding:0 16px 16px 33px}.count{font-size:10px}.filter{padding:6px 8px}.hero-actions{gap:8px}.button{padding:9px 12px}.test-options-actions{gap:11px}footer{display:block}.footer-links{margin-top:12px} }
+    @media (prefers-reduced-motion:reduce) { *{transition:none !important} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">K✓</span> KeepClip <span>Kontrola jakości</span></div>
+      <div class="run-meta"><div id="run-date">Raport lokalny</div><div id="run-id"></div></div>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="report-title">
+        <div><p class="eyebrow" id="report-mode">Wyniki testów</p><h1 id="report-title">Odczytywanie raportu…</h1><p class="description" id="report-description">Wczytywanie wyników zapisanych w tym pliku.</p></div>
+        <div class="hero-actions"><a class="button" id="coverage-link" hidden>Raport pokrycia ↗</a><button class="button primary copy-prompt" type="button" disabled>Kopiuj prompt naprawy</button></div>
+      </section>
+      <noscript><div class="notice">Włącz JavaScript, aby przeglądać testy. Surowe wyniki są dostępne w pliku summary.json obok tego raportu.</div></noscript>
+      <div class="notice" id="issues" hidden><h2>Raport wymaga uwagi</h2><p>Nie wszystkie wyniki można było potwierdzić. Szczegóły są poniżej.</p><ul id="issue-list"></ul></div>
+      <section class="stats" aria-label="Podsumowanie testów">
+        <div class="stat"><div class="stat-top">Zaliczone testy <span aria-hidden="true">✓</span></div><strong class="stat-value good" id="passed-count">—</strong><span class="stat-note" id="total-note">Odczyt wyników</span></div>
+        <div class="stat"><div class="stat-top">Nieudane testy <span aria-hidden="true">×</span></div><strong class="stat-value" id="failed-count">—</strong><span class="stat-note" id="failed-note">Błędy i brak potwierdzenia</span></div>
+        <div class="stat"><div class="stat-top">Pominięte testy <span aria-hidden="true">−</span></div><strong class="stat-value" id="skipped-count">—</strong><span class="stat-note">Nie są liczone jako zaliczone</span></div>
+        <div class="stat"><div class="stat-top">Kontrole QA <span aria-hidden="true">≡</span></div><strong class="stat-value" id="steps-count">—</strong><span class="stat-note" id="steps-note">Kompilacja, audyt i testy</span></div>
+      </section>
+      <section class="panel" aria-labelledby="steps-title">
+        <div class="panel-heading"><div><h2 id="steps-title">Przebieg kontroli</h2><p>Rozwiń krok, aby zobaczyć szczegóły lub otworzyć jego log.</p></div><span class="subtle" id="run-duration"></span></div>
+        <div class="steps-list" id="steps"></div>
+      </section>
+      <section class="panel" aria-labelledby="tests-title">
+        <div class="panel-heading"><div><h2 id="tests-title">Wyniki poszczególnych testów</h2><p>Testy .NET i JavaScript, pogrupowane według zestawu i modułu.</p></div></div>
+        <div class="toolbar">
+          <div class="search-wrap"><label for="test-search" class="sr-only">Szukaj testu, modułu, pliku lub błędu</label><input type="search" id="test-search" placeholder="Szukaj testu, modułu, pliku lub błędu…" autocomplete="off"></div>
+          <div class="filters" role="group" aria-label="Filtr wyników"><button type="button" class="filter" data-filter="all" aria-pressed="true">Wszystkie</button><button type="button" class="filter" data-filter="failed" aria-pressed="false">Błędy</button><button type="button" class="filter" data-filter="passed" aria-pressed="false">Zaliczone</button><button type="button" class="filter" data-filter="skipped" aria-pressed="false">Pominięte</button></div>
+        </div>
+        <div class="test-options"><span id="visible-count" role="status" aria-live="polite"></span><div class="test-options-actions"><button class="text-button" type="button" id="expand-tests">Rozwiń grupy</button><button class="text-button" type="button" id="collapse-tests">Zwiń grupy</button></div></div>
+        <div id="test-list"></div>
+      </section>
+      <details class="panel prompt-details" id="prompt-panel" hidden>
+        <summary><span>Co przekazać do naprawy</span><span class="count">Prompt z wynikami tego przebiegu</span></summary>
+        <div class="prompt-body"><p>Wklej ten tekst do czatu z agentem pracującym w repozytorium KeepClip. Zawiera błędy i ścieżki do logów tego uruchomienia.</p><pre id="repair-prompt" tabindex="0"></pre><div class="prompt-actions"><button class="button primary copy-prompt" type="button">Kopiuj prompt naprawy</button><a id="prompt-link" hidden>Pobierz plik z promptem</a></div><textarea id="manual-copy" aria-label="Prompt do ręcznego skopiowania" readonly hidden></textarea></div>
+      </details>
+      <p id="copy-status" class="copy-status" role="status" aria-live="polite"></p>
+    </main>
+    <footer><p>Raport jednego uruchomienia. Dane zapisane lokalnie, bez połączenia z chmurą.<br>Warianty tego samego testu w Release i PublicRelease są pokazane oddzielnie.</p><div class="footer-links"><a id="summary-link" hidden>Surowe podsumowanie JSON</a><a href="#report-title">Wróć na górę ↑</a></div></footer>
+  </div>
+  <script id="report-data" type="application/json">__QUALITY_REPORT_DATA__</script>
+  <script>
+    'use strict';
+    (() => {
+      const byId = id => document.getElementById(id);
+      const element = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined && text !== null) node.textContent = String(text); return node; };
+      const statusNames = { passed: 'Zaliczone', failed: 'Błąd', skipped: 'Pominięte', blocked: 'Zablokowane', unknown: 'Niepotwierdzone', 'not-requested': 'Poza zakresem' };
+      const stepNames = { prerequisites: 'Przygotowanie środowiska', 'restore-audit': 'Zależności i audyt podatności', 'build-release-analyzers': 'Kompilacja Release i analizatory', 'test-release': 'Testy Release', 'coverage-report': 'Raport pokrycia', 'dependency-license-consistency': 'Zgodność zależności i licencji', 'restore-public': 'Zależności PublicRelease', 'build-public-analyzers': 'Kompilacja PublicRelease i analizatory', 'test-public': 'Testy PublicRelease', 'frontend-translations': 'Tłumaczenia interfejsu', 'node-tests': 'Testy JavaScript', 'oauth-packaging': 'Pakowanie konfiguracji OAuth', 'qa-harness-tests': 'Testy mechanizmu QA', 'qa-report-tests': 'Testy raportu graficznego', 'qa-recording-tools-tests': 'Testy narzędzi pomiaru nagrywania', 'ffmpeg-tests': 'Testy FFmpeg', 'desktop-tests': 'Testy WebView2', 'installer-and-hardware': 'Instalator i sprzęt', runner: 'Uruchamianie kontroli', 'visual-report': 'Raport graficzny' };
+      const normalizedStatus = value => Object.hasOwn(statusNames, value) ? value : 'unknown';
+      const badge = status => element('span', 'status ' + normalizedStatus(status), statusNames[normalizedStatus(status)]);
+      const isProblem = status => ['failed', 'blocked', 'unknown'].includes(status);
+      const seconds = value => { const n = Number(value); if (!Number.isFinite(n) || n < 0) return '—'; return n < 1 ? Math.round(n * 1000) + ' ms' : n.toLocaleString('pl-PL', { maximumFractionDigits: 2 }) + ' s'; };
+      const number = value => Number(value).toLocaleString('pl-PL');
+      const safeLink = value => {
+        if (typeof value !== 'string' || !value.trim()) return null;
+        let decoded; try { decoded = decodeURIComponent(value).replace(/\\/g, '/'); } catch { return null; }
+        if (/^[a-z][a-z\d+.-]*:/i.test(decoded) || /^[\/]/.test(decoded) || decoded.split('/').includes('..') || /[\u0000-\u001f]/.test(decoded)) return null;
+        return value.replace(/\\/g, '/');
+      };
+      const showLink = (id, value) => { const href = safeLink(value); if (href) { byId(id).href = href; byId(id).hidden = false; } };
+      let data;
+      try { data = JSON.parse(byId('report-data').textContent); if (!data || typeof data !== 'object') throw new Error('Brak obiektu raportu.'); }
+      catch (error) { byId('report-title').textContent = 'Nie można odczytać raportu'; byId('report-title').className = 'bad'; byId('report-description').textContent = 'Plik nie zawiera poprawnych danych. Sprawdź summary.json i logi w katalogu tego uruchomienia.'; return; }
+      const tests = Array.isArray(data.tests) ? data.tests : [];
+      const steps = Array.isArray(data.steps) ? data.steps : [];
+      const issues = Array.isArray(data.issues) ? data.issues : [];
+      const totals = tests.reduce((counts, test) => { const status = normalizedStatus(test.status); counts.total++; counts[status in counts ? status : 'unknown']++; return counts; }, { total:0, passed:0, failed:0, skipped:0, unknown:0 });
+      const failures = totals.failed + totals.unknown;
+      const stepFailures = steps.filter(step => isProblem(normalizedStatus(step.status))).length;
+      const passedSteps = steps.filter(step => step.status === 'passed').length;
+      const requiredSteps = steps.filter(step => step.status !== 'not-requested').length;
+      const incomplete = data.overallStatus === 'incomplete' || issues.length > 0 || totals.unknown > 0 || totals.skipped > 0 || steps.length === 0;
+      const success = !incomplete && data.overallStatus === 'passed' && Number(data.exitCode) === 0 && !failures && !stepFailures && totals.total > 0;
+      const title = success ? 'Kontrola zakończona pomyślnie' : incomplete ? 'Kontrola nie jest kompletna' : 'Kontrola wymaga poprawek';
+      byId('report-title').textContent = title;
+      byId('report-title').className = success ? 'good' : incomplete ? 'warn' : 'bad';
+      byId('report-description').textContent = success ? 'Wszystkie wymagane kontrole tego przebiegu przeszły. Poniżej znajdziesz wyniki testów i szczegóły wykonanych kroków.' : 'Sprawdź oznaczone kroki i testy. Rozwiń wynik, aby zobaczyć błąd oraz wskazane przez niego pliki. Prompt zbiera informacje potrzebne do naprawy.';
+      byId('report-mode').textContent = 'Kontrola jakości · ' + (data.mode === 'Full' ? 'Pełna' : data.mode === 'Quick' ? 'Szybka' : String(data.mode || 'Nieznany tryb'));
+      if (data.filter) byId('report-mode').textContent += ' · wybrane testy';
+      byId('run-id').textContent = String(data.runId || 'Brak identyfikatora');
+      const date = new Date(data.finishedUtc || data.startedUtc);
+      byId('run-date').textContent = Number.isNaN(date.getTime()) ? 'Nieznana data' : date.toLocaleString('pl-PL', { dateStyle:'medium', timeStyle:'short' });
+      const duration = (new Date(data.finishedUtc) - new Date(data.startedUtc)) / 1000;
+      byId('run-duration').textContent = 'Czas: ' + seconds(duration);
+      byId('passed-count').textContent = number(totals.passed);
+      byId('total-note').textContent = 'Z ' + number(totals.total) + ' odczytanych wyników';
+      byId('failed-count').textContent = number(failures);
+      byId('failed-count').className = 'stat-value' + (failures ? ' bad' : '');
+      byId('failed-note').textContent = totals.unknown ? number(totals.failed) + ' błędów · ' + number(totals.unknown) + ' niepotwierdzonych' : stepFailures ? 'Nieudane kroki QA: ' + number(stepFailures) : 'Brak błędów w odczytanych testach';
+      byId('skipped-count').textContent = number(totals.skipped);
+      byId('skipped-count').className = 'stat-value' + (totals.skipped ? ' warn' : '');
+      byId('steps-count').textContent = number(passedSteps) + ' / ' + number(requiredSteps);
+      byId('steps-note').textContent = 'Zaliczone / wymagane w tym przebiegu';
+      if (issues.length) { byId('issues').hidden = false; for (const issue of issues) byId('issue-list').append(element('li', '', issue)); }
+      showLink('coverage-link', data.coverageLink);
+      showLink('summary-link', data.artifacts && data.artifacts.summary);
+      showLink('prompt-link', data.artifacts && data.artifacts.prompt);
+      const sortedSteps = [...steps].sort((a,b) => Number(isProblem(normalizedStatus(b.status))) - Number(isProblem(normalizedStatus(a.status))));
+      for (const step of sortedSteps) {
+        const item = element('details', 'step'); item.open = isProblem(normalizedStatus(step.status));
+        const summary = element('summary'); summary.append(element('span', 'step-name', step.label || stepNames[step.name] || step.name || 'Kontrola'), badge(step.status), element('span', 'time', seconds(step.seconds))); item.append(summary);
+        const body = element('div', 'step-body');
+        if (step.detail) body.append(element('p', 'detail-text', step.detail));
+        if (step.logText) body.append(element('pre', '', step.logText));
+        const log = safeLink(step.log); if (log) { const link = element('a', '', 'Otwórz pełny log ↗'); link.href = log; body.append(link); }
+        if (!step.detail && !step.logText && !log) body.append(element('p', 'detail-text', step.status === 'passed' ? 'Kontrola zakończyła się poprawnie.' : 'Brak dodatkowych informacji w raporcie.'));
+        item.append(body); byId('steps').append(item);
+      }
+      if (!steps.length) byId('steps').append(element('div', 'empty', 'Brak potwierdzonych kroków. Nie można uznać tego uruchomienia za zaliczone.'));
+      let filter = failures ? 'failed' : 'all';
+      const suiteOrder = ['Release', 'PublicRelease', 'FFmpeg', 'Desktop', 'Node'];
+      const groupStatus = rows => rows.some(row => isProblem(normalizedStatus(row.status))) ? 'failed' : rows.some(row => row.status === 'skipped') ? 'skipped' : 'passed';
+      const testDetails = test => {
+        const status = normalizedStatus(test.status);
+        const detail = element('details', 'test ' + status); detail.open = isProblem(status);
+        const summary = element('summary'); summary.append(element('span', 'test-name', test.name || 'Test bez nazwy'), badge(status), element('span', 'time', seconds(test.durationSeconds))); detail.append(summary);
+        const body = element('div', 'test-body');
+        if (test.message) { body.append(element('h3', '', status === 'skipped' ? 'Powód pominięcia' : 'Komunikat'), element('p', status === 'failed' ? 'message' : 'detail-text', test.message)); }
+        const locations = Array.isArray(test.locations) && test.locations.length ? test.locations : test.sourceFile ? [{ file:test.sourceFile, line:test.sourceLine }] : [];
+        if (locations.length) {
+          body.append(element('h3', '', 'Lokalizacja wskazana w wyniku'));
+          for (const location of locations) { const file = location.file || location.sourceFile; const line = location.line || location.sourceLine; if (file) body.append(element('p', 'location', String(file) + (line ? ':' + line : ''))); }
+        } else if (isProblem(status)) body.append(element('p', 'detail-text', 'Wynik nie wskazuje pliku ani numeru linii. Sprawdź treść błędu i log powiązanego kroku.'));
+        if (test.stackTrace) { body.append(element('h3', '', 'Ślad błędu'), element('pre', '', test.stackTrace)); }
+        if (!test.message && !test.stackTrace && !locations.length && status === 'passed') body.append(element('p', 'detail-text', 'Test zakończył się poprawnie.'));
+        if (!test.message && status === 'skipped') body.append(element('p', 'detail-text', 'Test nie został wykonany. Nie zaliczono go do poprawnych wyników.'));
+        detail.append(body); return detail;
+      };
+      const renderTests = () => {
+        const query = byId('test-search').value.trim().toLocaleLowerCase('pl-PL');
+        const rows = tests.filter(test => (filter === 'all' || filter === 'failed' && isProblem(normalizedStatus(test.status)) || test.status === filter) && (!query || [test.name,test.module,test.suite,test.sourceFile,test.message,test.stackTrace].filter(Boolean).join(' ').toLocaleLowerCase('pl-PL').includes(query)));
+        for (const button of document.querySelectorAll('[data-filter]')) button.setAttribute('aria-pressed', String(button.dataset.filter === filter));
+        byId('visible-count').textContent = 'Widoczne: ' + number(rows.length) + ' / ' + number(tests.length);
+        const fragment = document.createDocumentFragment();
+        const suites = new Map();
+        for (const test of rows) { const name = test.suite || 'Pozostałe'; if (!suites.has(name)) suites.set(name, []); suites.get(name).push(test); }
+        const ordered = [...suites].sort((a,b) => { const failureDiff = Number(groupStatus(b[1]) === 'failed') - Number(groupStatus(a[1]) === 'failed'); return failureDiff || (suiteOrder.indexOf(a[0]) < 0 ? 99 : suiteOrder.indexOf(a[0])) - (suiteOrder.indexOf(b[0]) < 0 ? 99 : suiteOrder.indexOf(b[0])); });
+        for (const [name, suiteTests] of ordered) {
+          const suite = element('details', 'suite'); suite.open = true;
+          const summary = element('summary'); summary.append(element('span', 'suite-name', name), badge(groupStatus(suiteTests)), element('span', 'count', number(suiteTests.length) + ' wyników')); suite.append(summary);
+          const groups = new Map(); for (const test of suiteTests) { const module = test.module || 'Pozostałe testy'; if (!groups.has(module)) groups.set(module, []); groups.get(module).push(test); }
+          for (const [module, groupTests] of [...groups].sort((a,b) => Number(groupStatus(b[1]) === 'failed') - Number(groupStatus(a[1]) === 'failed') || a[0].localeCompare(b[0], 'pl'))) {
+            const group = element('details', 'group'); group.open = groupStatus(groupTests) === 'failed' || !!query;
+            const head = element('summary'); head.append(element('span', 'group-name', module), badge(groupStatus(groupTests)), element('span', 'count', number(groupTests.length))); group.append(head);
+            for (const test of [...groupTests].sort((a,b) => Number(isProblem(normalizedStatus(b.status))) - Number(isProblem(normalizedStatus(a.status))))) group.append(testDetails(test));
+            suite.append(group);
+          }
+          fragment.append(suite);
+        }
+        if (!rows.length) { const empty = element('div', 'empty'); empty.append(element('strong', '', tests.length ? 'Brak wyników dla tego filtra' : 'Nie odczytano wyników pojedynczych testów'), element('p', '', tests.length ? 'Zmień filtr lub wpisaną frazę.' : 'Sprawdź przebieg kontroli powyżej. Build lub przygotowanie środowiska mogły zatrzymać testy.')); fragment.append(empty); }
+        byId('test-list').replaceChildren(fragment);
+      };
+      for (const button of document.querySelectorAll('[data-filter]')) button.addEventListener('click', () => { filter = button.dataset.filter; renderTests(); });
+      let searchTimer; byId('test-search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(renderTests, 100); });
+      byId('expand-tests').addEventListener('click', () => { for (const item of document.querySelectorAll('#test-list .suite, #test-list .group')) item.open = true; });
+      byId('collapse-tests').addEventListener('click', () => { for (const item of document.querySelectorAll('#test-list .suite, #test-list .group')) item.open = false; });
+      renderTests();
+      const prompt = typeof data.repairPrompt === 'string' ? data.repairPrompt : '';
+      byId('repair-prompt').textContent = prompt;
+      byId('prompt-panel').hidden = !prompt || success;
+      const copyButtons = [...document.querySelectorAll('.copy-prompt')];
+      for (const button of copyButtons) { button.disabled = !prompt || success; if (success) { button.textContent = 'Brak poprawek do przekazania'; button.title = 'Wszystkie wymagane kontrole przeszły.'; } }
+      const copyPrompt = async () => {
+        if (!prompt || success) return;
+        let copied = false;
+        try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(prompt); copied = true; } } catch { }
+        if (!copied) {
+          byId('prompt-panel').hidden = false; byId('prompt-panel').open = true;
+          const textarea = byId('manual-copy'); textarea.hidden = false; textarea.value = prompt; textarea.focus(); textarea.select(); textarea.setSelectionRange(0, prompt.length);
+          try { copied = document.execCommand('copy'); } catch { }
+          if (copied) textarea.hidden = true;
+        }
+        byId('copy-status').className = 'copy-status' + (copied ? '' : ' manual');
+        byId('copy-status').textContent = copied ? 'Prompt skopiowany. Możesz wkleić go do czatu.' : 'Przeglądarka nie pozwoliła skopiować automatycznie. Tekst jest zaznaczony — naciśnij Ctrl+C.';
+        for (const button of copyButtons) button.textContent = copied ? 'Prompt skopiowany ✓' : 'Skopiuj ręcznie (Ctrl+C)';
+      };
+      for (const button of copyButtons) button.addEventListener('click', copyPrompt);
+    })();
+  </script>
+</body>
+</html>

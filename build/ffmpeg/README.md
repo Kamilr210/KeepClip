@@ -52,11 +52,31 @@ node build.mjs --sources /absolute/path/to/input-directory --output /absolute/pa
 checkout, AMF inputs fall back to `vendor/`; source-package rebuilds must supply
 both AMF files in the input directory. Other missing inputs are fetched from the
 pinned URLs and every input is checked against its
-locked SHA-256. No upstream code patches are applied. FFmpeg configuration and
+locked SHA-256. The bundled `gdigrab-sandbox.patch` is applied to FFmpeg with
+zero fuzz before configuration. Its SHA-256 is pinned in `sources.lock.json`,
+and the patch is included in `build/` alongside the original source archives.
+FFmpeg configuration and
 the exact toolchain package list are included under `build/`. Toolchain packages
 and container identity are recorded; the recipe does not promise byte-identical
 output across different toolchains. Sources, source checksums, recipe and output
 binary checksums travel together in `provenance.json`.
+
+Build `keepclip-ffmpeg-9.0.2-2` adds two opt-in GDI capture options. The default
+`use_captureblt=1` preserves upstream layered-window capture; setting it to zero
+uses `SRCCOPY` without `CAPTUREBLT`. The default `high_precision=0` preserves
+upstream timer behavior; setting it to one uses a high-resolution Windows
+waitable timer against the existing QPC-based frame deadline. Waits are bounded
+and interrupted captures are checked between waits; handles are released on
+initialization failure or close. This requires Windows 10 version 1803 or later
+and reports a clear error if the timer cannot be created. No global timer or
+registry setting is changed, and no additional DLL is redistributed.
+The pinned MinGW v10 `nanosleep` path retries waits using coarse `GetTickCount64`
+time, even though FFmpeg's monotonic clock is based on QPC. Requesting a 1 ms
+multimedia timer period did not fix the measured 32 FPS ceiling in Sandbox;
+the high-precision path therefore bypasses that winpthreads wait wrapper.
+These options address the measured Sandbox capture path; neither guarantees
+that the desktop compositor produces 60 distinct images each second. Validate
+cursor behavior, capture rate, timestamps and output images in the target session.
 
 Setup copies `bin/` into `tools/bin/` and `notices/` into `tools/ffmpeg-notices/`.
 Publish installs all the notices and source archives under `licenses/ffmpeg-build/`.

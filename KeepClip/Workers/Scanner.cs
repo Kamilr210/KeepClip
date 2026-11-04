@@ -83,10 +83,10 @@ public static class Scanner
             else deadIds.Add(Convert.ToInt64(row["id"]));
         }
 
+        var thumbnailsToDelete = new List<string>();
         foreach (var cid in deadIds)
         {
-            var tp = Config.ThumbPath(cid);
-            try { if (File.Exists(tp)) File.Delete(tp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+            thumbnailsToDelete.Add(Config.ThumbPath(cid));
             con.Exec("DELETE FROM clips WHERE id=$id", ("$id", cid));
             removed++;
         }
@@ -101,8 +101,7 @@ public static class Scanner
             {
                 if (existing.Size != size || Math.Abs(existing.Mtime - mtime) > 0.001)
                 {
-                    var tp = Config.ThumbPath(existing.Id);
-                    try { if (File.Exists(tp)) File.Delete(tp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+                    thumbnailsToDelete.Add(Config.ThumbPath(existing.Id));
                     con.Exec("UPDATE clips SET size_bytes=$s, mtime=$m, has_thumb=0 WHERE id=$id",
                         ("$s", size), ("$m", mtime), ("$id", existing.Id));
                     updated++;
@@ -121,6 +120,10 @@ public static class Scanner
         }
 
         tx.Commit();
+        foreach (var tp in thumbnailsToDelete)
+        {
+            try { if (File.Exists(tp)) File.Delete(tp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
         return new() { ["found"] = found, ["added"] = added, ["removed"] = removed, ["updated"] = updated };
     }
 

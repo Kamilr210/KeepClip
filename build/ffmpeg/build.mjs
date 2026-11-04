@@ -9,6 +9,7 @@ import {resolveDocker} from './docker-cli.mjs';
 
 const recipe = path.dirname(fileURLToPath(import.meta.url));
 const lock = JSON.parse(fs.readFileSync(path.join(recipe,'sources.lock.json'),'utf8').replace(/^\uFEFF/,''));
+const recipeFiles = ['Dockerfile','build.sh','sources.lock.json','build.mjs','docker-cli.mjs','README.md','gdigrab-sandbox.patch'];
 const args=process.argv.slice(2);
 const output=path.resolve(args[args.indexOf('--output')+1] || '');
 if (!args.includes('--output') || output===recipe) throw Error('Use --output with a separate artifact directory.');
@@ -33,7 +34,11 @@ try {
     if (fs.existsSync(output) && fs.readdirSync(output).length) throw Error('Artifact output must be empty; existing files are preserved.');
     fs.mkdirSync(output,{recursive:true});
     fs.mkdirSync(path.join(work,'sources'));
-    for (const file of ['Dockerfile','build.sh','sources.lock.json','build.mjs','docker-cli.mjs','README.md']) {
+    if (!Array.isArray(lock.patches) || lock.patches.length!==1 || lock.patches[0].file!=='gdigrab-sandbox.patch' || lock.patches[0].bundlePath!=='build/gdigrab-sandbox.patch') throw Error('Missing pinned gdigrab patch.');
+    for (const patch of lock.patches) {
+        if (sha(path.join(recipe,patch.file))!==patch.sha256) throw Error(`Patch checksum mismatch: ${patch.file}`);
+    }
+    for (const file of recipeFiles) {
         fs.copyFileSync(path.join(recipe,file),path.join(work,file));
     }
     for (const entry of lock.sources) {
@@ -54,7 +59,7 @@ try {
     run(docker,['cp',`${container}:/out/.`,output]);
     const notices=path.join(output,'notices');
     const build=path.join(notices,'build');
-    for (const file of ['Dockerfile','build.sh','sources.lock.json','build.mjs','docker-cli.mjs','README.md']) {
+    for (const file of recipeFiles) {
         fs.copyFileSync(path.join(recipe,file),path.join(build,file));
     }
     fs.copyFileSync(path.join(recipe,'README.md'),path.join(notices,'README.md'));
@@ -68,7 +73,7 @@ try {
     }
     walk(notices);
     const binaries=['ffmpeg.exe','ffprobe.exe'].map(file=>({file,sha256:sha(path.join(output,'bin',file)),version:lock.buildId}));
-    fs.writeFileSync(path.join(notices,'provenance.json'),JSON.stringify({schemaVersion:2,buildId:lock.buildId,correspondingSourceStatus:'built-from-bundled-sources',distributionAllowed:true,sourceLicense:'GPL-3.0-or-later',binaries,files,sources:lock.sources,baseImage:lock.baseImage},null,2)+'\n');
+    fs.writeFileSync(path.join(notices,'provenance.json'),JSON.stringify({schemaVersion:2,buildId:lock.buildId,correspondingSourceStatus:'built-from-bundled-sources',distributionAllowed:true,sourceLicense:'GPL-3.0-or-later',binaries,files,sources:lock.sources,patches:lock.patches,baseImage:lock.baseImage},null,2)+'\n');
     console.log(`Built binaries and corresponding sources: ${output}`);
 } finally {
     if (typeof container==='string') spawnSync(docker,['rm',container],{stdio:'ignore',windowsHide:true});

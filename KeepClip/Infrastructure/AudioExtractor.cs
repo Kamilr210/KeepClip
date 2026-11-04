@@ -41,7 +41,7 @@ internal static class AudioExtractor
         {
             Kill(process);
             deadline.Cancel();
-            try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); } catch (TimeoutException) { }
+            try { await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None); } catch (TimeoutException) { }
             try { await errors; } catch (OperationCanceledException) { } catch (IOException) { }
         }
     }

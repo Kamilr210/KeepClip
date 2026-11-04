@@ -19,14 +19,15 @@ internal sealed class GoogleDriveClient
     public async Task<TokenResult> ExchangeCodeAsync(
         string clientId, string code, string codeVerifier, string redirectUri)
     {
-        using var resp = await Api.PostAsync(TokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["client_id"] = clientId,
             ["code"] = code,
             ["code_verifier"] = codeVerifier,
             ["grant_type"] = "authorization_code",
             ["redirect_uri"] = redirectUri,
-        }));
+        });
+        using var resp = await Api.PostAsync(TokenEndpoint, content);
         var json = await ReadJsonOrThrow(resp);
         return new TokenResult(
             json.GetProperty("access_token").GetString()!,
@@ -36,12 +37,13 @@ internal sealed class GoogleDriveClient
 
     public async Task<TokenResult> RefreshAsync(string clientId, string refreshToken)
     {
-        using var resp = await Api.PostAsync(TokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
+        using var content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["client_id"] = clientId,
             ["refresh_token"] = refreshToken,
             ["grant_type"] = "refresh_token",
-        }));
+        });
+        using var resp = await Api.PostAsync(TokenEndpoint, content);
         var json = await ReadJsonOrThrow(resp);
         return new TokenResult(
             json.GetProperty("access_token").GetString()!,
@@ -53,8 +55,8 @@ internal sealed class GoogleDriveClient
     {
         try
         {
-            using var _ = await Api.PostAsync(RevokeEndpoint,
-                new FormUrlEncodedContent(new Dictionary<string, string> { ["token"] = token }));
+            using var content = new FormUrlEncodedContent(new Dictionary<string, string> { ["token"] = token });
+            using var _ = await Api.PostAsync(RevokeEndpoint, content);
         }
         catch { }
     }

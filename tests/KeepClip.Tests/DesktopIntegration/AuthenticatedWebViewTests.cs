@@ -13,9 +13,12 @@ namespace KeepClip.Tests.DesktopIntegration;
 [Trait("Category", "Desktop")]
 public class AuthenticatedWebViewTests
 {
-    [Fact]
-    public async Task Native_transport_authenticates_ui_media_and_fetch_without_leaking_to_another_origin()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Native_transport_authenticates_ui_media_and_fetch_without_leaking_to_another_origin(bool productionShell)
     {
+        TestSettings.Reset();
         var root = TestEnvironment.NewTempDir("private-webview");
         var video = Path.Combine(root, "video.mp4");
         var encoded = new MediaProcessRunner().Run(Config.Ffmpeg, new[] { "-nostdin", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=10:duration=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", video }, 30);
@@ -40,6 +43,8 @@ public class AuthenticatedWebViewTests
         builder.WebHost.UseKestrel().UseUrls("http://127.0.0.1:0");
         builder.Services.AddSingleton(session);
         await using var app = builder.Build();
+        var rootResponse = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        app.Use(async (context, next) => { await next(); if (context.Request.Path == "/") rootResponse.TrySetResult(context.Response.StatusCode); });
         app.UseMiddleware<PrivateApiMiddleware>();
         var received = new ConcurrentBag<string>();
         app.Use(async (context, next) => { received.Add(context.Request.Path); await next(); });
@@ -55,29 +60,31 @@ public class AuthenticatedWebViewTests
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var thread = new Thread(() =>
         {
-            using var form = new Form { ShowInTaskbar = false, Opacity = 0, Width = 400, Height = 300 };
-            using var view = new WebView2 { Dock = DockStyle.Fill };
-            form.Controls.Add(view);
+            using Form form = productionShell ? new ShellForm(url, session.Credential) : new Form();
+            form.ShowInTaskbar = false;
+            form.Opacity = 0;
+            form.Width = 400;
+            form.Height = 300;
+            using var view = productionShell ? form.Controls.OfType<WebView2>().Single() : new WebView2 { Dock = DockStyle.Fill };
+            if (!productionShell) form.Controls.Add(view);
             form.Shown += async (_, _) =>
             {
                 try
                 {
-                    var environment = await CoreWebView2Environment.CreateAsync(null, Path.Combine(root, "profile"));
-                    await view.EnsureCoreWebView2Async(environment);
-                    var core = view.CoreWebView2;
-                    new DesktopRequestAuthentication(url, session.Credential).Attach(core);
-                    var navigation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                    core.NavigationCompleted += (_, e) =>
-                    {
-                        if (e.IsSuccess) navigation.TrySetResult();
-                        else navigation.TrySetException(new InvalidOperationException("Native navigation failed: " + e.WebErrorStatus));
-                    };
-                    core.Navigate(url);
-                    await navigation.Task.WaitAsync(TimeSpan.FromSeconds(30));
                     using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                    if (!productionShell)
+                    {
+                        var environment = await CoreWebView2Environment.CreateAsync(null, Path.Combine(root, "profile"));
+                        await view.EnsureCoreWebView2Async(environment);
+                        new DesktopRequestAuthentication(url, session.Credential).Attach(view.CoreWebView2);
+                        view.CoreWebView2.Navigate(url);
+                    }
+                    Assert.Equal(200, await rootResponse.Task.WaitAsync(timeout.Token));
+                    var core = view.CoreWebView2;
                     while (true)
                     {
-                        var raw = await core.ExecuteScriptAsync("JSON.stringify({probe:window.probe,video:document.getElementById('video').readyState>=1,image:document.getElementById('image').naturalWidth>0})");
+                        var raw = await core.ExecuteScriptAsync("window.probe ? JSON.stringify({probe:window.probe,video:document.getElementById('video').readyState>=1,image:document.getElementById('image').naturalWidth>0}) : null");
+                        if (raw == "null") { await Task.Delay(50, timeout.Token); continue; }
                         using var status = JsonDocument.Parse(JsonSerializer.Deserialize<string>(raw)!);
                         if (status.RootElement.TryGetProperty("probe", out var probe) && status.RootElement.GetProperty("video").GetBoolean() && status.RootElement.GetProperty("image").GetBoolean())
                         {

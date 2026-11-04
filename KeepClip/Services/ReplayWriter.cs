@@ -24,15 +24,24 @@ internal sealed class ReplayWriter(Func<string[], int, Task<(int code, string st
             var take = completed.Skip(Math.Max(0, completed.Count - needed)).ToList();
 
             snapPath = Path.Combine(Config.TmpDir, $"replay_part_{Guid.NewGuid():N}.ts");
+            bool snapshotReady = false;
             try
             {
-                using var src = new FileStream(current, FileMode.Open, FileAccess.Read,
-                    FileShare.ReadWrite | FileShare.Delete);
+                bool recording = false;
+                FileStream source;
+                try { source = new FileStream(current, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete); }
+                catch (IOException)
+                {
+                    source = new FileStream(current, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    recording = true;
+                }
+                using var src = source;
                 using var dst = File.Create(snapPath);
-                await src.CopyToAsync(dst);
+                await ReplaySegmentSnapshot.CopyAsync(src, dst, recording);
+                snapshotReady = true;
             }
-            catch { snapPath = null; }
-            if (snapPath is not null && new FileInfo(snapPath).Length > 50_000)
+            catch { }
+            if (snapshotReady && new FileInfo(snapPath).Length > 50_000)
                 take.Add(snapPath);
             if (take.Count == 0)
                 throw new InvalidOperationException(Strings.Get("replay.bufferEmpty"));

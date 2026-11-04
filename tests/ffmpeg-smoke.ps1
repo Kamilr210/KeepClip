@@ -34,7 +34,10 @@ function Run-Tool($Exe,$Name,[string[]]$Arguments,[switch]$AllowFailure) {
 }
 function FF($Name,[string[]]$Arguments,[switch]$AllowFailure) { Run-Tool $Ffmpeg $Name (@('-y','-hide_banner','-loglevel','error')+$Arguments) -AllowFailure:$AllowFailure }
 $null=Run-Tool $Ffmpeg 'version' @('-version')
-if ((Get-Content (Join-Path $WorkDir 'version.stdout.txt') -Raw) -notmatch 'ffmpeg version 9\.0\.2-KeepClip-source-build-1') { throw 'Unexpected FFmpeg build.' }
+if ((Get-Content (Join-Path $WorkDir 'version.stdout.txt') -Raw) -notmatch 'ffmpeg version 9\.0\.2-KeepClip-source-build-2') { throw 'Unexpected FFmpeg build.' }
+$null=Run-Tool $Ffmpeg 'gdi-options' @('-hide_banner','-h','demuxer=gdigrab')
+$gdiOptions=Get-Content (Join-Path $WorkDir 'gdi-options.stdout.txt') -Raw
+foreach($option in @('use_captureblt','high_precision')) { if($gdiOptions -notmatch ('\b'+$option+'\b')){throw "Missing GDI option $option"} }
 $null=Run-Tool $Ffmpeg 'encoders' @('-hide_banner','-encoders')
 $encoders=Get-Content (Join-Path $WorkDir 'encoders.stdout.txt') -Raw
 foreach($encoder in @('libx264','h264_nvenc','h264_amf','h264_qsv','aac')) { if($encoders -notmatch ('\b'+$encoder+'\b')){throw "Missing $encoder"} }

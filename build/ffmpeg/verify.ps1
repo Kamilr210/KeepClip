@@ -18,7 +18,10 @@ foreach ($name in @('ffmpeg.exe','ffprobe.exe')) {
 }
 foreach ($entry in $Provenance.files) { Assert-Hash $NoticesDir $entry.file $entry.sha256 }
 foreach ($source in $Lock.sources) { Assert-Hash $NoticesDir $source.bundlePath $source.sha256 }
-foreach ($recipe in @('Dockerfile','build.sh','build.mjs','docker-cli.mjs','sources.lock.json','README.md')) {
+if (@($Lock.patches).Count -ne 1 -or $Lock.patches[0].file -ne 'gdigrab-sandbox.patch' -or $Lock.patches[0].bundlePath -ne 'build/gdigrab-sandbox.patch') { throw 'Brak przypietej poprawki gdigrab.' }
+if (@($Provenance.patches).Count -ne 1 -or $Provenance.patches[0].file -ne $Lock.patches[0].file -or $Provenance.patches[0].sha256 -ne $Lock.patches[0].sha256 -or $Provenance.patches[0].bundlePath -ne $Lock.patches[0].bundlePath) { throw 'Identyfikacja poprawki gdigrab nie odpowiada przypietym zrodlom.' }
+foreach ($patch in $Lock.patches) { Assert-Hash $NoticesDir $patch.bundlePath $patch.sha256 }
+foreach ($recipe in @('Dockerfile','build.sh','build.mjs','docker-cli.mjs','sources.lock.json','README.md','gdigrab-sandbox.patch')) {
     Assert-Hash $NoticesDir ('build/'+$recipe) (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $recipe) -Algorithm SHA256).Hash
 }
 foreach ($required in @('COPYING.GPLv3','COPYING.GPLv2','LICENSE.md','X264-COPYING','AMF-LICENSE.txt','LIBVPL-LICENSE','LIBVPL-THIRD-PARTY-PROGRAMS.txt','MINGW-COPYRIGHT','GCC-COPYRIGHT','NV-CODEC-LICENSES.txt','build/config.log','build/config.h','build/config_components.h','build/toolchain-packages.tsv','build/ffmpeg-imports.txt','build/ffprobe-imports.txt')) {
@@ -43,4 +46,9 @@ foreach ($file in @('ffmpeg-imports.txt','ffprobe-imports.txt')) {
         if ($line -match 'DLL Name:\s*(\S+)' -and $Matches[1] -notin $systemDlls) { throw "Nieznana biblioteka FFmpeg: $($Matches[1]). Wymaga zrodel/licencji i przegladu." }
     }
 }
+$previous=$ErrorActionPreference
+$ErrorActionPreference='Continue'
+try { $captureHelp=(& (Join-Path $BinDir 'ffmpeg.exe') -hide_banner -h demuxer=gdigrab 2>&1 | Out-String); $captureHelpCode=$LASTEXITCODE }
+finally { $ErrorActionPreference=$previous }
+if ($captureHelpCode -ne 0 -or $captureHelp -notmatch '(?m)^\s+-use_captureblt\s+.*\(default 1\)' -or $captureHelp -notmatch '(?m)^\s+-high_precision\s+.*\(default 0\)') { throw 'FFmpeg nie udostepnia wymaganych opcji gdigrab z zachowanymi domyslnymi wartosciami.' }
 Write-Host 'FFmpeg: zgodne binaria, komplet przypietych zrodel, skrypty, notices i wymagane funkcje.'

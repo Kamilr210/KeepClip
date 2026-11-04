@@ -104,6 +104,19 @@ internal sealed class ReplayToast : Form
 
     protected override bool ShowWithoutActivation => true;
 
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _anim.Dispose();
+            _icon?.Dispose();
+            _titleLb?.Dispose();
+            _subLb?.Dispose();
+            _bar?.Dispose();
+        }
+        base.Dispose(disposing);
+    }
+
     protected override CreateParams CreateParams
     {
         get

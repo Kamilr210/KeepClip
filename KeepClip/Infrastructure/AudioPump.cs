@@ -31,7 +31,7 @@ internal sealed class AudioPump : IDisposable
 
     private AudioPump(bool withMic, string? outputId, string? inputId)
     {
-        var en = new MMDeviceEnumerator();
+        using var en = new MMDeviceEnumerator();
         var def = en.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
         SampleRate = def.AudioClient.MixFormat.SampleRate;
         Channels = Math.Min(2, Math.Max(1, def.AudioClient.MixFormat.Channels));

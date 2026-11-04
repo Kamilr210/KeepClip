@@ -4,6 +4,11 @@ Przeglądarka i wyszukiwarka klipów z gier z **transkrypcją mowy (Whisper)** i
 
 Aplikacja to natywne okno na Windows (WebView2) z serwerem ASP.NET hostowanym w tym samym procesie. Backend w C# (.NET 10), frontend w HTML/CSS/JS.
 
+Kontrola jakości lokalnie i w CI: [instrukcja QA](docs/quality-assurance.md).
+Dwuklik `Testy.cmd` uruchamia pełny zestaw i otwiera graficzny raport z listą testów.
+`Ostatni-raport.cmd` otwiera ostatni wynik bez ponownego testowania.
+Osobną próbę nagrywania wraz z wynikami GDI i Windows Graphics Capture opisuje [test bufora w Sandboxie](docs/sandbox-recording-fix.md).
+
 ---
 
 ## Wymagania

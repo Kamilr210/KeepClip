@@ -24,7 +24,12 @@ public class ReplayWriterTests
     private string Segment(int index, int bytes = 100)
     {
         var path = Path.Combine(_segments, $"seg_{index:000000}.ts");
-        File.WriteAllBytes(path, Enumerable.Repeat((byte)index, bytes).ToArray());
+        var data = Enumerable.Repeat((byte)index, ((bytes + 187) / 188) * 188).ToArray();
+        for (int offset = 0; offset < data.Length; offset += 188)
+        {
+            new byte[] { 0x47, 0x41, 0x00, (byte)(0x10 | ((offset / 188) & 15)), 0, 0, 1, 0xe0, 0, 178, 0x80, 0, 0 }.CopyTo(data, offset);
+        }
+        File.WriteAllBytes(path, data);
         return path;
     }
 
@@ -128,5 +133,109 @@ public class ReplayWriterTests
         var result = await writer.SaveAsync(_segments, "Game", 15, false, false);
         Assert.Equal("concurrent recording", File.ReadAllText(Output));
         Assert.NotEqual(Output, result["path"]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Exception_or_cancellation_during_mux_releases_temporary_files_and_preserves_the_ring(bool cancelled)
+    {
+        var completed = Segment(1);
+        var current = Segment(2, 60_000);
+        var original = File.ReadAllBytes(current);
+        string? temporary = null;
+        var writer = new ReplayWriter((args, _) =>
+        {
+            temporary = args[^1];
+            File.WriteAllBytes(temporary, new byte[10_001]);
+            return cancelled ? Task.FromCanceled<(int, string)>(new CancellationToken(true)) : Task.FromException<(int, string)>(new IOException("synthetic encoder interruption"));
+        }, new Clock());
+
+        if (cancelled) await Assert.ThrowsAnyAsync<OperationCanceledException>(() => writer.SaveAsync(_segments, "Game", 15, false, false));
+        else await Assert.ThrowsAsync<IOException>(() => writer.SaveAsync(_segments, "Game", 15, false, false));
+
+        Assert.False(File.Exists(temporary));
+        Assert.False(File.Exists(Output));
+        Assert.Equal(original, File.ReadAllBytes(current));
+        Assert.True(File.Exists(completed));
+        Assert.Empty(Directory.GetFiles(Config.TmpDir, "replay_part_*.ts"));
+        Assert.Empty(Directory.GetFiles(Config.TmpDir, "replay_list_*.txt"));
+        using var reopened = new FileStream(current, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        Assert.Equal(original.Length, reopened.Length);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_unreadable_current_segment_never_damages_completed_segments(bool hasCompleted)
+    {
+        var completed = hasCompleted ? Segment(1) : null;
+        var current = Segment(2, 60_000);
+        int muxCalls = 0;
+        var writer = new ReplayWriter((args, _) =>
+        {
+            muxCalls++;
+            var list = args[Array.IndexOf(args, "-i") + 1];
+            var entry = Assert.Single(File.ReadAllLines(list));
+            Assert.Contains("seg_000001.ts", entry);
+            Assert.DoesNotContain("seg_000002.ts", entry);
+            File.WriteAllBytes(args[^1], new byte[10_001]);
+            return Task.FromResult((0, ""));
+        }, new Clock());
+
+        using (var recording = new FileStream(current, FileMode.Open, FileAccess.Write, FileShare.None))
+        {
+            if (hasCompleted)
+            {
+                var result = await writer.SaveAsync(_segments, "Game", 15, false, false);
+                Assert.Equal(true, result["ok"]);
+                Assert.Equal(1, muxCalls);
+            }
+            else
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(() => writer.SaveAsync(_segments, "Game", 15, false, false));
+                Assert.Equal(0, muxCalls);
+                Assert.False(File.Exists(Output));
+            }
+        }
+
+        Assert.Equal(60_160, new FileInfo(current).Length);
+        if (completed is not null) Assert.Equal(188, new FileInfo(completed).Length);
+        Assert.Empty(Directory.GetFiles(Config.TmpDir, "replay_part_*.ts"));
+        Assert.Empty(Directory.GetFiles(Config.TmpDir, "replay_list_*.txt"));
+    }
+
+    [Fact]
+    public async Task Current_segment_is_snapshotted_before_mux_so_new_recording_bytes_do_not_change_the_saved_input()
+    {
+        Segment(1);
+        var current = Segment(2, 60_000);
+        var original = File.ReadAllBytes(current);
+        var muxStarted = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finishMux = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var writer = new ReplayWriter(async (args, _) =>
+        {
+            var snapshot = Assert.Single(Directory.GetFiles(Config.TmpDir, "replay_part_*.ts"));
+            muxStarted.SetResult(snapshot);
+            await finishMux.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal(original, File.ReadAllBytes(snapshot));
+            File.WriteAllBytes(args[^1], new byte[10_001]);
+            return (0, "");
+        }, new Clock());
+
+        var saving = writer.SaveAsync(_segments, "Game", 15, false, false);
+        var snapshotPath = await muxStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        try
+        {
+            using var recording = new FileStream(current, FileMode.Append, FileAccess.Write, FileShare.None);
+            await recording.WriteAsync(new byte[] { 9, 8, 7, 6 });
+        }
+        finally { finishMux.TrySetResult(); }
+        var result = await saving.WaitAsync(TimeSpan.FromSeconds(10));
+
+        Assert.Equal(true, result["ok"]);
+        Assert.Equal(original.Length + 4, new FileInfo(current).Length);
+        Assert.False(File.Exists(snapshotPath));
+        Assert.Empty(Directory.GetFiles(Config.TmpDir, "replay_list_*.txt"));
     }
 }

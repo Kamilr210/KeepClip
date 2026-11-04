@@ -1,52 +1,60 @@
-# Każdy push i pull request na gałąź csharp uruchamia testy. Wydanie (release.yml)
-# powtarza te same kroki, zanim zbuduje instalator.
 name: ci
 
 on:
   push:
     branches: ["csharp"]
-    paths-ignore: ["keepClip-Web/**", "*.md"]
   pull_request:
     branches: ["csharp"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  test:
-    runs-on: windows-latest
+  quality:
+    runs-on: windows-2022
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.401"
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            KeepClip/packages.lock.json
+            tests/KeepClip.Tests/packages.lock.json
 
-      - name: Sprawdź tłumaczenia interfejsu
-        run: node tests/i18n-check.js
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
-      - name: Testy wyboru programu Docker
-        run: node --test tests/docker-cli.test.mjs
+      - name: Full quality check
+        shell: pwsh
+        run: ./scripts/quality-check.ps1 -Mode Full
 
-      - name: Testy powiązania demo w odtwarzaczu
-        run: node --test tests/clip-demo.test.cjs
-
-      - name: Testy xUnit
-        run: dotnet test tests/KeepClip.Tests/KeepClip.Tests.csproj -c Release --nologo --logger "trx;LogFileName=results.trx"
-
-      - name: Testy publicznej konfiguracji OAuth
-        shell: powershell
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests/oauth-packaging.Tests.ps1
-
-      - name: Sprawdź pakowanie licencji i notices
-        shell: powershell
-        run: |
-          $publish = Join-Path $env:RUNNER_TEMP 'keepclip-license-publish'
-          dotnet publish KeepClip/KeepClip.csproj -c Release -r win-x64 --self-contained true -p:PublicRelease=true -o $publish --nologo
-          if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed: $LASTEXITCODE" }
-          powershell -NoProfile -ExecutionPolicy Bypass -File tests/license-packaging.Tests.ps1 -PublishDir $publish
-          if ($LASTEXITCODE -ne 0) { throw "License packaging checks failed: $LASTEXITCODE" }
-
-      - name: Zachowaj wyniki testów
+      - name: Save quality reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
-          path: "**/TestResults/*.trx"
+          name: quality-reports
+          path: |
+            TestResults/quality/**/summary.*
+            TestResults/quality/**/report.html
+            TestResults/quality/**/report-data.json
+            TestResults/quality/**/repair-prompt.txt
+            TestResults/quality/**/node-tests.xml
+            TestResults/quality/**/*.log
+            TestResults/quality/**/*.trx
+            TestResults/quality/**/coverage*.xml
+            TestResults/quality/**/coverage*.json
+            TestResults/quality/**/coverage*.md
+            TestResults/quality/**/coverage.html
+          if-no-files-found: error
+          retention-days: 14

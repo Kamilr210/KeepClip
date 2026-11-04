@@ -43,6 +43,7 @@ try {
         Invoke-Check @('-RequireFfmpeg','-ForDistribution') $null
         With-ModifiedFile 'licenses\ffmpeg-build\sources\ffmpeg-9.0.2.tar.xz' 'changed corresponding source' {Invoke-Check @('-ForDistribution') 'Brak lub zmiana FFmpeg'}
         With-ModifiedFile 'licenses\ffmpeg-build\build\build.sh' 'changed compiler recipe' {Invoke-Check @('-ForDistribution') 'Brak lub zmiana FFmpeg'}
+        With-ModifiedFile 'licenses\ffmpeg-build\build\gdigrab-sandbox.patch' 'changed capture patch' {Invoke-Check @('-ForDistribution') 'Brak lub zmiana FFmpeg'}
         With-ModifiedFile 'tools\bin\ffmpeg.exe' 'changed FFmpeg executable' {Invoke-Check @('-ForDistribution') 'rozni sie od zweryfikowanego oryginalu'}
         $sourceFile=Join-Path $Fixture 'licenses\ffmpeg-build\sources\x264.tar.gz'
         $saved=[IO.File]::ReadAllBytes($sourceFile)
