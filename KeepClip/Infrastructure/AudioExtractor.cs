@@ -35,6 +35,7 @@ internal static class AudioExtractor
             var samples = await ReadSamplesAsync(process.StandardOutput.BaseStream, temporaryDirectory, maximumSamples, deadline.Token);
             await process.WaitForExitAsync(deadline.Token);
             await errors;
+            deadline.Token.ThrowIfCancellationRequested();
             return process.ExitCode == 0 ? samples : null;
         }
         finally
@@ -62,9 +63,9 @@ internal static class AudioExtractor
             if (pcm.Length + read > maximumBytes) throw new InvalidDataException("Audio przekracza limit długości transkrypcji (30 minut mono 16 kHz).");
             await pcm.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
         }
+        cancellationToken.ThrowIfCancellationRequested();
         if (pcm.Length == 0) return null;
         if (pcm.Length % 2 != 0) throw new InvalidDataException("Niekompletna próbka zdekodowanego audio.");
-        cancellationToken.ThrowIfCancellationRequested();
         var samples = new float[(int)(pcm.Length / 2)];
         pcm.Position = 0;
         int offset = 0;

@@ -103,7 +103,8 @@ function fixture(model, options = {}) {
     },
     execCommand: command => { fallbackCalls.push(command); if (options.fallback === 'throws') throw Error('Copy command blocked'); return options.fallback === true; },
   };
-  script.runInNewContext({document, navigator, setTimeout: callback => { const id = ++nextTimer; timers.set(id, callback); return id; }, clearTimeout: id => timers.delete(id)}, {timeout: 1000});
+  // Allow cold locale initialization on shared Windows runners while bounding runaway scripts.
+  script.runInNewContext({document, navigator, setTimeout: callback => { const id = ++nextTimer; timers.set(id, callback); return id; }, clearTimeout: id => timers.delete(id)}, {timeout: 10000});
   const flush = () => { for (const [id, callback] of [...timers]) { timers.delete(id); callback(); } };
   const search = query => { elements['test-search'].value = query; elements['test-search'].listeners.get('input')(); };
   return {elements, filters, nodes, search, flush, clipboardWrites, fallbackCalls, names: () => nodes('test-name').map(node => node.textContent), copy: () => nodes('copy-prompt')[0].click()};

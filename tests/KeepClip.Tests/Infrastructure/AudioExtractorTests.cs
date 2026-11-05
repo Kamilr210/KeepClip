@@ -13,6 +13,24 @@ public class AudioExtractorTests
             => base.ReadAsync(buffer[..Math.Min(buffer.Length, 1)], cancellationToken);
     }
 
+    private sealed class CancelAtEndStream(CancellationTokenSource cancellation) : MemoryStream
+    {
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            cancellation.Cancel();
+            return ValueTask.FromResult(0);
+        }
+    }
+
+    [Fact]
+    public async Task Cancellation_is_preserved_when_a_stopped_producer_returns_end_of_stream()
+    {
+        using var cancellation = new CancellationTokenSource();
+        using var stream = new CancelAtEndStream(cancellation);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => AudioExtractor.ReadSamplesAsync(stream, _temporary, 4, cancellation.Token));
+        Assert.Empty(Directory.EnumerateFiles(_temporary));
+    }
+
     [Fact]
     public async Task Decoder_preserves_signed_pcm_samples_even_when_reads_split_samples()
     {
