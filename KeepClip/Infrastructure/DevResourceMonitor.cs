@@ -119,8 +119,9 @@ internal sealed class DevResourceMonitor : IDisposable
     {
         using var handle = OpenProcess(0x0410, false, pid);
         if (handle.IsInvalid || !GetProcessTimes(handle, out var started, out _, out var kernel, out var user)) return null;
-        var memory = new MemoryCounters { Size = (uint)Marshal.SizeOf<MemoryCounters>() };
-        long? ram = GetProcessMemoryInfo(handle, ref memory, memory.Size) ? (long)memory.PrivateWorkingSetSize : null;
+        var memory = new MemoryCounters { Size = (uint)Marshal.SizeOf<MemoryCounters>(), PrivateWorkingSetSize = nuint.MaxValue };
+        // Older Windows versions can return success while leaving the EX2-only counter unavailable.
+        long? ram = GetProcessMemoryInfo(handle, ref memory, memory.Size) && memory.PrivateWorkingSetSize > 0 && memory.PrivateWorkingSetSize != nuint.MaxValue ? (long)memory.PrivateWorkingSetSize : null;
         var hasIo = GetProcessIoCounters(handle, out var io);
         return new ProcessSample(started, kernel + user, ram, hasIo ? io.ReadTransferCount : null, hasIo ? io.WriteTransferCount : null);
     }
