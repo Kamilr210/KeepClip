@@ -64,11 +64,26 @@ public class AudioExtractorTests
     {
         var pidPath = Path.Combine(_temporary, "producer.pid");
         var marker = Path.Combine(_temporary, "unexpected.txt");
-        var script = $"[IO.File]::WriteAllText('{Escape(pidPath)}',[string]$PID); $stream=[Console]::OpenStandardOutput(); $bytes=New-Object byte[] 65536; $stream.Write($bytes,0,$bytes.Length); $stream.Flush(); Start-Sleep -Seconds 30; [IO.File]::WriteAllText('{Escape(marker)}','late')";
-        await Assert.ThrowsAsync<InvalidDataException>(() => AudioExtractor.DecodeAsync(Producer(script), _temporary, 4, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10)));
-        AssertStopped(int.Parse(File.ReadAllText(pidPath)));
-        Assert.False(File.Exists(marker));
-        Assert.Empty(Directory.EnumerateFiles(_temporary, "*.pcm"));
+        var beginOutput = Path.Combine(_temporary, "begin-output");
+        var script = $"[IO.File]::WriteAllText('{Escape(pidPath)}',[string]$PID); while(-not [IO.File]::Exists('{Escape(beginOutput)}')) {{ Start-Sleep -Milliseconds 20 }}; $stream=[Console]::OpenStandardOutput(); $bytes=New-Object byte[] 65536; $stream.Write($bytes,0,$bytes.Length); $stream.Flush(); Start-Sleep -Seconds 30; [IO.File]::WriteAllText('{Escape(marker)}','late')";
+        using var cancellation = new CancellationTokenSource();
+        var task = AudioExtractor.DecodeAsync(Producer(script), _temporary, 4, cancellation.Token);
+        try
+        {
+            await WaitForProducerAsync(pidPath, task);
+            File.WriteAllText(beginOutput, "begin");
+            await Assert.ThrowsAsync<InvalidDataException>(() => task.WaitAsync(TimeSpan.FromSeconds(10)));
+            AssertStopped(int.Parse(File.ReadAllText(pidPath)));
+            Assert.False(File.Exists(marker));
+            Assert.Empty(Directory.EnumerateFiles(_temporary, "*.pcm"));
+        }
+        finally
+        {
+            cancellation.Cancel();
+            try { await task.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (InvalidDataException) { }
+            catch (OperationCanceledException) { }
+        }
     }
 
     [Fact]
@@ -79,8 +94,7 @@ public class AudioExtractorTests
         var task = AudioExtractor.DecodeAsync(Producer($"[IO.File]::WriteAllText('{Escape(pidPath)}',[string]$PID); Start-Sleep -Seconds 30"), _temporary, 4, cts.Token);
         try
         {
-            using var wait = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            while (!File.Exists(pidPath)) await Task.Delay(20, wait.Token);
+            await WaitForProducerAsync(pidPath, task);
         }
         finally { cts.Cancel(); }
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task.WaitAsync(TimeSpan.FromSeconds(5)));
@@ -100,6 +114,16 @@ public class AudioExtractorTests
     }
 
     private static string Escape(string value) => value.Replace("'", "''");
+
+    private static async Task WaitForProducerAsync(string pidPath, Task decoding)
+    {
+        using var startup = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        while (!File.Exists(pidPath))
+        {
+            Assert.False(decoding.IsCompleted, "The producer exited before signalling readiness.");
+            await Task.Delay(20, startup.Token);
+        }
+    }
 
     private static ProcessStartInfo Producer(string script)
     {
