@@ -23,8 +23,8 @@
          i natywne biblioteki Whispera muszą istnieć jako osobne pliki. -->
     <!-- Interfejs ma własne tłumaczenia HTML, więc wystarczą angielskie zasoby platformy. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <!-- Runtime publikacji musi odpowiadać wersjom zweryfikowanym w licenses/manifest.json. -->
-    <RuntimeFrameworkVersion Condition="'$(SelfContained)' == 'true'">10.0.12</RuntimeFrameworkVersion>
+    <!-- Minimalny runtime musi odpowiadać wersjom zweryfikowanym w licenses/manifest.json. -->
+    <RuntimeFrameworkVersion>10.0.14</RuntimeFrameworkVersion>
 
     <!-- Właściwość PublicRelease usuwa panel logów z instalatora publikowanego przez CI. -->
     <PublicRelease Condition="'$(PublicRelease)' == ''">false</PublicRelease>
@@ -37,11 +37,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
-    <!-- Microsoft.Data.Sqlite (także 10.0.10) ciągnie przechodnio podatną SQLitePCLRaw 2.1.11
-         (NU1903, GHSA-2m69-gcr7-jv3q); bezpośrednia referencja wymusza załataną wersję.
-         Do usunięcia, gdy Microsoft.Data.Sqlite zacznie zależeć od >= 2.1.12. -->
-    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.3967.48" />
     <!-- Whisper.net wybiera Vulkan, gdy GPU jest dostępny, a w przeciwnym razie używa CPU. -->
     <PackageReference Include="Whisper.net" Version="1.9.1" />

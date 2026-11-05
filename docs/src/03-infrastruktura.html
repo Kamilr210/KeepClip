@@ -52,7 +52,7 @@ li { margin: 2pt 0; }
 <tr><td>ffmpeg / ffprobe</td><td><code>setup.ps1</code> pobiera build „release-essentials" z gyan.dev; w wydaniu kopiuje je cel <code>StageRuntimeAssets</code> w csproj.</td><td><code>tools/bin/</code> (poza gitem)</td><td>Miniatury, pomiar czasu, wycinanie, naprawa, kopie podglądowe, dekodowanie audio dla Whispera, przechwytywanie i łączenie powtórek.</td></tr>
 <tr><td>Whisper.net 1.9.1 + Runtime + Runtime.Vulkan</td><td>NuGet</td><td>Biblioteki natywne w <code>runtimes/win-x64</code> i <code>runtimes/vulkan/win-x64</code></td><td>Rozpoznawanie mowy. Whisper.net wybiera Vulkan, gdy GPU jest dostępny, inaczej CPU. Modele GGML pobiera sam do <code>models/</code>.</td></tr>
 <tr><td>NAudio 2.2.1</td><td>NuGet</td><td>w procesie</td><td>WASAPI loopback (dźwięk gry) i mikrofon dla powtórek; lista urządzeń.</td></tr>
-<tr><td>Microsoft.Data.Sqlite + SQLitePCLRaw.bundle_e_sqlite3 2.1.12</td><td>NuGet</td><td><code>e_sqlite3.dll</code></td><td>Baza. Bezpośrednia referencja do bundle wymusza załataną wersję (podatność w 2.1.11).</td></tr>
+<tr><td>Microsoft.Data.Sqlite 10.0.14 + SQLitePCLRaw.bundle_e_sqlite3 2.1.13</td><td>NuGet</td><td><code>e_sqlite3.dll</code></td><td>Baza. Pakiet Microsoft wymaga SQLitePCLRaw 2.1.13, a lockfile przypina przywrócone wersje.</td></tr>
 <tr><td>Google Drive API v3, OAuth 2.0</td><td>HTTPS</td><td>—</td><td>Chmura. Bez SDK Google; własne żądania <code>HttpClient</code>.</td></tr>
 <tr><td>GitHub Releases API</td><td>HTTPS</td><td>—</td><td>Sprawdzanie aktualizacji i pobieranie instalatora.</td></tr>
 <tr><td>Inno Setup 6</td><td>winget / jrsoftware.org</td><td>maszyna budująca</td><td>Instalator <code>KeepClip-Setup.exe</code>.</td></tr>

@@ -3,6 +3,7 @@
   <PropertyGroup>
     <!-- Ten sam cel co aplikacja: KeepClip korzysta z WinForms, więc test musi mieć pulpit .NET. -->
     <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeFrameworkVersion>10.0.14</RuntimeFrameworkVersion>
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -21,7 +22,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <!-- WebApplicationFactory uruchamia całe Program.cs w procesie testów, bez portów i okna. -->
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup>

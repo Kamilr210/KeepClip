@@ -56,7 +56,7 @@ try {
     $noticeBackup=[IO.File]::ReadAllBytes($notice)
     try { Remove-Item -LiteralPath $notice; Invoke-Check @() 'Brak wymaganego materialu' }
     finally { [IO.File]::WriteAllBytes($notice,$noticeBackup) }
-    With-ModifiedFile 'licenses\third-party\SQLitePCLRaw\2.1.12\NOTICE.TXT' 'altered upstream attribution' {Invoke-Check @() 'rozni sie od zweryfikowanego oryginalu'}
+    With-ModifiedFile 'licenses\third-party\SQLitePCLRaw\2.1.13\NOTICE.TXT' 'altered upstream attribution' {Invoke-Check @() 'rozni sie od zweryfikowanego oryginalu'}
     $deps=Get-Content -LiteralPath (Join-Path $Fixture 'KeepClip.deps.json') -Raw | ConvertFrom-Json
     $deps.libraries | Add-Member NoteProperty 'Unreviewed.Dependency/1.0.0' @{type='package'}
     With-ModifiedFile 'KeepClip.deps.json' ($deps|ConvertTo-Json -Depth 100) {Invoke-Check @() 'Unreviewed.Dependency/1.0.0'}

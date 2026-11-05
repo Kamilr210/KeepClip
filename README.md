@@ -78,14 +78,14 @@ Każda publikacja dołącza [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) i [
 
 FFmpeg 9.0.2 jest kompilowany z przypiętych źródeł wraz z libx264, NVENC, AMF i QSV. Instalator zawiera odpowiadające źródła, zależności, licencje i skrypty; release dołącza też osobny ZIP źródeł. Brak lub zmiana któregokolwiek z tych materiałów blokuje pakowanie. Szczegóły: [licenses/FFMPEG-SOURCE.md](licenses/FFMPEG-SOURCE.md). Licencja własnego projektu pozostaje osobną decyzją.
 
-Lokalne przygotowanie wymaga Node 20+, Dockera z kontenerami Linux, .NET SDK 10.0.401 lub nowszej poprawki 10.0.4xx i zainstalowanego Inno Setup 6:
+Lokalne przygotowanie wymaga Node 20+, Dockera z kontenerami Linux, .NET SDK 10.0.403 lub nowszej poprawki 10.0.4xx i zainstalowanego Inno Setup 6:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File setup.ps1 -Force
 powershell -ExecutionPolicy Bypass -File installer\build.ps1 -PublicRelease
 ```
 
-Powstają KeepClip-Setup.exe, KeepClip-FFmpeg-Source.zip i plik identyfikacji hashy. Workflow wydania wykonuje budowę FFmpeg na Ubuntu przed jobem Windows; nie wymaga Dockera na runnerze Windows. Publikacja samowystarczalna ma przypięty runtime .NET 10.0.12 w `KeepClip.csproj`, zgodny z `licenses/manifest.json`, również przy użyciu nowszej poprawki SDK. Aktualizacja runtime wymaga jednoczesnego odświeżenia manifestu i materiałów licencyjnych. Sam build nie publikuje wydania.
+Powstają KeepClip-Setup.exe, KeepClip-FFmpeg-Source.zip i plik identyfikacji hashy. Workflow wydania wykonuje budowę FFmpeg na Ubuntu przed jobem Windows. Publikacja samowystarczalna ma przypięty runtime .NET 10.0.14 w `KeepClip.csproj`, zgodny z `licenses/manifest.json`, również przy użyciu nowszej poprawki SDK. Wariant korzystający z runtime zainstalowanego na komputerze wymaga co najmniej poprawki 10.0.14. Aktualizacja runtime wymaga jednoczesnego odświeżenia manifestu i materiałów licencyjnych.
 
 Do osobnego lokalnego testu pakowania:
 

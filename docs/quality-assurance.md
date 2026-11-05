@@ -9,7 +9,7 @@ kontroli, a nie tylko po skompilowaniu projektu. Kontrola nie publikuje aplikacj
 | Obszar | Implementacja i znaczenie dla testów |
 | --- | --- |
 | Solution | `KeepClip.slnx`: aplikacja `KeepClip` i projekt `KeepClip.Tests`; oba `net10.0-windows` |
-| Środowisko | Windows x64, .NET SDK z `global.json` (10.0.401, nowsza poprawka w paśmie 10.0.4xx dozwolona), Windows Desktop Runtime |
+| Środowisko | Windows x64, .NET SDK z `global.json` (10.0.403, nowsza poprawka w paśmie 10.0.4xx dozwolona), Windows Desktop Runtime 10.0.14 lub nowsza poprawka |
 | Host | ASP.NET Core Minimal API i WinForms/WebView2 w jednym procesie; tryb `server-only` umożliwia testowanie bez GUI |
 | Warstwy | `Endpoints` → `Services` → `Data`, modele w `Domain`/`Application`, zadania w `Workers`, integracje w `Infrastructure` |
 | Baza | `Microsoft.Data.Sqlite`, SQLitePCLRaw i ręczny SQL; testy używają rzeczywistej osobnej bazy SQLite, także FTS i transakcji |

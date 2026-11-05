@@ -10,8 +10,8 @@ Stan weryfikacji: 2026-10-02. Oryginalne, nieprzetłumaczone teksty są w [licen
 
 | Pakiet | Wersja | Licencja | Copyright z metadanych pakietu | Teksty |
 |---|---|---|---|---|
-| Microsoft.Data.Sqlite | 10.0.10 | MIT | © Microsoft Corporation. All rights reserved. | [LICENSE.txt](licenses/third-party/Microsoft.Data.Sqlite/10.0.10/LICENSE.txt) |
-| Microsoft.Data.Sqlite.Core | 10.0.10 | MIT | © Microsoft Corporation. All rights reserved. | [LICENSE.txt](licenses/third-party/Microsoft.Data.Sqlite/10.0.10/LICENSE.txt) |
+| Microsoft.Data.Sqlite | 10.0.14 | MIT | © Microsoft Corporation. All rights reserved. | [LICENSE.txt](licenses/third-party/Microsoft.Data.Sqlite/10.0.14/LICENSE.txt) |
+| Microsoft.Data.Sqlite.Core | 10.0.14 | MIT | © Microsoft Corporation. All rights reserved. | [LICENSE.txt](licenses/third-party/Microsoft.Data.Sqlite/10.0.14/LICENSE.txt) |
 | Microsoft.Extensions.AI.Abstractions | 10.2.0 | MIT | © Microsoft Corporation. All rights reserved. | [LICENSE](licenses/third-party/Microsoft.Extensions.AI.Abstractions/10.2.0/LICENSE) |
 | Microsoft.Web.WebView2 | 1.0.3967.48 | BSD-3-Clause | © Microsoft Corporation. All rights reserved. | [LICENSE.txt](licenses/third-party/webview2/1.0.3967.48/LICENSE.txt), [NOTICE.txt](licenses/third-party/webview2/1.0.3967.48/NOTICE.txt) |
 | NAudio | 2.2.1 | MIT | © Mark Heath 2023 | [LICENSE.txt](licenses/third-party/naudio/2.2.1/LICENSE.txt) |
@@ -21,10 +21,10 @@ Stan weryfikacji: 2026-10-02. Oryginalne, nieprzetłumaczone teksty są w [licen
 | NAudio.Wasapi | 2.2.1 | MIT | © Mark Heath 2023 | [LICENSE.txt](licenses/third-party/naudio/2.2.1/LICENSE.txt) |
 | NAudio.WinForms | 2.2.1 | MIT | © Mark Heath 2023 | [LICENSE.txt](licenses/third-party/naudio/2.2.1/LICENSE.txt) |
 | NAudio.WinMM | 2.2.1 | MIT | © Mark Heath 2023 | [LICENSE.txt](licenses/third-party/naudio/2.2.1/LICENSE.txt) |
-| SQLitePCLRaw.bundle_e_sqlite3 | 2.1.12 | Apache-2.0 | Copyright 2014-2024 SourceGear, LLC | [LICENSE.TXT](licenses/third-party/SQLitePCLRaw/2.1.12/LICENSE.TXT), [NOTICE.TXT](licenses/third-party/SQLitePCLRaw/2.1.12/NOTICE.TXT) |
-| SQLitePCLRaw.core | 2.1.12 | Apache-2.0 | Copyright 2014-2024 SourceGear, LLC | [LICENSE.TXT](licenses/third-party/SQLitePCLRaw/2.1.12/LICENSE.TXT), [NOTICE.TXT](licenses/third-party/SQLitePCLRaw/2.1.12/NOTICE.TXT) |
-| SQLitePCLRaw.lib.e_sqlite3 | 2.1.12 | Apache-2.0 | Copyright 2014-2024 SourceGear, LLC | [LICENSE.TXT](licenses/third-party/SQLitePCLRaw/2.1.12/LICENSE.TXT), [NOTICE.TXT](licenses/third-party/SQLitePCLRaw/2.1.12/NOTICE.TXT) |
-| SQLitePCLRaw.provider.e_sqlite3 | 2.1.12 | Apache-2.0 | Copyright 2014-2024 SourceGear, LLC | [LICENSE.TXT](licenses/third-party/SQLitePCLRaw/2.1.12/LICENSE.TXT), [NOTICE.TXT](licenses/third-party/SQLitePCLRaw/2.1.12/NOTICE.TXT) |
+| SQLitePCLRaw.bundle_e_sqlite3 | 2.1.13 | Apache-2.0 | Copyright 2014-2024 SourceGear, LLC | [LICENSE.TXT](licenses/third-party/SQLitePCLRaw/2.1.13/LICENSE.TXT), [NOTICE.TXT](licenses/third-party/SQLitePCLRaw/2.1.13/NOTICE.TXT) |
+| SQLitePCLRaw.core | 2.1.13 | Apache-2.0 | Copyright 2014-2024 SourceGear, LLC | [LICENSE.TXT](licenses/third-party/SQLitePCLRaw/2.1.13/LICENSE.TXT), [NOTICE.TXT](licenses/third-party/SQLitePCLRaw/2.1.13/NOTICE.TXT) |
+| SQLitePCLRaw.lib.e_sqlite3 | 2.1.13 | Apache-2.0 | Copyright 2014-2024 SourceGear, LLC | [LICENSE.TXT](licenses/third-party/SQLitePCLRaw/2.1.13/LICENSE.TXT), [NOTICE.TXT](licenses/third-party/SQLitePCLRaw/2.1.13/NOTICE.TXT) |
+| SQLitePCLRaw.provider.e_sqlite3 | 2.1.13 | Apache-2.0 | Copyright 2014-2024 SourceGear, LLC | [LICENSE.TXT](licenses/third-party/SQLitePCLRaw/2.1.13/LICENSE.TXT), [NOTICE.TXT](licenses/third-party/SQLitePCLRaw/2.1.13/NOTICE.TXT) |
 | Whisper.net | 1.9.1 | MIT | Oryginalny LICENSE wskazany obok | [LICENSE](licenses/third-party/whisper.net/1.9.1/LICENSE), [LICENSE](licenses/third-party/whisper.cpp/1.8.5/LICENSE), [llamafile-MIT.txt](licenses/third-party/whisper.cpp/1.8.5/llamafile-MIT.txt) |
 | Whisper.net.Runtime | 1.9.1 | MIT | Oryginalny LICENSE wskazany obok | [LICENSE](licenses/third-party/whisper.net/1.9.1/LICENSE), [LICENSE](licenses/third-party/whisper.cpp/1.8.5/LICENSE), [llamafile-MIT.txt](licenses/third-party/whisper.cpp/1.8.5/llamafile-MIT.txt) |
 | Whisper.net.Runtime.Metal | 1.9.1 | MIT | Oryginalny LICENSE wskazany obok | [LICENSE](licenses/third-party/whisper.net/1.9.1/LICENSE), [LICENSE](licenses/third-party/whisper.cpp/1.8.5/LICENSE), [llamafile-MIT.txt](licenses/third-party/whisper.cpp/1.8.5/llamafile-MIT.txt) |
@@ -36,15 +36,15 @@ Whisper.net.Runtime i Whisper.net.Runtime.Vulkan dostarczają natywne pliki tak�
 
 | Pakiet runtime | Wersja | Licencja i notices |
 |---|---|---|
-| Microsoft.NETCore.App.Runtime.win-x64 | 10.0.12 | [LICENSE.TXT](licenses/third-party/Microsoft.NETCore.App.Runtime.win-x64/10.0.12/LICENSE.TXT), [THIRD-PARTY-NOTICES.TXT](licenses/third-party/Microsoft.NETCore.App.Runtime.win-x64/10.0.12/THIRD-PARTY-NOTICES.TXT) |
-| Microsoft.WindowsDesktop.App.Runtime.win-x64 | 10.0.12 | [LICENSE](licenses/third-party/Microsoft.WindowsDesktop.App.Runtime.win-x64/10.0.12/LICENSE) |
-| Microsoft.AspNetCore.App.Runtime.win-x64 | 10.0.12 | [LICENSE.txt](licenses/third-party/Microsoft.AspNetCore.App.Runtime.win-x64/10.0.12/LICENSE.txt), [THIRD-PARTY-NOTICES.TXT](licenses/third-party/Microsoft.AspNetCore.App.Runtime.win-x64/10.0.12/THIRD-PARTY-NOTICES.TXT) |
+| Microsoft.NETCore.App.Runtime.win-x64 | 10.0.14 | [LICENSE.TXT](licenses/third-party/Microsoft.NETCore.App.Runtime.win-x64/10.0.14/LICENSE.TXT), [THIRD-PARTY-NOTICES.TXT](licenses/third-party/Microsoft.NETCore.App.Runtime.win-x64/10.0.14/THIRD-PARTY-NOTICES.TXT) |
+| Microsoft.WindowsDesktop.App.Runtime.win-x64 | 10.0.14 | [LICENSE](licenses/third-party/Microsoft.WindowsDesktop.App.Runtime.win-x64/10.0.14/LICENSE) |
+| Microsoft.AspNetCore.App.Runtime.win-x64 | 10.0.14 | [LICENSE.txt](licenses/third-party/Microsoft.AspNetCore.App.Runtime.win-x64/10.0.14/LICENSE.txt), [THIRD-PARTY-NOTICES.TXT](licenses/third-party/Microsoft.AspNetCore.App.Runtime.win-x64/10.0.14/THIRD-PARTY-NOTICES.TXT) |
 
 Zachowano pełne materiały z dokładnych runtime packs, w tym notices komponentów używanych przez .NET. Copyright (c) .NET Foundation and Contributors; pozostałe copyrighty i licencje są w oryginalnych plikach. Nie przypisujemy wszystkich tych komponentów autorowi aplikacji.
 
 ## Natywne biblioteki i składniki instalacji
 
-- **SQLite 3.53.3**: silnik e_sqlite3 z SQLitePCLRaw.lib.e_sqlite3 2.1.12, public domain. [Oficjalna deklaracja SQLite](https://www.sqlite.org/copyright.html). Apache-2.0 dotyczy SQLitePCLRaw; zachowano cały upstream [NOTICE.TXT](licenses/third-party/SQLitePCLRaw/2.1.12/NOTICE.TXT), obejmujący też opcjonalne warianty. Nie oznacza to dołączenia SQLCipher ani OpenSSL.
+- **SQLite 3.53.3**: silnik e_sqlite3 z SQLitePCLRaw.lib.e_sqlite3 2.1.13, public domain. [Oficjalna deklaracja SQLite](https://www.sqlite.org/copyright.html). Apache-2.0 dotyczy SQLitePCLRaw; zachowano cały upstream [NOTICE.TXT](licenses/third-party/SQLitePCLRaw/2.1.13/NOTICE.TXT), obejmujący też opcjonalne warianty. Nie oznacza to dołączenia SQLCipher ani OpenSSL.
 - **whisper.cpp 1.8.5 i ggml**: rewizja f24588a272ae8e23280d9c220536437164e6ed28 wskazana przez Whisper.net 1.9.1; [MIT](licenses/third-party/whisper.cpp/1.8.5/LICENSE), copyright (c) 2023-2026 The ggml authors. Zachowano także [MIT kodu llamafile](licenses/third-party/whisper.cpp/1.8.5/llamafile-MIT.txt), Copyright 2024 Mozilla Foundation.
 - **Nagłówki Vulkan 1.4.321**, używane przez build Vulkan SDK 1.4.321.1: [oryginalne zasady](licenses/third-party/Vulkan-Headers/1.4.321/LICENSE.md), [Apache-2.0](licenses/third-party/Vulkan-Headers/1.4.321/Apache-2.0.txt), [MIT](licenses/third-party/Vulkan-Headers/1.4.321/MIT.txt); copyright Khronos Group zachowano w tych plikach. SDK i sterownik GPU nie są pakowane jako runtime aplikacji.
 - **FFmpeg / ffprobe 9.0.2**: kontrolowany statyczny build, GPL-3.0-or-later; [GPLv3](licenses/third-party/ffmpeg/COPYING.GPLv3). Dokładne hashe EXE, źródeł i notices identyfikuje `licenses/ffmpeg-build/provenance.json`. Zależności: x264 `31e19f92f00c7003fa115047ce50978bc98c3a0d` (GPL-2.0-or-later), nv-codec-headers `n12.2.72.0` (MIT), AMF headers `v1.5.3` (MIT), Intel oneVPL dispatcher `v2.17.0` (MIT), MinGW CRT/winpthreads `10.0.0-3` (licencje w `MINGW-COPYRIGHT`) i runtime GCC 12 z Runtime Library Exception (`GCC-COPYRIGHT`). Oryginalne copyrighty i licencje tych komponentów oraz notices oneVPL/NVIDIA znajdują się obok źródeł w `licenses/ffmpeg-build/`. Sterowniki GPU i biblioteki systemu Windows są ładowane z systemu i nie są dołączane.
