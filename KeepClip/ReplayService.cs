@@ -8,6 +8,7 @@ public static class ReplayService
 {
     internal const int SegmentSeconds = 2;
     private static readonly object Gate = new();
+    private static readonly ReplayGameTracker GameTracker = new(DisplayHelper.ForegroundGameName);
 
     private static Process? _ff;
     private static AudioPump? _audio;
@@ -151,13 +152,12 @@ public static class ReplayService
         if (Interlocked.CompareExchange(ref _saving, 1, 0) != 0)
             throw new InvalidOperationException(Strings.Get("replay.saveInProgress"));
 
-        var game = DisplayHelper.ForegroundGameName() ?? "Pulpit";
-
-        PlayCue(ok: true);
-        try { Notifier?.Invoke(true, Strings.Get("replay.savingTitle"), Strings.Get("replay.savingSubtitle")); } catch { }
-
         try
         {
+            var game = GameTracker.Resolve(DurationS);
+            PlayCue(ok: true);
+            try { Notifier?.Invoke(true, Strings.Get("replay.savingTitle"), Strings.Get("replay.savingSubtitle")); } catch { }
+
             var writer = new ReplayWriter(RunFfmpegAsync);
             var result = await writer.SaveAsync(SegDir, game, DurationS, _audioOn, _encoder?.StartsWith("hevc", StringComparison.Ordinal) == true);
             try { Notifier?.Invoke(true, Strings.Get("replay.savedTitle"), (string)result["file"]!); } catch { }
@@ -203,6 +203,7 @@ public static class ReplayService
 
             _ff = SpawnCapture(_captureTier);
             _audio?.Start(_ff.StandardInput.BaseStream);
+            GameTracker.Observe();
 
             _runningSig = SettingsSig();
             StartWatchdog(_ff);
@@ -340,6 +341,7 @@ public static class ReplayService
 
     private static void WipeRing()
     {
+        GameTracker.Reset();
         try
         {
             if (Directory.Exists(SegDir))
@@ -369,13 +371,18 @@ public static class ReplayService
         if (_janitor is { IsAlive: true }) return;
         _janitor = new Thread(() =>
         {
+            int ticks = 0;
             while (true)
             {
-                Thread.Sleep(5_000);
+                Thread.Sleep(1_000);
                 try
                 {
-                    if (_ff is not { HasExited: false }) continue;
-                    if (_saving != 0) continue;
+                    lock (Gate)
+                    {
+                        if (_ff is not { HasExited: false }) continue;
+                        GameTracker.Observe();
+                    }
+                    if (++ticks % 5 != 0 || _saving != 0) continue;
                     int keep = (DurationS + SegmentSeconds - 1) / SegmentSeconds + 2;
                     var files = Directory.GetFiles(SegDir, "seg_*.ts")
                         .OrderBy(f => f, StringComparer.Ordinal)

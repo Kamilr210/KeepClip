@@ -119,7 +119,7 @@ const i18n = {
       adding:       "Dodaję…",
     },
     search: {
-      placeholder:  "Szukaj klipów, map, słów z transkrypcji…",
+      placeholder:  "Szukaj transkrypcji…",
       allGames:     "Wszystkie gry",
       sortNewest:   "Najnowsze",
       sortOldest:   "Najstarsze",
@@ -712,7 +712,7 @@ const i18n = {
       adding:      "Добавляю…",
     },
     search: {
-      placeholder:   "Поиск клипов, карт, слов из транскрипции…",
+      placeholder:   "Поиск транскрипций…",
       allGames:      "Все игры",
       sortNewest:    "Сначала новые",
       sortOldest:    "Сначала старые",
@@ -1305,7 +1305,7 @@ const i18n = {
       adding:      "Adding…",
     },
     search: {
-      placeholder:   "Search clips, maps, transcript words…",
+      placeholder:   "Search transcripts…",
       allGames:      "All games",
       sortNewest:    "Newest first",
       sortOldest:    "Oldest first",
@@ -1898,7 +1898,7 @@ const i18n = {
       adding:      "Додаю…",
     },
     search: {
-      placeholder:   "Пошук кліпів, карт, слів із транскрипції…",
+      placeholder:   "Пошук транскрипцій…",
       allGames:      "Усі ігри",
       sortNewest:    "Спочатку нові",
       sortOldest:    "Спочатку старі",

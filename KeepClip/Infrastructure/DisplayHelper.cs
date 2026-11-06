@@ -5,10 +5,29 @@ namespace KeepClip.Infrastructure;
 
 internal static class DisplayHelper
 {
+    private static readonly InstalledGameCatalog InstalledGames = new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Epic", "EpicGamesLauncher", "Data", "Manifests"));
+
     private static readonly Dictionary<string, string> KnownGameNames =
         new(StringComparer.OrdinalIgnoreCase)
         {
             ["cs2"] = "Counter-Strike 2",
+            ["FortniteClient-Win64-Shipping"] = "Fortnite",
+            ["VALORANT-Win64-Shipping"] = "VALORANT",
+            ["League of Legends"] = "League of Legends",
+        };
+
+    private static readonly HashSet<string> NonGameProcesses =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            "KeepClip", "msedgewebview2", "explorer", "SearchHost", "SearchApp",
+            "StartMenuExperienceHost", "ShellExperienceHost", "LockApp", "Taskmgr",
+            "chrome", "msedge", "firefox", "brave", "opera",
+            "Discord", "DiscordPTB", "DiscordCanary",
+            "steam", "steamwebhelper", "EpicGamesLauncher", "EpicWebHelper",
+            "RiotClientServices", "RiotClientUx", "RiotClientUxRender", "Battle.net",
+            "GameBar", "GameBarFTServer", "GameBarPresenceWriter", "GameOverlayUI",
+            "LeagueClient", "LeagueClientUx", "LeagueClientUxRenderer", "FortniteLauncher",
+            "CrashReportClient", "UnityCrashHandler64", "UnityCrashHandler32", "UnrealCEFSubProcess",
         };
 
     private static readonly HashSet<string> ReservedFolderNames =
@@ -86,17 +105,31 @@ internal static class DisplayHelper
             if (pid == 0) return null;
             using var p = Process.GetProcessById((int)pid);
             var processName = p.ProcessName;
-            if (string.IsNullOrWhiteSpace(processName)) return null;
             if (p.Id == Environment.ProcessId) return null;
-            if (processName.Equals("explorer", StringComparison.OrdinalIgnoreCase)) return null;
-            if (processName.Equals("KeepClip", StringComparison.OrdinalIgnoreCase)) return null;
-
-            var name = KnownGameNames.GetValueOrDefault(processName)
-                       ?? ProductName(p)
-                       ?? processName;
-            return SafeFolderName(name);
+            return GameName(processName, () => ProductName(p), () => InstalledGameName(p));
         }
         catch { return null; }
+    }
+
+    internal static string? GameName(string processName, Func<string?> productName, Func<string?>? installedGameName = null)
+    {
+        if (string.IsNullOrWhiteSpace(processName) || NonGameProcesses.Contains(processName)) return null;
+        return SafeFolderName(KnownGameNames.GetValueOrDefault(processName) ?? GameTitle(installedGameName?.Invoke()) ?? GameTitle(productName()) ?? processName);
+    }
+
+    private static string? InstalledGameName(Process process)
+    {
+        try { return InstalledGames.Find(process.MainModule?.FileName); }
+        catch { return null; }
+    }
+
+    private static string? GameTitle(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var name = value.Replace("™", "").Replace("®", "").Trim();
+        if (name.Length == 0 || name.Contains("Microsoft Windows", StringComparison.OrdinalIgnoreCase) || name.StartsWith("Unreal Engine", StringComparison.OrdinalIgnoreCase)) return null;
+        if (new[] { "Unity", "Unity Player", "UnityEngine", "UE4", "UE5", "UE4Game", "UE5Game" }.Contains(name, StringComparer.OrdinalIgnoreCase)) return null;
+        return name;
     }
 
     private static string? ProductName(Process process)
@@ -106,10 +139,7 @@ internal static class DisplayHelper
             var info = process.MainModule?.FileVersionInfo;
             foreach (var value in new[] { info?.ProductName, info?.FileDescription })
             {
-                var name = value?.Trim();
-                if (string.IsNullOrWhiteSpace(name)) continue;
-                if (name.Contains("Microsoft Windows", StringComparison.OrdinalIgnoreCase)) continue;
-                return name;
+                if (GameTitle(value) is { } name) return name;
             }
         }
         catch { }

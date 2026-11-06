@@ -2,6 +2,60 @@ namespace KeepClip.Tests.Infrastructure;
 
 public class DisplayHelperTests
 {
+    [Theory]
+    [InlineData("cs2", "Counter-Strike 2")]
+    [InlineData("CS2", "Counter-Strike 2")]
+    [InlineData("FortniteClient-Win64-Shipping", "Fortnite")]
+    [InlineData("VALORANT-Win64-Shipping", "VALORANT")]
+    [InlineData("League of Legends", "League of Legends")]
+    public void Known_games_use_a_stable_folder_without_reading_executable_metadata(string processName, string expected)
+        => Assert.Equal(expected, DisplayHelper.GameName(processName, () => throw new InvalidOperationException("Metadata is not needed")));
+
+    [Theory]
+    [InlineData("KeepClip")]
+    [InlineData("msedgewebview2")]
+    [InlineData("explorer")]
+    [InlineData("CHROME")]
+    [InlineData("msedge")]
+    [InlineData("firefox")]
+    [InlineData("Discord")]
+    [InlineData("steam")]
+    [InlineData("steamwebhelper")]
+    [InlineData("EpicGamesLauncher")]
+    [InlineData("GameBar")]
+    [InlineData("SearchHost")]
+    [InlineData("LeagueClientUx")]
+    [InlineData("CrashReportClient")]
+    [InlineData("FortniteLauncher")]
+    public void Desktop_apps_and_overlays_do_not_replace_the_recorded_game(string processName)
+        => Assert.Null(DisplayHelper.GameName(processName, () => "Desktop application"));
+
+    [Theory]
+    [InlineData("custom-game", "  Test: Game  ", "Test_ Game")]
+    [InlineData("custom-game", null, "custom-game")]
+    [InlineData("custom-game", "Unreal Engine", "custom-game")]
+    [InlineData("custom-game", "Unreal Engine 5", "custom-game")]
+    [InlineData("custom-game", "Unity Player", "custom-game")]
+    [InlineData("custom-game", "Microsoft Windows", "custom-game")]
+    [InlineData("custom-game", "  ", "custom-game")]
+    public void Other_games_use_safe_product_or_process_names(string processName, string? productName, string expected)
+        => Assert.Equal(expected, DisplayHelper.GameName(processName, () => productName));
+
+    [Fact]
+    public void An_installed_game_title_takes_precedence_over_engine_metadata_and_removes_trademarks()
+        => Assert.Equal("Test_ Adventure", DisplayHelper.GameName("Game-Win64-Shipping", () => throw new InvalidOperationException("Metadata is not needed"), () => "Test: Adventure™®"));
+
+    [Fact]
+    public void A_known_game_or_launcher_does_not_need_access_to_installation_manifests()
+    {
+        Assert.Equal("Counter-Strike 2", DisplayHelper.GameName("cs2", () => null, () => throw new IOException("No access")));
+        Assert.Null(DisplayHelper.GameName("steam", () => null, () => throw new IOException("No access")));
+    }
+
+    [Fact]
+    public void Missing_installation_metadata_preserves_the_executable_product_name_fallback()
+        => Assert.Equal("Test Game", DisplayHelper.GameName("Game", () => "Test Game", () => null));
+
     [Fact]
     public void SanitizeFileName_replaces_all_invalid_characters_without_truncating_the_extension()
     {

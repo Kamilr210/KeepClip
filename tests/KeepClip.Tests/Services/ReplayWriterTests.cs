@@ -33,6 +33,65 @@ public class ReplayWriterTests
         return path;
     }
 
+    [Theory]
+    [InlineData("cs2", "Counter-Strike 2")]
+    [InlineData("FortniteClient-Win64-Shipping", "Fortnite")]
+    [InlineData("VALORANT-Win64-Shipping", "VALORANT")]
+    [InlineData("League of Legends", "League of Legends")]
+    public async Task A_replay_saved_from_keepclip_goes_to_the_recorded_games_folder_and_library_category(string process, string expectedGame)
+    {
+        TestDb.Reset();
+        Segment(1);
+        Segment(2);
+        var tracker = new ReplayGameTracker(() => DisplayHelper.GameName(process, () => null));
+        tracker.Observe();
+        process = "KeepClip";
+        var writer = new ReplayWriter((args, _) => { File.WriteAllBytes(args[^1], new byte[10_001]); return Task.FromResult((0, "")); }, new Clock());
+
+        var result = await writer.SaveAsync(_segments, tracker.Resolve(120), 120, false, false);
+
+        var expected = Path.Combine(_root, expectedGame, $"{expectedGame} 2026-10-22 12-00-00.mp4");
+        Assert.Equal(expected, result["path"]);
+        Assert.Equal(expectedGame, result["game"]);
+        Assert.True(File.Exists(expected));
+        Assert.False(Directory.Exists(Path.Combine(_root, "Pulpit")));
+        File.SetLastWriteTimeUtc(expected, DateTime.UtcNow.AddSeconds(-10));
+        Assert.Equal(1, Scanner.Scan()["added"]);
+        var clip = Assert.Single(new ClipRepository().List(null, null, 10, false));
+        var stored = new ClipRepository().GetRow(Convert.ToInt64(clip["id"]));
+        Assert.NotNull(stored);
+        Assert.Equal(expected, stored["filepath"]);
+        Assert.Equal(expectedGame, clip["game"]);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_unknown_executable_uses_its_steam_or_epic_title_for_the_saved_folder(bool steam)
+    {
+        Segment(1);
+        Segment(2);
+        var manifests = Directory.CreateDirectory(Path.Combine(_root, "manifests")).FullName;
+        var steamapps = Directory.CreateDirectory(Path.Combine(_root, "steamapps")).FullName;
+        var install = Path.Combine(steamapps, "common", "InternalName");
+        var executable = Path.Combine(install, "Binaries", "Win64", "Game-Win64-Shipping.exe");
+        if (steam) File.WriteAllText(Path.Combine(steamapps, "appmanifest_123.acf"), "\"AppState\" { \"name\" \"Test: Adventure™\" \"installdir\" \"InternalName\" \"StateFlags\" \"4\" }");
+        else File.WriteAllText(Path.Combine(manifests, "game.item"), System.Text.Json.JsonSerializer.Serialize(new { DisplayName = "Test: Adventure™", InstallLocation = install }));
+        var catalog = new InstalledGameCatalog(manifests);
+        string process = "Game-Win64-Shipping";
+        var tracker = new ReplayGameTracker(() => DisplayHelper.GameName(process, () => "Unreal Engine", () => catalog.Find(executable)));
+        tracker.Observe();
+        process = "KeepClip";
+        var writer = new ReplayWriter((args, _) => { File.WriteAllBytes(args[^1], new byte[10_001]); return Task.FromResult((0, "")); }, new Clock());
+
+        var result = await writer.SaveAsync(_segments, tracker.Resolve(120), 120, false, false);
+
+        var expected = Path.Combine(_root, "Test_ Adventure", "Test_ Adventure 2026-10-22 12-00-00.mp4");
+        Assert.Equal("Test_ Adventure", result["game"]);
+        Assert.Equal(expected, result["path"]);
+        Assert.True(File.Exists(expected));
+    }
+
     [Fact]
     public async Task Empty_buffer_fails_without_starting_ffmpeg()
     {
