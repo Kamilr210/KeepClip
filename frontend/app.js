@@ -146,6 +146,8 @@ const els = {
   transcriptTxt: $("#player-transcript-txt"),
   pfolders: $("#player-folders"),
   pfoldersDropdown: $("#player-folders-dropdown"),
+  pdemo: $("#player-demo-toggle"),
+  pdemoPanel: $("#player-demo"),
   confirmOverlay: $("#confirm-overlay"),
   confirmTitle: $("#confirm-title"),
   confirmBody: $("#confirm-body"),
@@ -1191,6 +1193,28 @@ const clipDemoPanel = createClipDemoPanel({
   } : null,
 });
 
+function closeDemoPopover() {
+  if (els.pdemoPanel.matches(":popover-open")) els.pdemoPanel.hidePopover();
+}
+
+function positionDemoPopover() {
+  if (!els.pdemoPanel.matches(":popover-open")) return;
+  const button = els.pdemo.getBoundingClientRect();
+  const panel = els.pdemoPanel.getBoundingClientRect();
+  const margin = 8;
+  els.pdemoPanel.style.left = `${Math.max(margin, Math.min(button.left - panel.width - margin, window.innerWidth - panel.width - margin))}px`;
+  els.pdemoPanel.style.top = `${Math.max(margin, Math.min(button.top, window.innerHeight - panel.height - margin))}px`;
+}
+
+els.pdemo.addEventListener("click", closeFoldersDropdown);
+els.pdemoPanel.addEventListener("toggle", () => {
+  els.pdemo.setAttribute("aria-expanded", String(els.pdemoPanel.matches(":popover-open")));
+  positionDemoPopover();
+});
+new ResizeObserver(positionDemoPopover).observe(els.pdemoPanel);
+window.addEventListener("resize", positionDemoPopover);
+document.addEventListener("fullscreenchange", closeDemoPopover);
+
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 function hidePlaybackPreparation() {
@@ -1243,6 +1267,7 @@ async function resolvePlaybackSource(clipId) {
 
 async function openPlayer(clipId, startAt) {
   _stopActivePreview();
+  closeDemoPopover();
   clipDemoPanel.close();
   _cloudPlaybackErrorClipId = null;
   currentClipId = clipId;
@@ -1468,6 +1493,7 @@ function enterSegEdit(segEl) {
 
 function closePlayer() {
   _playbackRequestToken++;
+  closeDemoPopover();
   clipDemoPanel.close();
   currentClipId = null;
   currentClipStorage = "local";
@@ -1500,7 +1526,12 @@ els.overlay.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     if (document.fullscreenElement) return;
-    if (!els.confirmOverlay.hidden) hideConfirm();
+    if (els.pdemoPanel.matches(":popover-open")) {
+      e.preventDefault();
+      closeDemoPopover();
+      els.pdemo.focus();
+    }
+    else if (!els.confirmOverlay.hidden) hideConfirm();
     else if (!els.overlay.hidden && editingSegId === null) closePlayer();
   }
 });
