@@ -11,7 +11,7 @@ public class MediaCutFfmpegTests
     {
         public List<string> Encoders { get; } = new();
 
-        public override MediaRunResult Run(string exe, IReadOnlyList<string> args, int timeoutSeconds, Action<string>? onOutputLine = null)
+        public override MediaRunResult Run(string exe, IReadOnlyList<string> args, int timeoutSeconds, Action<string>? onOutputLine = null, CancellationToken cancellationToken = default)
         {
             var options = args.ToList();
             var encoder = options[options.IndexOf("-c:v") + 1];
@@ -19,7 +19,7 @@ public class MediaCutFfmpegTests
             // Rzeczywisty błąd FFmpeg, niezależny od GPU maszyny testowej; kod aplikacji obsługuje ponowienie.
             if (forceGpuFailure && encoder == "h264_nvenc")
                 options.InsertRange(options.Count - 1, new[] { "-gpu", "9999" });
-            return base.Run(exe, options, timeoutSeconds, onOutputLine);
+            return base.Run(exe, options, timeoutSeconds, onOutputLine, cancellationToken);
         }
     }
 

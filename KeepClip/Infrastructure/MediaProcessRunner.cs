@@ -11,8 +11,9 @@ internal class MediaProcessRunner
         string exe,
         IReadOnlyList<string> args,
         int timeoutSeconds,
-        Action<string>? onOutputLine = null)
+        Action<string>? onOutputLine = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var psi = new ProcessStartInfo
         {
             FileName = exe,
@@ -40,12 +41,18 @@ internal class MediaProcessRunner
         proc.BeginOutputReadLine();
         proc.BeginErrorReadLine();
 
-        if (!proc.WaitForExit(timeoutSeconds * 1000))
+        try
+        {
+            proc.WaitForExitAsync(cancellationToken).WaitAsync(TimeSpan.FromSeconds(timeoutSeconds), CancellationToken.None).GetAwaiter().GetResult();
+        }
+        catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
         {
             try { proc.Kill(entireProcessTree: true); } catch { }
+            if (proc.WaitForExit(5000)) proc.WaitForExit();
+            cancellationToken.ThrowIfCancellationRequested();
             return new MediaRunResult(true, -1, so.ToString(), se.ToString());
         }
-        proc.WaitForExit();
+        cancellationToken.ThrowIfCancellationRequested();
         return new MediaRunResult(false, proc.ExitCode, so.ToString(), se.ToString());
     }
 }

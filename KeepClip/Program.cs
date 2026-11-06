@@ -42,13 +42,14 @@ builder.Services.AddSingleton<FolderRepository>();
 builder.Services.AddSingleton<StatsRepository>();
 
 builder.Services.AddSingleton<PlaybackProxyService>();
+builder.Services.AddSingleton<LibraryScanService>();
 builder.Services.AddSingleton<ClipService>();
 builder.Services.AddSingleton<ClipDemoService>();
 #if KEEPCLIP_DEV
 builder.Services.AddSingleton<DevResourceMonitor>();
 #endif
 
-var app = builder.Build();
+await using var app = builder.Build();
 app.UseMiddleware<PrivateApiMiddleware>();
 
 Db.InitDb();

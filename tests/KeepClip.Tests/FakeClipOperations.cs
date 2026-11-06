@@ -8,6 +8,7 @@ internal sealed class FakeClipOperations : ClipOperations
     public Func<string, (bool, string?, string, double)> Fix { get; set; } = _ => throw new InvalidOperationException("Unexpected fix");
     public Func<string, string, double, double, double?, Action<double, string>?, (bool, string, Dictionary<string, object?>)> Cut { get; set; } = (_, _, _, _, _, _) => throw new InvalidOperationException("Unexpected cut");
     public Func<string, string, double, Action<double>?, (bool, string)> Proxy { get; set; } = (_, _, _, _) => throw new InvalidOperationException("Unexpected proxy");
+    public Func<string, string, double, Action<double>?, CancellationToken, (bool, string)>? CancellableProxy { get; set; }
     public Func<string, Action<double, string>?, List<Transcriber.Segment>> Transcription { get; set; } = (_, _) => throw new InvalidOperationException("Unexpected transcription");
     public Func<string, Action<double, string>?, CancellationToken, List<Transcriber.Segment>>? CancellableTranscription { get; set; }
     public Action<string> SendToTrash { get; set; } = _ => throw new InvalidOperationException("Unexpected trash");
@@ -16,10 +17,10 @@ internal sealed class FakeClipOperations : ClipOperations
 
     public override double? ProbeDuration(string path) => Duration(path);
     public override Media.PlaybackVideoInfo? ProbePlaybackVideo(string path) => Video(path);
-    public override bool MakeThumbnail(long clipId, string path) => Thumbnail(clipId, path);
+    public override bool MakeThumbnail(long clipId, string path, double? duration = null) => Thumbnail(clipId, path);
     public override (bool Ok, string? Output, string Message, double Trimmed) FixBrokenClip(string path) => Fix(path);
     public override (bool Ok, string Message, Dictionary<string, object?> Stats) CutClip(string source, string output, double start, double end, double? targetSizeMb, Action<double, string>? progress) => Cut(source, output, start, end, targetSizeMb, progress);
-    public override (bool Ok, string Message) CreatePlaybackProxy(string source, string output, double duration, Action<double>? progress) => Proxy(source, output, duration, progress);
+    public override (bool Ok, string Message) CreatePlaybackProxy(string source, string output, double duration, Action<double>? progress, CancellationToken cancellationToken = default, Media.PlaybackVideoInfo? videoInfo = null) => CancellableProxy is null ? Proxy(source, output, duration, progress) : CancellableProxy(source, output, duration, progress, cancellationToken);
     public override List<Transcriber.Segment> Transcribe(string path, Action<double, string>? progress = null, CancellationToken cancellationToken = default) => CancellableTranscription is null ? Transcription(path, progress) : CancellableTranscription(path, progress, cancellationToken);
     public override void TrashFile(string path) => SendToTrash(path);
     public override string? TrashFileWithRetry(string path) => SendToTrashWithRetry(path);

@@ -23,6 +23,12 @@ public static class MediaEndpoints
             return Results.File(path, "video/mp4", enableRangeProcessing: true);
         });
 
+        app.MapDelete("/api/playback/{clipId:long}", (long clipId, PlaybackProxyService playback) =>
+        {
+            playback.Cancel(clipId);
+            return Results.NoContent();
+        });
+
         app.MapGet("/video/{clipId:long}", async (long clipId, HttpContext http, ClipRepository clips) =>
         {
             var clip = clips.GetById(clipId);

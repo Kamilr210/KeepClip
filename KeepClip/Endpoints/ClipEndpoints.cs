@@ -95,20 +95,12 @@ public static class ClipEndpoints
         app.MapDelete("/api/clips/{clipId:long}", async (long clipId, bool? delete_file, ClipService clips) =>
             Respond(await clips.DeleteAsync(clipId, delete_file ?? true)));
 
-        app.MapGet("/thumb/{clipId:long}", (long clipId, ClipRepository clips) =>
+        app.MapGet("/thumb/{clipId:long}", async (long clipId, CancellationToken ct) =>
         {
             var p = Config.ThumbPath(clipId);
             if (!File.Exists(p))
             {
-                var row = clips.GetRow(clipId);
-                if (row is null || Convert.ToInt64(row["has_thumb"] ?? 0L) == 2)
-                    return Api.Detail(404, "no thumbnail");
-                if (!Media.MakeThumbnail(clipId, row["filepath"] as string ?? ""))
-                {
-            clips.SetThumbState(clipId, 2);
-                    return Api.Detail(404, "no thumbnail");
-                }
-                clips.SetThumbState(clipId, 1);
+                if (!await ThumbnailWorker.GetAsync(clipId, ct)) return Api.Detail(404, "no thumbnail");
             }
             return Results.File(p, "image/jpeg");
         });

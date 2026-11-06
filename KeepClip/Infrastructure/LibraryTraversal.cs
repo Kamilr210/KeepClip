@@ -5,7 +5,7 @@ internal static class LibraryTraversal
     internal const int MaximumEntries = 100_000;
     internal const int MaximumDepth = 64;
 
-    internal static IEnumerable<string> Files(string root, CancellationToken cancellationToken, int maximumEntries = MaximumEntries)
+    internal static IEnumerable<FileInfo> Files(string root, CancellationToken cancellationToken, int maximumEntries = MaximumEntries)
     {
         var pending = new Stack<(DirectoryInfo Directory, int Depth)>();
         pending.Push((new DirectoryInfo(root), 0));
@@ -26,7 +26,7 @@ internal static class LibraryTraversal
                     if (current.Depth >= MaximumDepth) throw new IOException("Biblioteka przekracza limit głębokości folderów.");
                     pending.Push((directory, current.Depth + 1));
                 }
-                else yield return entry.FullName;
+                else if (entry is FileInfo file) yield return file;
             }
         }
     }

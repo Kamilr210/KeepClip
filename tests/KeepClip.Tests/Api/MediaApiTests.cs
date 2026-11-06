@@ -15,6 +15,15 @@ public class MediaApiTests
         _http = factory.CreateClient();
     }
 
+    [Fact]
+    public async Task Canceling_playback_is_idempotent_and_does_not_delete_the_clip()
+    {
+        var clip = TestDb.AddClip();
+        for (int i = 0; i < 2; i++)
+            Assert.Equal(HttpStatusCode.NoContent, (await _http.DeleteAsync($"/api/playback/{clip}")).StatusCode);
+        Assert.NotNull(new ClipRepository().GetById(clip));
+    }
+
     [Theory]
     [InlineData("mp4", "video/mp4")]
     [InlineData("WEBM", "video/webm")]

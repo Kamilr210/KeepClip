@@ -26,6 +26,23 @@ public class MediaProcessRunnerTests
     }
 
     [Fact]
+    public void Cancellation_terminates_the_started_process_before_returning()
+    {
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        int pid = 0;
+        Assert.Throws<OperationCanceledException>(() => new MediaProcessRunner().Run(PowerShell,
+            new[] { "-NoProfile", "-NonInteractive", "-Command", "[Console]::Out.WriteLine($PID); Start-Sleep -Seconds 30" }, 40,
+            line => { pid = int.Parse(line); cancellation.Cancel(); }, cancellation.Token));
+        Assert.True(pid > 0);
+        try
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(pid);
+            Assert.True(process.HasExited);
+        }
+        catch (ArgumentException) { }
+    }
+
+    [Fact]
     public void Timed_out_process_is_terminated_and_cannot_write_a_late_marker()
     {
         var marker = Path.Combine(TestEnvironment.NewTempDir("timeout"), "late.txt");

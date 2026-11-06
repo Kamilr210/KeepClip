@@ -130,12 +130,12 @@ public static class ConfigEndpoints
 
         app.MapPost("/api/heartbeat", () => { Heartbeat.Touch(); return Results.Json(new { ok = true }); });
 
-        app.MapPost("/api/scan", (CancellationToken ct) =>
+        app.MapPost("/api/scan", (bool? automatic, LibraryScanService scanner, CancellationToken ct) =>
         {
             Heartbeat.Touch();
-            var result = Scanner.Scan(ct);
+            var result = scanner.Scan(automatic ?? false, ct);
             ThumbnailWorker.Ensure();
-            DevLog.Add($"Skan folderu: znaleziono {result.GetValueOrDefault("found")}, dodano {result.GetValueOrDefault("added")}, usunięto {result.GetValueOrDefault("removed")}");
+            if (!result.ContainsKey("skipped")) DevLog.Add($"Skan folderu: znaleziono {result.GetValueOrDefault("found")}, dodano {result.GetValueOrDefault("added")}, usunięto {result.GetValueOrDefault("removed")}");
             return Results.Json(result);
         });
 

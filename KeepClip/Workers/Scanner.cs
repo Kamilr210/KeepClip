@@ -28,7 +28,6 @@ public static class Scanner
 
     private static Dictionary<string, object?> ScanCore(CancellationToken cancellationToken, int maximumEntries)
     {
-        Db.InitDb();
         int found = 0, added = 0, removed = 0, updated = 0;
         var clipsRoot = Settings.GetClipsRoot();
 
@@ -45,15 +44,16 @@ public static class Scanner
 
         var onDisk = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        var settledOnDisk = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var settledOnDisk = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
         var settledBefore = DateTime.UtcNow.AddMilliseconds(-1500);
-        foreach (var path in LibraryTraversal.Files(clipsRoot, cancellationToken, maximumEntries))
+        foreach (var file in LibraryTraversal.Files(clipsRoot, cancellationToken, maximumEntries))
         {
+            var path = file.FullName;
             if (Config.VideoExts.Contains(Path.GetExtension(path)))
             {
                 onDisk.Add(path);
-                if (File.GetLastWriteTimeUtc(path) <= settledBefore)
-                    settledOnDisk.Add(path);
+                if (file.LastWriteTimeUtc <= settledBefore)
+                    settledOnDisk[path] = file;
             }
         }
         found = onDisk.Count;
@@ -61,8 +61,6 @@ public static class Scanner
 
         using var con = Db.Open();
         using var tx = con.BeginTransaction();
-
-        con.Exec("UPDATE clips SET has_thumb=0 WHERE has_thumb=2");
 
         var deadIds = new List<long>();
         var existingPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -91,18 +89,17 @@ public static class Scanner
             removed++;
         }
 
-        foreach (var spath in settledOnDisk)
+        foreach (var (spath, fi) in settledOnDisk)
         {
-            var fi = new FileInfo(spath);
             long size = fi.Length;
-            double mtime = ((DateTimeOffset)File.GetLastWriteTimeUtc(spath)).ToUnixTimeMilliseconds() / 1000.0;
+            double mtime = ((DateTimeOffset)fi.LastWriteTimeUtc).ToUnixTimeMilliseconds() / 1000.0;
 
             if (existingLocal.TryGetValue(spath, out var existing))
             {
                 if (existing.Size != size || Math.Abs(existing.Mtime - mtime) > 0.001)
                 {
                     thumbnailsToDelete.Add(Config.ThumbPath(existing.Id));
-                    con.Exec("UPDATE clips SET size_bytes=$s, mtime=$m, has_thumb=0 WHERE id=$id",
+                    con.Exec("UPDATE clips SET size_bytes=$s, mtime=$m, has_thumb=0, duration=NULL, thumb_retry_at=NULL WHERE id=$id",
                         ("$s", size), ("$m", mtime), ("$id", existing.Id));
                     updated++;
                 }
@@ -124,7 +121,7 @@ public static class Scanner
         {
             try { if (File.Exists(tp)) File.Delete(tp); } catch (IOException) { } catch (UnauthorizedAccessException) { }
         }
-        return new() { ["found"] = found, ["added"] = added, ["removed"] = removed, ["updated"] = updated };
+        return new() { ["found"] = found, ["added"] = added, ["removed"] = removed, ["updated"] = updated, ["pending"] = found - settledOnDisk.Count };
     }
 
     private static string NormDir(string path)

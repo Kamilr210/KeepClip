@@ -112,13 +112,14 @@ public class PlaybackProxyServiceTests
         using var releaseOld = new ManualResetEventSlim();
         Task oldCompletion = Task.CompletedTask;
         int calls = 0;
-        _operations.Proxy = (_, output, _, _) =>
+        _operations.CancellableProxy = (_, output, _, _, ct) =>
         {
             var call = Interlocked.Increment(ref calls);
             if (call == 1)
             {
                 oldEntered.Set();
-                Assert.True(releaseOld.Wait(TimeSpan.FromSeconds(10)));
+                try { Assert.True(releaseOld.Wait(TimeSpan.FromSeconds(10), ct)); }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
             }
             File.WriteAllBytes(output, Enumerable.Repeat((byte)call, 2048).ToArray());
             return (true, "ok");
@@ -138,6 +139,105 @@ public class PlaybackProxyServiceTests
         Assert.All(File.ReadAllBytes(path), value => Assert.Equal(2, value));
         Assert.Equal(2, calls);
         _playback.Invalidate(_clip.Id);
+    }
+
+    [Fact]
+    public async Task Different_clips_share_a_limit_and_canceling_a_queued_job_does_not_start_it()
+    {
+        using var entered = new ManualResetEventSlim();
+        var second = _clip with { Id = _clip.Id + 1 };
+        int calls = 0;
+        _operations.CancellableProxy = (_, _, _, _, ct) =>
+        {
+            Interlocked.Increment(ref calls);
+            entered.Set();
+            Assert.True(ct.WaitHandle.WaitOne(TimeSpan.FromSeconds(5)));
+            ct.ThrowIfCancellationRequested();
+            return (true, "ok");
+        };
+        try
+        {
+            _playback.GetOrStart(_clip);
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            _playback.GetOrStart(second);
+            var queued = _playback.WaitForCurrentJobAsync(second.Id);
+            _playback.Cancel(second.Id);
+            await queued.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(1, calls);
+            var active = _playback.WaitForCurrentJobAsync(_clip.Id);
+            _playback.Cancel(_clip.Id);
+            await active.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(_playback.TryGetReadyPath(_clip, out _));
+        }
+        finally { await _playback.DisposeAsync(); }
+    }
+
+    [Fact]
+    public async Task Concurrent_cold_requests_probe_the_source_only_once()
+    {
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        int probes = 0;
+        _operations.Video = _ =>
+        {
+            Interlocked.Increment(ref probes);
+            entered.Set();
+            Assert.True(release.Wait(TimeSpan.FromSeconds(5)));
+            return new("h264", 60, 1920, 1080);
+        };
+        var requests = Enumerable.Range(0, 8).Select(_ => Task.Run(() => _playback.GetOrStart(_clip))).ToArray();
+        try { Assert.True(entered.Wait(TimeSpan.FromSeconds(5))); }
+        finally { release.Set(); }
+        Assert.All(await Task.WhenAll(requests), result => Assert.True(result.ready));
+        Assert.Equal(1, probes);
+    }
+
+    [Fact]
+    public async Task Disposing_the_service_stops_active_and_queued_conversions()
+    {
+        using var entered = new ManualResetEventSlim();
+        int calls = 0;
+        _operations.CancellableProxy = (_, _, _, _, ct) =>
+        {
+            Interlocked.Increment(ref calls);
+            entered.Set();
+            Assert.True(ct.WaitHandle.WaitOne(TimeSpan.FromSeconds(5)));
+            ct.ThrowIfCancellationRequested();
+            return (true, "ok");
+        };
+        try
+        {
+            _playback.GetOrStart(_clip);
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            _playback.GetOrStart(_clip with { Id = _clip.Id + 1 });
+        }
+        finally { await _playback.DisposeAsync(); }
+        Assert.Equal(1, calls);
+        Assert.False(_playback.TryGetReadyPath(_clip, out _));
+        Assert.Throws<ObjectDisposedException>(() => _playback.GetOrStart(_clip));
+    }
+
+    [Fact]
+    public async Task Evicted_proxy_is_regenerated_and_current_output_is_protected()
+    {
+        int calls = 0;
+        _operations.Proxy = (_, output, _, _) =>
+        {
+            calls++;
+            File.WriteAllBytes(output, new byte[2048]);
+            return (true, "ok");
+        };
+        await WaitFor(state => state.ready);
+        Assert.True(_playback.TryGetReadyPath(_clip, out var old));
+        var keep = Path.Combine(Config.PlaybackDir, $"keep_{Guid.NewGuid():N}.mp4");
+        File.WriteAllBytes(keep, new byte[4096]);
+        PlaybackProxyService.TrimCache(keep, 4096);
+        Assert.True(File.Exists(keep));
+        Assert.False(File.Exists(old));
+        await WaitFor(state => state.ready);
+        Assert.Equal(2, calls);
+        _playback.Invalidate(_clip.Id);
+        File.Delete(keep);
     }
 
     private async Task<PlaybackProxyService.Status> WaitFor(Func<PlaybackProxyService.Status, bool> condition)

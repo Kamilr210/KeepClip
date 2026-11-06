@@ -4,7 +4,7 @@ public class ReplayCaptureCapabilitiesTests
 {
     private sealed class Runner(MediaRunResult result) : MediaProcessRunner
     {
-        public override MediaRunResult Run(string exe, IReadOnlyList<string> args, int timeoutSeconds, Action<string>? onOutputLine = null)
+        public override MediaRunResult Run(string exe, IReadOnlyList<string> args, int timeoutSeconds, Action<string>? onOutputLine = null, CancellationToken cancellationToken = default)
         {
             Assert.Equal(Config.Ffmpeg, exe);
             Assert.Equal(new[] { "-hide_banner", "-h", "demuxer=gdigrab" }, args);

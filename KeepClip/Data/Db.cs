@@ -89,6 +89,15 @@ END;
             cmd.ExecuteNonQuery();
         }
         Migrate(con);
+        con.Exec(@"
+CREATE INDEX IF NOT EXISTS idx_clips_remote ON clips(remote_id) WHERE remote_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_clips_mtime ON clips(mtime DESC);
+CREATE INDEX IF NOT EXISTS idx_clips_game_mtime ON clips(game, mtime DESC);
+CREATE INDEX IF NOT EXISTS idx_clips_size ON clips(size_bytes DESC);
+CREATE INDEX IF NOT EXISTS idx_clips_favorite_mtime ON clips(mtime DESC) WHERE favorite=1;
+CREATE INDEX IF NOT EXISTS idx_clips_thumbnail_pending ON clips(id) WHERE storage!='cloud' AND (has_thumb!=1 OR duration IS NULL);
+CREATE INDEX IF NOT EXISTS idx_segments_clip_start ON segments(clip_id, start_s);
+");
     }
 
     public static SqliteConnection Open()
@@ -134,6 +143,7 @@ END;
         AddColumn("remote_id", "ALTER TABLE clips ADD COLUMN remote_id TEXT");
         AddColumn("remote_uploaded_at", "ALTER TABLE clips ADD COLUMN remote_uploaded_at TEXT");
         AddColumn("demo_path", "ALTER TABLE clips ADD COLUMN demo_path TEXT");
+        AddColumn("thumb_retry_at", "ALTER TABLE clips ADD COLUMN thumb_retry_at REAL");
 
         cols.Clear();
         using (var cmd = con.CreateCommand())

@@ -1231,6 +1231,10 @@ function showPlaybackPreparation(status) {
     .replace("{fps}", String(Math.round(status.source_fps || 0)));
 }
 
+function cancelPlaybackPreparation(clipId) {
+  if (clipId != null) void fetch(`/api/playback/${clipId}`, { method: "DELETE" }).catch(() => {});
+}
+
 async function resolvePlaybackSource(clipId) {
   const token = ++_playbackRequestToken;
   while (token === _playbackRequestToken && currentClipId === clipId && !els.overlay.hidden) {
@@ -1240,9 +1244,15 @@ async function resolvePlaybackSource(clipId) {
       if (!response.ok) throw new Error(`${response.status}`);
       status = await response.json();
     } catch {
+      if (token !== _playbackRequestToken || currentClipId !== clipId || els.overlay.hidden) return null;
       els.playerPreparing.hidden = false;
       els.playerPreparingTitle.textContent = t("player.previewError");
       els.playerPreparingDetail.textContent = t("player.previewErrorDetail");
+      return null;
+    }
+
+    if (token !== _playbackRequestToken || currentClipId !== clipId || els.overlay.hidden) {
+      if (currentClipId !== clipId || els.overlay.hidden) cancelPlaybackPreparation(clipId);
       return null;
     }
 
@@ -1266,6 +1276,8 @@ async function resolvePlaybackSource(clipId) {
 }
 
 async function openPlayer(clipId, startAt) {
+  if (currentClipId != null && currentClipId !== clipId) cancelPlaybackPreparation(currentClipId);
+  _playbackRequestToken++;
   _stopActivePreview();
   closeDemoPopover();
   clipDemoPanel.close();
@@ -1492,6 +1504,7 @@ function enterSegEdit(segEl) {
 }
 
 function closePlayer() {
+  cancelPlaybackPreparation(currentClipId);
   _playbackRequestToken++;
   closeDemoPopover();
   clipDemoPanel.close();
@@ -2237,8 +2250,8 @@ els.q.addEventListener("input", () => {
 els.gameFilter.addEventListener("change", doSearch);
 els.sort.addEventListener("change", doSearch);
 
-async function runScan({ showToastAlways = false, announceChanges = true } = {}) {
-  const response = await fetch("/api/scan", { method: "POST" });
+async function runScan({ showToastAlways = false, announceChanges = true, automatic = false } = {}) {
+  const response = await fetch(automatic ? "/api/scan?automatic=true" : "/api/scan", { method: "POST" });
   const r = await response.json();
   if (!response.ok) throw new Error(r.detail || response.statusText);
   const parts = [];
@@ -2310,7 +2323,7 @@ async function autoSyncLibrary() {
   _autoLibrarySyncBusy = true;
   try {
     const previousSignature = libraryStatsSignature(_lastStats);
-    const scan = await runScan({ announceChanges: false });
+    const scan = await runScan({ announceChanges: false, automatic: true });
     const stats = await loadStats();
     const libraryChanged = scan.added || scan.removed || scan.updated ||
       libraryStatsSignature(stats) !== previousSignature;

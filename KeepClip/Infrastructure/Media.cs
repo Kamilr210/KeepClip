@@ -13,12 +13,12 @@ public static class Media
 
     public static double? ProbeDuration(string path) => Processor.ProbeDuration(path);
     public static PlaybackVideoInfo? ProbePlaybackVideo(string path) => Processor.ProbePlaybackVideo(path);
-    public static (bool Ok, string Message) CreatePlaybackProxy(string source, string output, double duration, Action<double>? progress = null) => Processor.CreatePlaybackProxy(source, output, duration, progress);
+    public static (bool Ok, string Message) CreatePlaybackProxy(string source, string output, double duration, Action<double>? progress = null, CancellationToken cancellationToken = default, PlaybackVideoInfo? videoInfo = null) => Processor.CreatePlaybackProxy(source, output, duration, progress, cancellationToken, videoInfo);
     public static int ProbeDecodeErrors(string path, double seconds = 5.0) => Processor.ProbeDecodeErrors(path, seconds);
     public static bool TryRemux(string src, string dst, double skipSeconds = 0.0) => Processor.TryRemux(src, dst, skipSeconds);
     public static (bool Ok, string? Output, string Message, double Trimmed) FixBrokenClip(string src, string? tmpOut = null) => Processor.FixBrokenClip(src, tmpOut);
     public static (bool Ok, string Message, Dictionary<string, object?> Stats) CutClip(string src, string output, double start, double end, double? targetSizeMb = null, Action<double, string>? progress = null) => Processor.CutClip(src, output, start, end, targetSizeMb, progress);
-    public static bool MakeThumbnail(long clipId, string video, double atSeconds = 5.0) => Processor.MakeThumbnail(clipId, video, atSeconds);
+    public static bool MakeThumbnail(long clipId, string video, double atSeconds = 5.0, double? duration = null) => Processor.MakeThumbnail(clipId, video, atSeconds, duration);
 
     internal static string? ValidateCut(double start, double end, double? targetSizeMb)
     {

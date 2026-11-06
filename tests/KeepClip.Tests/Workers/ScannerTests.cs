@@ -121,6 +121,22 @@ public class ScannerTests
         Assert.NotNull(result["error"]);
     }
 
+    [Fact]
+    public void Only_changed_sources_clear_thumbnail_backoff_and_cached_duration()
+    {
+        var path = AddFile("retry.mp4");
+        Scanner.Scan();
+        TestDb.Exec("UPDATE clips SET has_thumb=2, duration=10, thumb_retry_at=9999999999");
+        Scanner.Scan();
+        Assert.Equal(2, TestDb.ScalarLong("SELECT has_thumb FROM clips"));
+        Assert.Equal(9999999999L, TestDb.ScalarLong("SELECT thumb_retry_at FROM clips"));
+        File.AppendAllText(path, "changed");
+        File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(-10));
+        Assert.Equal(1, Scanner.Scan()["updated"]);
+        Assert.Equal(0, TestDb.ScalarLong("SELECT has_thumb FROM clips"));
+        Assert.Equal(1, TestDb.ScalarLong("SELECT COUNT(*) FROM clips WHERE duration IS NULL AND thumb_retry_at IS NULL"));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

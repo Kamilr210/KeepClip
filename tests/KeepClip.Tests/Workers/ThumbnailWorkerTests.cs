@@ -14,6 +14,81 @@ public class ThumbnailWorkerTests
     }
 
     [Fact]
+    public async Task Background_and_interactive_requests_share_one_thumbnail()
+    {
+        var id = Clip("shared.mp4");
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        int calls = 0;
+        _operations.Thumbnail = (clipId, _) =>
+        {
+            Interlocked.Increment(ref calls);
+            entered.Set();
+            Assert.True(release.Wait(TimeSpan.FromSeconds(5)));
+            Directory.CreateDirectory(Config.ThumbsDir);
+            File.WriteAllText(Config.ThumbPath(clipId), "thumbnail");
+            return true;
+        };
+        ThumbnailWorker.Ensure(_operations);
+        Task<bool>[] requests = [];
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+            requests = Enumerable.Range(0, 8).Select(_ => ThumbnailWorker.GetAsync(id, _operations)).ToArray();
+        }
+        finally { release.Set(); }
+        await ThumbnailWorker.Completion!.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.All(await Task.WhenAll(requests), Assert.True);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public async Task Failed_thumbnail_backs_off_across_worker_runs_and_interactive_requests()
+    {
+        var id = Clip("broken.mp4");
+        int calls = 0;
+        _operations.Thumbnail = (_, _) => { calls++; return false; };
+        for (int i = 0; i < 3; i++)
+        {
+            ThumbnailWorker.Ensure(_operations);
+            await ThumbnailWorker.Completion!.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(await ThumbnailWorker.GetAsync(id, _operations));
+        }
+        Assert.Equal(1, calls);
+        TestDb.Exec("UPDATE clips SET thumb_retry_at=0 WHERE id=$id", ("$id", id));
+        Assert.False(await ThumbnailWorker.GetAsync(id, _operations));
+        Assert.Equal(2, calls);
+    }
+
+    [Fact]
+    public async Task Cloud_clips_do_not_trigger_local_probes_or_retry_writes()
+    {
+        var id = Clip("cloud.mp4");
+        TestDb.Exec("UPDATE clips SET storage='cloud' WHERE id=$id", ("$id", id));
+        var operations = new FakeClipOperations();
+        ThumbnailWorker.Ensure(operations);
+        await ThumbnailWorker.Completion!.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(await ThumbnailWorker.GetAsync(id, operations));
+        Assert.Equal(0, new ClipRepository().GetById(id)!.HasThumb);
+    }
+
+    [Fact]
+    public async Task Source_changed_during_encoding_does_not_publish_a_stale_thumbnail()
+    {
+        var id = Clip("changing.mp4");
+        _operations.Thumbnail = (clipId, path) =>
+        {
+            Directory.CreateDirectory(Config.ThumbsDir);
+            File.WriteAllText(Config.ThumbPath(clipId), "stale");
+            File.AppendAllText(path, "changed");
+            return true;
+        };
+        Assert.False(await ThumbnailWorker.GetAsync(id, _operations));
+        Assert.False(File.Exists(Config.ThumbPath(id)));
+        Assert.Equal(0, new ClipRepository().GetById(id)!.HasThumb);
+    }
+
+    [Fact]
     public async Task Missing_first_file_does_not_prevent_processing_later_clips()
     {
         var missing = TestDb.AddClip(name: "missing.mp4", dir: _root);

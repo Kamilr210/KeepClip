@@ -28,17 +28,25 @@ tego publikacją instalatora.
 
 ### Główne procesy
 
-- **Biblioteka:** `frontend/app.js` zleca `POST /api/scan` co 2,5 sekundy, gdy okno
-  jest widoczne i nie ma otwartej konfiguracji. `Scanner` i `LibraryTraversal`
+- **Biblioteka:** `frontend/app.js` odpytuje `POST /api/scan?automatic=true` co 2,5
+  sekundy, gdy okno jest widoczne i nie ma otwartej konfiguracji. `LibraryScanService`
+  obserwuje katalog przez `FileSystemWatcher`: pomija skan bez zmian i wykonuje
+  pełną kontrolę co minutę, także przy utracie zdarzeń. Ręczny `POST /api/scan`
+  zawsze skanuje. `Scanner` i `LibraryTraversal`
   przeglądają katalog, ograniczają czas/liczbę wpisów/głębokość, pomijają dowiązania
-  i czekają na ustabilizowanie pliku. To odpytywanie sterowane frontendem, bez
-  osobnego `FileSystemWatcher`.
+  i czekają na ustabilizowanie pliku. Zdarzenia podczas skanu i pliki jeszcze
+  zapisywane pozostają do sprawdzenia w następnej próbie.
 - **Klipy i pliki:** `ClipService`, repozytoria i `Trash` odpowiadają za metadane,
   foldery, wyszukiwanie, usuwanie i przenoszenie. Przeniesiony poza aplikacją plik
   jest rozpoznawany przez skan jako usunięcie starej ścieżki i dodanie nowej.
 - **Wideo:** `MediaProcessor`, `MediaProcessRunner`, `AudioExtractor` i
   `PlaybackProxyService` przygotowują miniatury, wycinki, kompresję, naprawy i
   podglądy. Adaptery pozwalają testować błędy i anulowanie bez prawdziwego kodera.
+  Żądania miniatur i worker korzystają z jednej kolejki; błędy mają 5 minut
+  przerwy przed ponowieniem, a zmiana pliku resetuje tę przerwę. Podglądy mają
+  jedną aktywną konwersję; `DELETE /api/playback/{id}` anuluje ją wraz z procesem
+  FFmpeg. Cache podglądów jest sprzątany do 2 GiB, z ochroną właśnie utworzonego
+  pliku i plików, których system nie pozwala usunąć.
 - **Transkrypcja:** `TranscribeWorker` zarządza kolejką i anulowaniem;
   `Transcriber` dobiera model do pamięci GPU i obsługuje zejście na lżejszy model.
   Zapis segmentów i statusu odbywa się transakcyjnie.

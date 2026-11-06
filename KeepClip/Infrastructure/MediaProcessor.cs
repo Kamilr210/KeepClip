@@ -6,8 +6,8 @@ namespace KeepClip.Infrastructure;
 
 internal sealed class MediaProcessor(MediaProcessRunner runner)
 {
-    private MediaRunResult Run(string exe, IReadOnlyList<string> args, int timeoutSeconds, Action<string>? onOutputLine = null)
-        => runner.Run(exe, args, timeoutSeconds, onOutputLine);
+    private MediaRunResult Run(string exe, IReadOnlyList<string> args, int timeoutSeconds, Action<string>? onOutputLine = null, CancellationToken cancellationToken = default)
+        => runner.Run(exe, args, timeoutSeconds, onOutputLine, cancellationToken);
 
     public double? ProbeDuration(string path)
     {
@@ -66,10 +66,11 @@ internal sealed class MediaProcessor(MediaProcessRunner runner)
         string source,
         string output,
         double duration,
-        Action<double>? progress = null)
+        Action<double>? progress = null, CancellationToken cancellationToken = default, PlaybackVideoInfo? videoInfo = null)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
-        var videoInfo = ProbePlaybackVideo(source);
+        videoInfo ??= ProbePlaybackVideo(source);
         var targetWidth = videoInfo is { Width: > 0 and <= 1920 } ? videoInfo.Value.Width : 1920;
         if (targetWidth % 2 != 0) targetWidth--;
         var temp = Path.Combine(
@@ -147,7 +148,9 @@ internal sealed class MediaProcessor(MediaProcessRunner runner)
                 progress?.Invoke(current);
             }
 
-            var r = Run(Config.Ffmpeg, BuildArgs(hardware), timeoutSeconds: 3600, onOutputLine: Report);
+            MediaRunResult r;
+            try { r = Run(Config.Ffmpeg, BuildArgs(hardware), timeoutSeconds: 3600, onOutputLine: Report, cancellationToken: cancellationToken); }
+            catch (OperationCanceledException) { TryDelete(temp); throw; }
             if (!r.Faulted && r.ExitCode == 0 && File.Exists(temp) && new FileInfo(temp).Length > 1024)
             {
                 File.Move(temp, output, overwrite: true);
@@ -411,11 +414,11 @@ internal sealed class MediaProcessor(MediaProcessRunner runner)
         catch { }
     }
 
-    public bool MakeThumbnail(long clipId, string video, double atSeconds = 5.0)
+    public bool MakeThumbnail(long clipId, string video, double atSeconds = 5.0, double? duration = null)
     {
         var outPath = Config.ThumbPath(clipId);
-        var duration = ProbeDuration(video) ?? 10.0;
-        var timestamp = Math.Min(atSeconds, Math.Max(0.0, duration / 2));
+        duration ??= ProbeDuration(video) ?? 10.0;
+        var timestamp = Math.Min(atSeconds, Math.Max(0.0, duration.Value / 2));
         var r = Run(Config.Ffmpeg, new[]
         {
             "-y",

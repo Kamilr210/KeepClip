@@ -6,10 +6,48 @@ public class MediaProcessorTests
 {
     private sealed class Runner(Func<string, IReadOnlyList<string>, int, Action<string>?, MediaRunResult> run) : MediaProcessRunner
     {
-        public override MediaRunResult Run(string exe, IReadOnlyList<string> args, int timeoutSeconds, Action<string>? onOutputLine = null) => run(exe, args, timeoutSeconds, onOutputLine);
+        public override MediaRunResult Run(string exe, IReadOnlyList<string> args, int timeoutSeconds, Action<string>? onOutputLine = null, CancellationToken cancellationToken = default) => run(exe, args, timeoutSeconds, onOutputLine);
     }
 
     private static MediaRunResult Success(string stdout = "") => new(false, 0, stdout, "");
+
+    [Fact]
+    public void Proxy_reuses_supplied_video_metadata_and_cancellation_removes_partial_output()
+    {
+        var source = TempFile();
+        var output = Path.Combine(Path.GetDirectoryName(source)!, "canceled.mp4");
+        using var cancellation = new CancellationTokenSource();
+        int calls = 0;
+        var processor = new MediaProcessor(new Runner((exe, args, _, _) =>
+        {
+            Assert.Equal(Config.Ffmpeg, exe);
+            calls++;
+            File.WriteAllText(args[^1], "partial");
+            cancellation.Cancel();
+            throw new OperationCanceledException(cancellation.Token);
+        }));
+        Assert.Throws<OperationCanceledException>(() => processor.CreatePlaybackProxy(source, output, 10,
+            cancellationToken: cancellation.Token, videoInfo: new("h264", 240, 1280, 720)));
+        Assert.Equal(1, calls);
+        Assert.False(File.Exists(output));
+        Assert.Empty(Directory.EnumerateFiles(Path.GetDirectoryName(source)!, "*.tmp.mp4"));
+    }
+
+    [Fact]
+    public void Thumbnail_reuses_known_duration_without_an_extra_probe()
+    {
+        var id = Random.Shared.Next(1_000_000, int.MaxValue);
+        var processor = new MediaProcessor(new Runner((exe, args, _, _) =>
+        {
+            Assert.Equal(Config.Ffmpeg, exe);
+            Assert.Equal("2.00", Value(args, "-ss"));
+            Directory.CreateDirectory(Config.ThumbsDir);
+            File.WriteAllText(args[^1], "thumbnail");
+            return Success();
+        }));
+        try { Assert.True(processor.MakeThumbnail(id, "short.mp4", duration: 4)); }
+        finally { File.Delete(Config.ThumbPath(id)); }
+    }
     private static string Value(IReadOnlyList<string> args, string option) => args[args.ToList().IndexOf(option) + 1];
     private static string TempFile(string name = "source.mp4")
     {
