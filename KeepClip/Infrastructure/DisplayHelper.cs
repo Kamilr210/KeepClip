@@ -28,6 +28,7 @@ internal static class DisplayHelper
             "GameBar", "GameBarFTServer", "GameBarPresenceWriter", "GameOverlayUI",
             "LeagueClient", "LeagueClientUx", "LeagueClientUxRenderer", "FortniteLauncher",
             "CrashReportClient", "UnityCrashHandler64", "UnityCrashHandler32", "UnrealCEFSubProcess",
+            "obs64", "obs32", "wallpaper64", "wallpaper32", "blender", "UnrealEditor", "Unity",
         };
 
     private static readonly HashSet<string> ReservedFolderNames =
@@ -96,25 +97,33 @@ internal static class DisplayHelper
 
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
+    [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr hWnd);
 
-    public static string? ForegroundGameName()
+    public static string? ForegroundGameName() => ForegroundGameName(confirmedOnly: false);
+
+    internal static string? ForegroundGameName(bool confirmedOnly)
     {
         try
         {
-            GetWindowThreadProcessId(GetForegroundWindow(), out var pid);
+            var window = GetForegroundWindow();
+            if (window == IntPtr.Zero) return null;
+            if (confirmedOnly && (IsIconic(window) || !System.Windows.Forms.Screen.FromHandle(window).Primary)) return null;
+            GetWindowThreadProcessId(window, out var pid);
             if (pid == 0) return null;
             using var p = Process.GetProcessById((int)pid);
             var processName = p.ProcessName;
             if (p.Id == Environment.ProcessId) return null;
-            return GameName(processName, () => ProductName(p), () => InstalledGameName(p));
+            return GameName(processName, () => ProductName(p), () => InstalledGameName(p), confirmedOnly);
         }
         catch { return null; }
     }
 
-    internal static string? GameName(string processName, Func<string?> productName, Func<string?>? installedGameName = null)
+    internal static string? GameName(string processName, Func<string?> productName, Func<string?>? installedGameName = null, bool confirmedOnly = false)
     {
         if (string.IsNullOrWhiteSpace(processName) || NonGameProcesses.Contains(processName)) return null;
-        return SafeFolderName(KnownGameNames.GetValueOrDefault(processName) ?? GameTitle(installedGameName?.Invoke()) ?? GameTitle(productName()) ?? processName);
+        var name = KnownGameNames.GetValueOrDefault(processName) ?? GameTitle(installedGameName?.Invoke());
+        if (name is null && !confirmedOnly) name = GameTitle(productName()) ?? processName;
+        return name is null ? null : SafeFolderName(name);
     }
 
     private static string? InstalledGameName(Process process)

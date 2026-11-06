@@ -3,6 +3,32 @@ namespace KeepClip.Tests.Infrastructure;
 public class DisplayHelperTests
 {
     [Theory]
+    [InlineData("notepad")]
+    [InlineData("Code")]
+    [InlineData("unknown-game")]
+    public void Games_only_requires_installation_evidence_and_never_guesses_from_product_metadata(string process)
+        => Assert.Null(DisplayHelper.GameName(process, () => throw new InvalidOperationException("Product metadata cannot confirm a game"), () => null, confirmedOnly: true));
+
+    [Theory]
+    [InlineData("cs2", "Counter-Strike 2")]
+    [InlineData("VALORANT-Win64-Shipping", "VALORANT")]
+    public void Games_only_accepts_known_game_processes(string process, string expected)
+        => Assert.Equal(expected, DisplayHelper.GameName(process, () => null, confirmedOnly: true));
+
+    [Fact]
+    public void Games_only_accepts_a_title_confirmed_by_its_installation()
+        => Assert.Equal("Installed Game", DisplayHelper.GameName("Game-Win64-Shipping", () => null, () => "Installed Game", confirmedOnly: true));
+
+    [Theory]
+    [InlineData("obs64")]
+    [InlineData("wallpaper64")]
+    [InlineData("blender")]
+    [InlineData("UnrealEditor")]
+    [InlineData("Unity")]
+    public void Desktop_software_does_not_enable_capture_even_when_installed_through_a_game_store(string process)
+        => Assert.Null(DisplayHelper.GameName(process, () => null, () => "Installed Application", confirmedOnly: true));
+
+    [Theory]
     [InlineData("cs2", "Counter-Strike 2")]
     [InlineData("CS2", "Counter-Strike 2")]
     [InlineData("FortniteClient-Win64-Shipping", "Fortnite")]

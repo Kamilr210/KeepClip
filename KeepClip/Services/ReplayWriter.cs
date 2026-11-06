@@ -6,7 +6,7 @@ internal sealed class ReplayWriter(Func<string[], int, Task<(int code, string st
 {
     private readonly TimeProvider _clock = clock ?? TimeProvider.System;
 
-    internal async Task<Dictionary<string, object?>> SaveAsync(string segmentDirectory, string game, int durationSeconds, bool audio, bool hevc)
+    internal async Task<Dictionary<string, object?>> SaveAsync(string segmentDirectory, string game, int durationSeconds, bool audio, bool hevc, bool currentSegmentMayBeIncomplete = false)
     {
         string? listPath = null, snapPath = null, tmpOut = null;
         try
@@ -27,7 +27,7 @@ internal sealed class ReplayWriter(Func<string[], int, Task<(int code, string st
             bool snapshotReady = false;
             try
             {
-                bool recording = false;
+                bool recording = currentSegmentMayBeIncomplete;
                 FileStream source;
                 try { source = new FileStream(current, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete); }
                 catch (IOException)

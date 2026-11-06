@@ -9,6 +9,8 @@ public static class ReplayService
     internal const int SegmentSeconds = 2;
     private static readonly object Gate = new();
     private static readonly ReplayGameTracker GameTracker = new(DisplayHelper.ForegroundGameName);
+    private static readonly ReplayBuffer Buffer = new(SegDir);
+    private static ReplayRecordingController _recording = new(new CaptureBackend(), () => DisplayHelper.ForegroundGameName(confirmedOnly: true));
 
     private static Process? _ff;
     private static AudioPump? _audio;
@@ -21,19 +23,24 @@ public static class ReplayService
     internal const int TierGpu = 0, TierCpu = 1, TierGdi = 2;
     private static int _captureTier = -1;
     private static string? _error;
-    private static string? _runningSig;
-    private static int _saving;
     private static int _segStart;
     private static readonly Queue<string> _stderrTail = new();
 
     private static string SegDir => Path.Combine(Config.TmpDir, "replay");
 
-    public static bool SaveInProgress => _saving != 0;
+    public static bool SaveInProgress { get { lock (Gate) return _recording.Saving; } }
+
+    internal static ReplayRecordingController Recording
+    {
+        get { lock (Gate) return _recording; }
+        set { lock (Gate) { _recording.Shutdown(); _recording = value; } }
+    }
 
     public static Action<bool, string, string>? Notifier;
 
     public static bool Enabled => Settings.GetString("replay_enabled") == "1";
     public static bool BackgroundEnabled => Settings.GetString("replay_background") == "1";
+    public static bool GamesOnly => Settings.GetString("replay_games_only") == "1";
     public static int DurationS => ClampInt(Settings.GetString("replay_duration_s"), 15, 600, 120);
     public static int Fps =>
         int.TryParse(Settings.GetString("replay_fps"), out var f)
@@ -61,16 +68,23 @@ public static class ReplayService
 
     public static object Status()
     {
-        var ff = _ff;
-        bool running;
-        try { running = ff is { HasExited: false }; } catch { running = false; }
+        lock (Gate) return StatusLocked();
+    }
+
+    private static object StatusLocked()
+    {
+        bool running = _recording.Running;
         var recordedFps = Volatile.Read(ref _recordedFps);
         return new Dictionary<string, object?>
         {
             ["enabled"] = Enabled,
             ["background"] = BackgroundEnabled,
+            ["games_only"] = GamesOnly,
+            ["waiting_for_game"] = _recording.WaitingForGame,
+            ["can_save"] = _recording.CanSave,
+            ["game"] = _recording.BufferGame,
             ["running"] = running,
-            ["saving"] = _saving != 0,
+            ["saving"] = _recording.Saving,
             ["duration_s"] = DurationS,
             ["fps"] = Fps,
             ["recorded_fps"] = running && _captureTier == TierGdi && recordedFps > 0 ? recordedFps : null,
@@ -84,7 +98,7 @@ public static class ReplayService
             ["mic_active"] = running && _audio?.MicActive == true,
             ["audio_output"] = AudioOutputId,
             ["audio_input"] = AudioInputId,
-            ["error"] = _error,
+            ["error"] = _recording.Error ?? _error,
         };
     }
 
@@ -108,26 +122,14 @@ public static class ReplayService
     {
         lock (Gate)
         {
-            bool running = _ff is { HasExited: false };
-            if (!Enabled)
-            {
-                if (running) StopLocked();
-                if (_saving == 0) WipeRing();
-                _error = null;
-                return;
-            }
-            if (running && _runningSig == SettingsSig()) return;
-            if (running) StopLocked();
-
-            _consecFails = 0;
-            _captureTier = -1;
-            StartLocked(freshRing: true);
+            _recording.Configure(Enabled, GamesOnly, SettingsSig());
+            if (Enabled) StartJanitor();
         }
     }
 
     public static void Shutdown()
     {
-        lock (Gate) StopLocked();
+        lock (Gate) _recording.Shutdown();
     }
 
     public static void PlayCue(bool ok)
@@ -145,50 +147,45 @@ public static class ReplayService
 
     public static async Task<Dictionary<string, object?>> SaveAsync(string source)
     {
-        for (int i = 0; Enabled && _ff is not { HasExited: false } && i < 8; i++)
-            await Task.Delay(500);
-        if (_ff is not { HasExited: false })
-            throw new InvalidOperationException(Strings.Get("replay.notRunning"));
-        if (Interlocked.CompareExchange(ref _saving, 1, 0) != 0)
-            throw new InvalidOperationException(Strings.Get("replay.saveInProgress"));
+        string? game;
+        int duration;
+        bool audio, hevc;
+        lock (Gate)
+        {
+            _recording.Tick();
+            if (_recording.Saving) throw new InvalidOperationException(Strings.Get("replay.saveInProgress"));
+            if (!_recording.TryBeginSave(out game)) throw new InvalidOperationException(Strings.Get(Enabled ? "replay.bufferEmpty" : "replay.notRunning"));
+            game ??= GameTracker.Resolve(DurationS);
+            duration = DurationS;
+            audio = Buffer.Format?.Audio is not null;
+            hevc = Buffer.Format?.Encoder?.StartsWith("hevc", StringComparison.Ordinal) == true;
+        }
 
         try
         {
-            var game = GameTracker.Resolve(DurationS);
             PlayCue(ok: true);
             try { Notifier?.Invoke(true, Strings.Get("replay.savingTitle"), Strings.Get("replay.savingSubtitle")); } catch { }
 
             var writer = new ReplayWriter(RunFfmpegAsync);
-            var result = await writer.SaveAsync(SegDir, game, DurationS, _audioOn, _encoder?.StartsWith("hevc", StringComparison.Ordinal) == true);
+            var result = await writer.SaveAsync(SegDir, game, duration, audio, hevc, currentSegmentMayBeIncomplete: true);
             try { Notifier?.Invoke(true, Strings.Get("replay.savedTitle"), (string)result["file"]!); } catch { }
             await Console.Error.WriteLineAsync($"Powtórka zapisana ({source}): {result["path"]}");
             Scanner.Scan();
             ThumbnailWorker.Ensure();
             return result;
         }
-        finally { Interlocked.Exchange(ref _saving, 0); }
+        finally { lock (Gate) _recording.EndSave(); }
     }
 
-    private static void StartLocked(bool freshRing)
+    private static ReplayStartResult StartLocked(bool freshRing, Func<bool> stillAllowed)
     {
         _error = null;
         _stopRequested = false;
         try
         {
+            if (!stillAllowed()) return ReplayStartResult.Deferred;
             if (!File.Exists(Config.Ffmpeg))
                 throw new Exception(Strings.Get("replay.ffmpegMissing"));
-
-            Directory.CreateDirectory(SegDir);
-
-            if (freshRing && _saving == 0)
-            {
-                WipeRing();
-                _segStart = 0;
-            }
-            else
-            {
-                _segStart = NextSegNumber();
-            }
 
             (_grabW, _grabH, _capW, _capH) = DisplayHelper.MeasurePrimary();
             _encoder ??= ProbeEncoder();
@@ -198,25 +195,34 @@ public static class ReplayService
 
             if (_captureTier == TierGdi) ReplayCaptureCapabilities.RequireSafeGdi(new MediaProcessRunner());
 
+            if (!stillAllowed()) return ReplayStartResult.Deferred;
+
             _audio = AudioPump.TryCreate(MicEnabled, AudioOutputId, AudioInputId);
-            _audioOn = _audio is not null;
+            var audioFormat = _audio is null ? null : new ReplayAudioFormat(_audio.SampleFormat, _audio.SampleRate, _audio.Channels);
+            var format = new ReplayCaptureFormat(_captureTier, _encoder, _capW, _capH, Fps, audioFormat);
+
+            if (!Buffer.Prepare(freshRing, format, stillAllowed)) { StopLocked(); return ReplayStartResult.Deferred; }
+            _segStart = NextSegNumber();
+            if (!stillAllowed()) { StopLocked(); return ReplayStartResult.Deferred; }
+            _audioOn = audioFormat is not null;
 
             _ff = SpawnCapture(_captureTier);
             _audio?.Start(_ff.StandardInput.BaseStream);
+            Buffer.Accept(format);
             GameTracker.Observe();
 
-            _runningSig = SettingsSig();
             StartWatchdog(_ff);
-            StartJanitor();
             Console.Error.WriteLine(
                 $"Bufor powtórki: start ({CaptureName(_captureTier)}, {_encoder}, " +
                 $"{Fps} fps, {Quality}, {DurationS}s, audio: {(_audioOn ? "tak" : "brak")}, " +
                 $"mikrofon: {(_audio?.MicActive == true ? "tak" : "brak")})");
+            return ReplayStartResult.Started;
         }
         catch (Exception ex)
         {
             _error = $"Nie udało się uruchomić bufora: {ex.Message}";
             StopLocked();
+            return ReplayStartResult.Failed;
         }
     }
 
@@ -242,7 +248,6 @@ public static class ReplayService
                 Console.Error.WriteLine("Bufor: porzucam zawieszony teardown audio.");
         }
 
-        _runningSig = null;
         Volatile.Write(ref _recordedFps, 0);
     }
 
@@ -300,8 +305,6 @@ public static class ReplayService
                     var uptime = DateTime.UtcNow - startedAt;
                     string tail;
                     lock (_stderrTail) tail = string.Join(" | ", _stderrTail);
-                    StopLocked();
-
                     _consecFails = uptime < TimeSpan.FromSeconds(10) ? _consecFails + 1 : 0;
                     if (_consecFails >= 2 && _captureTier < TierGdi)
                     {
@@ -311,6 +314,7 @@ public static class ReplayService
                     if (_consecFails >= 6)
                     {
                         _error = $"Bufor powtórki zatrzymał się: {Tail(tail)}";
+                        _recording.CaptureExited(TimeSpan.Zero, terminal: true);
                         return;
                     }
 
@@ -318,15 +322,7 @@ public static class ReplayService
                     Console.Error.WriteLine(
                         $"Bufor: nieoczekiwany koniec po {uptime.TotalSeconds:F0}s ({Tail(tail)}) — " +
                         $"restart za {delayMs} ms (bufor zachowany).");
-                    _ = Task.Run(async () =>
-                    {
-                        await Task.Delay(delayMs);
-                        lock (Gate)
-                        {
-                            if (!Enabled || _ff is not null) return;
-                            StartLocked(freshRing: false);
-                        }
-                    });
+                    _recording.CaptureExited(TimeSpan.FromMilliseconds(delayMs), terminal: false);
                 }
             }
             catch (Exception ex)
@@ -342,13 +338,7 @@ public static class ReplayService
     private static void WipeRing()
     {
         GameTracker.Reset();
-        try
-        {
-            if (Directory.Exists(SegDir))
-                foreach (var f in Directory.GetFiles(SegDir, "seg_*.ts"))
-                    try { File.Delete(f); } catch { }
-        }
-        catch { }
+        Buffer.Clear();
     }
 
     private static int NextSegNumber()
@@ -371,30 +361,56 @@ public static class ReplayService
         if (_janitor is { IsAlive: true }) return;
         _janitor = new Thread(() =>
         {
-            int ticks = 0;
             while (true)
             {
                 Thread.Sleep(1_000);
-                try
-                {
-                    lock (Gate)
-                    {
-                        if (_ff is not { HasExited: false }) continue;
-                        GameTracker.Observe();
-                    }
-                    if (++ticks % 5 != 0 || _saving != 0) continue;
-                    int keep = (DurationS + SegmentSeconds - 1) / SegmentSeconds + 2;
-                    var files = Directory.GetFiles(SegDir, "seg_*.ts")
-                        .OrderBy(f => f, StringComparer.Ordinal)
-                        .ToList();
-                    foreach (var f in files.Take(Math.Max(0, files.Count - keep)))
-                        try { File.Delete(f); } catch { }
-                }
-                catch { }
+                Poll();
             }
         })
         { IsBackground = true, Name = "KeepClip-ReplayJanitor" };
         _janitor.Start();
+    }
+
+    private static int _janitorTicks;
+
+    internal static void Poll()
+    {
+        lock (Gate)
+        {
+            try
+            {
+                _recording.Tick();
+                if (!_recording.Running) return;
+                if (!_recording.GamesOnly) GameTracker.Observe();
+                if (++_janitorTicks % 5 != 0 || _recording.Saving) return;
+                int keep = (DurationS + SegmentSeconds - 1) / SegmentSeconds + 2;
+                var files = Directory.GetFiles(SegDir, "seg_*.ts").OrderBy(f => f, StringComparer.Ordinal).ToList();
+                foreach (var f in files.Take(Math.Max(0, files.Count - keep)))
+                    try { File.Delete(f); } catch { }
+            }
+            catch (Exception ex) { CrashLog.Write("monitor bufora powtórki", ex); }
+        }
+    }
+
+    private sealed class CaptureBackend : ReplayCaptureBackend
+    {
+        internal override bool Running
+        {
+            get { try { return _ff is { HasExited: false }; } catch { return false; } }
+        }
+        internal override bool HasBuffer
+        {
+            get
+            {
+                try { return Buffer.HasSegments; }
+                catch (IOException) { return false; }
+                catch (UnauthorizedAccessException) { return false; }
+            }
+        }
+        internal override ReplayStartResult Start(bool freshRing, Func<bool> stillAllowed) => StartLocked(freshRing, () => stillAllowed() && Enabled && GamesOnly == _recording.GamesOnly && SettingsSig() == _recording.Configuration);
+        internal override void Stop() => StopLocked();
+        internal override void Clear() => WipeRing();
+        internal override void ResetFailure(bool newConfiguration = false) { _consecFails = 0; if (newConfiguration) _captureTier = -1; _error = null; }
     }
 
     private static string CaptureName(int tier) => tier switch

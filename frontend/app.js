@@ -231,6 +231,7 @@ const els = {
   replayError: $("#replay-error"),
   replayEnabled: $("#replay-enabled"),
   replayBackground: $("#replay-background"),
+  replayGamesOnly: $("#replay-games-only"),
   replayMic: $("#replay-mic"),
   replayDuration: $("#replay-duration"),
   replayFps: $("#replay-fps"),
@@ -2754,7 +2755,7 @@ function renderReplayStatus(st) {
   if (els.replayNavDot) els.replayNavDot.hidden = !(st.enabled && st.running);
   if (!els.replayBox || els.replayOverlay.hidden) return;
 
-  els.replaySaveNow.disabled = !st.running || st.saving;
+  els.replaySaveNow.disabled = !(st.can_save ?? st.running) || !!st.saving;
 
   els.replayDot.className = "replay-dot" + (st.error ? " err" : st.running ? " on" : "");
   let text;
@@ -2765,14 +2766,15 @@ function renderReplayStatus(st) {
     if (st.capture === "gdigrab" && Number.isFinite(st.recorded_fps)) {
       text += " · " + t("replay.measuredFps").replace("{actual}", Math.round(st.recorded_fps)).replace("{target}", st.fps);
     }
-  } else if (st.enabled && !st.error) text = t("replay.stStarting");
+  } else if (st.waiting_for_game && !st.error) text = t("replay.stWaitingForGame");
+  else if (st.enabled && !st.error) text = t("replay.stStarting");
   else text = t("replay.stOff");
   els.replayStatusText.textContent = text;
 
   els.replayError.hidden = !st.error;
   els.replayError.textContent = st.error || "";
 
-  const hotkeyDead = st.enabled && st.running && !st.hotkey_active;
+  const hotkeyDead = st.enabled && (st.running || st.can_save) && !st.hotkey_active;
   els.replayHotkeyWarn.hidden = !hotkeyDead;
   els.replayHotkeyWarn.textContent = hotkeyDead ? t("replay.stHotkeyDead") : "";
 }
@@ -2792,6 +2794,7 @@ async function openReplayModal() {
   if (st) {
     els.replayEnabled.checked = !!st.enabled;
     if (els.replayBackground) els.replayBackground.checked = !!st.background;
+    if (els.replayGamesOnly) els.replayGamesOnly.checked = !!st.games_only;
     els.replayMic.checked = !!st.mic_enabled;
     els.replayDuration.value = String(st.duration_s);
   if (!els.replayDuration.value) els.replayDuration.value = "120";
@@ -2913,6 +2916,7 @@ els.replayApply.addEventListener("click", async () => {
       body: JSON.stringify({
         enabled: els.replayEnabled.checked,
         background: els.replayBackground ? els.replayBackground.checked : null,
+        games_only: els.replayGamesOnly ? els.replayGamesOnly.checked : null,
         mic: els.replayMic.checked,
         duration_s: parseInt(els.replayDuration.value, 10),
         fps: parseInt(els.replayFps.value, 10),
@@ -2951,8 +2955,7 @@ els.replaySaveNow.addEventListener("click", async () => {
   } catch (e) {
     toast(t("replay.saveFailToast").replace("{error}", e.message), "error");
   } finally {
-    els.replaySaveNow.disabled = false;
-    refreshReplayStatus();
+    await refreshReplayStatus();
   }
 });
 

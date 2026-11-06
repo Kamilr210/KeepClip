@@ -8,5 +8,6 @@ public record ReplayConfig(
     string Hotkey,
     bool Mic,
     string? AudioOutput,
-    string? AudioInput
+    string? AudioInput,
+    bool GamesOnly = false
 );

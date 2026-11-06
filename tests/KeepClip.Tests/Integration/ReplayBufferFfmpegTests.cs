@@ -23,6 +23,81 @@ public class ReplayBufferFfmpegTests
     }
 
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Paused_and_resumed_recordings_decode_without_corrupted_frames_at_the_interrupted_segment(bool audio, bool resume)
+    {
+        TestSettings.Reset();
+        var root = TestEnvironment.NewTempDir("replay-pause-resume");
+        Settings.SetClipsRoot(root);
+        Directory.CreateDirectory(Config.TmpDir);
+        var ring = Directory.CreateDirectory(Path.Combine(root, "ring")).FullName;
+        var args = new List<string> { "-nostdin", "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=9" };
+        if (audio) args.AddRange(new[] { "-f", "lavfi", "-i", "sine=sample_rate=48000:duration=9", "-c:a", "aac", "-b:a", "128k" });
+        args.AddRange(new[] { "-c:v", "libx264", "-threads", "1", "-preset", "veryfast", "-crf", "10", "-g", "30", "-keyint_min", "30", "-sc_threshold", "0", "-bf", "2", "-f", "segment", "-segment_time", "2", "-reset_timestamps", "1", "-segment_format", "mpegts", Path.Combine(ring, "seg_%06d.ts") });
+        Run(Config.Ffmpeg, args.ToArray());
+        var segments = Directory.GetFiles(ring, "seg_*.ts").Order(StringComparer.Ordinal).ToArray();
+        Assert.True(segments.Length >= 3);
+        var next = Path.Combine(root, "after-resume.ts");
+        File.Copy(segments[2], next);
+        foreach (var path in segments.Skip(2)) File.Delete(path);
+        var interrupted = segments[1];
+        var firstHash = Hash(segments[0]);
+        using var packetsJson = JsonDocument.Parse(Run(Config.Ffprobe, "-v", "error", "-select_streams", "v:0", "-show_packets", "-show_entries", "packet=pos,size,flags", "-of", "json", interrupted).StdOut);
+        var packets = packetsJson.RootElement.GetProperty("packets").EnumerateArray().ToArray();
+        int incomplete = Array.FindIndex(packets, 1, packet => packet.GetProperty("flags").GetString()!.Contains('K')) + 3;
+        Assert.InRange(incomplete, 4, packets.Length - 1);
+        Assert.True(int.Parse(packets[incomplete].GetProperty("size").GetString()!, CultureInfo.InvariantCulture) > 376);
+        long length = long.Parse(packets[incomplete].GetProperty("pos").GetString()!, CultureInfo.InvariantCulture) + 413;
+        using (var file = File.OpenWrite(interrupted)) file.SetLength(length);
+
+        var unsafeList = Path.Combine(root, "unsafe.ffconcat");
+        var unsafeInputs = resume ? new[] { segments[0], interrupted, next } : new[] { segments[0], interrupted };
+        File.WriteAllLines(unsafeList, unsafeInputs.Select(path => "file '" + path.Replace('\\', '/') + "'"));
+        var unsafeClip = Path.Combine(root, "unsafe.mp4");
+        Run(Config.Ffmpeg, "-v", "error", "-f", "concat", "-safe", "0", "-i", unsafeList, "-map", "0:v:0", "-c:v", "copy", unsafeClip);
+        var broken = new MediaProcessRunner().Run(Config.Ffmpeg, new[] { "-nostdin", "-v", "error", "-xerror", "-err_detect", "explode", "-i", unsafeClip, "-f", "null", "-" }, 30);
+        Assert.False(broken.Faulted);
+        Assert.NotEqual(0, broken.ExitCode);
+
+        var buffer = new ReplayBuffer(ring);
+        var format = new ReplayCaptureFormat(ReplayService.TierCpu, "libx264", 640, 360, 30, audio ? new("f32le", 48000, 1) : null);
+        buffer.Accept(format);
+        if (resume)
+        {
+            Assert.True(buffer.Prepare(false, format, () => true));
+            Assert.InRange(new FileInfo(interrupted).Length, 50_000, length - 1);
+            var repaired = Hash(interrupted);
+            Assert.True(buffer.Prepare(false, format, () => true));
+            Assert.Equal(repaired, Hash(interrupted));
+            File.Copy(next, Path.Combine(ring, "seg_000002.ts"));
+            buffer.Accept(format);
+        }
+        var writer = new ReplayWriter((arguments, timeout) => Task.Run(() =>
+        {
+            var result = new MediaProcessRunner().Run(Config.Ffmpeg, arguments, timeout / 1000);
+            Assert.False(result.Faulted, result.StdErr);
+            return (result.ExitCode, result.StdErr);
+        }));
+
+        var saved = await writer.SaveAsync(ring, "Paused game", 15, buffer.Format!.Audio is not null, false, currentSegmentMayBeIncomplete: true);
+
+        var output = Assert.IsType<string>(saved["path"]);
+        var decoded = Run(Config.Ffmpeg, "-nostdin", "-v", "error", "-xerror", "-err_detect", "explode", "-i", output, "-f", "null", "-");
+        Assert.True(string.IsNullOrWhiteSpace(decoded.StdErr), decoded.StdErr);
+        using var probe = JsonDocument.Parse(Run(Config.Ffprobe, "-v", "error", "-count_frames", "-show_streams", "-of", "json", output).StdOut);
+        var streams = probe.RootElement.GetProperty("streams").EnumerateArray().ToArray();
+        var video = Assert.Single(streams, stream => stream.GetProperty("codec_type").GetString() == "video");
+        int frames = int.Parse(video.GetProperty("nb_read_frames").GetString()!, CultureInfo.InvariantCulture);
+        Assert.InRange(frames, resume ? 120 : 75, resume ? 210 : 150);
+        Assert.Equal(audio ? 2 : 1, streams.Length);
+        Assert.Equal(firstHash, Hash(segments[0]));
+        Assert.Empty(Directory.GetFiles(ring, "*.part"));
+    }
+
+    [Theory]
     [InlineData(false, 0, 0)]
     [InlineData(false, 37, 0)]
     [InlineData(true, 0, 0)]

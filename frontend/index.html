@@ -672,7 +672,7 @@
   <div id="replay-box">
     <h3 data-i18n="replay.title">Natychmiastowa powtórka</h3>
     <p class="subtle" data-i18n="replay.intro">
-      Gdy włączona, pulpit nagrywa się w tle w pętli. Wciśnij skrót w trakcie gry,
+      Bufor nagrywa obraz głównego ekranu w pętli. Wciśnij skrót w trakcie gry,
       a ostatnie minuty zapiszą się jako klip w osobnym folderze wykrytej gry.
     </p>
 
@@ -689,6 +689,13 @@
       <span class="toggle-switch master-switch" aria-hidden="true"></span>
     </label>
 
+    <label class="replay-toggle-row">
+      <input type="checkbox" id="replay-games-only" />
+      <span>
+        <span data-i18n="replay.gamesOnly">Nagrywaj tylko gry</span>
+        <span class="replay-toggle-hint subtle" data-i18n="replay.gamesOnlyHint">Bufor działa, gdy rozpoznana gra jest aktywna na głównym ekranie. Zmiana okna pauzuje nagrywanie przy następnej kontroli (co sekundę). Ostatnią powtórkę nadal można zapisać.</span>
+      </span>
+    </label>
     <label class="replay-toggle-row">
       <input type="checkbox" id="replay-background" />
       <span>
