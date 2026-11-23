@@ -7,26 +7,37 @@
         Background="Transparent"
         WindowStartupLocation="CenterOwner"
         SizeToContent="Height"
-        Width="540"
+        Width="568"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
-    <Border Background="{DynamicResource CardBrush}"
+        ShowInTaskbar="False"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Border Margin="14"
+            Background="{DynamicResource CardBrush}"
             BorderBrush="{DynamicResource AccentBrush}"
             BorderThickness="1.5"
             CornerRadius="16"
             Padding="26">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="26" ShadowDepth="8" Opacity="0.6" Color="#000000" />
+        </Border.Effect>
         <StackPanel>
-            <DockPanel Margin="0,0,0,14" LastChildFill="False">
-                <TextBlock x:Name="StepBadge" DockPanel.Dock="Left" Style="{StaticResource SubtleText}" VerticalAlignment="Center" />
+            <DockPanel Margin="0,0,0,14" LastChildFill="False" Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <Border DockPanel.Dock="Left" Background="{DynamicResource AccentPanelBrush}" CornerRadius="7" Padding="10,4" VerticalAlignment="Center">
+                    <TextBlock x:Name="StepBadge" Foreground="{DynamicResource AccentPaleBrush}" FontSize="12" FontWeight="SemiBold" />
+                </Border>
                 <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="12,5"
                         Content="{Binding [onboarding.skip], Source={x:Static loc:Loc.Instance}}" Click="Skip_Click" />
             </DockPanel>
             <TextBlock x:Name="StepTitle" FontSize="20" FontWeight="Bold" TextWrapping="Wrap" />
-            <TextBlock x:Name="StepBody" Style="{StaticResource SubtleText}" FontSize="13.5" Margin="0,10,0,22" TextWrapping="Wrap" LineHeight="20" />
+            <TextBlock x:Name="StepBody" Style="{StaticResource SubtleText}" FontSize="13.5" Margin="0,10,0,20" TextWrapping="Wrap" LineHeight="21" />
+
+            <!-- Progress Dots -->
+            <StackPanel x:Name="StepDotsPanel" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,18" />
+
             <DockPanel LastChildFill="False">
                 <Button x:Name="PrevBtn" DockPanel.Dock="Left" Style="{StaticResource GhostButton}"
                         Content="{Binding [onboarding.back], Source={x:Static loc:Loc.Instance}}" Click="Prev_Click" />
-                <Button x:Name="NextBtn" DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Click="Next_Click" />
+                <Button x:Name="NextBtn" DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Padding="18,8" Click="Next_Click" />
             </DockPanel>
         </StackPanel>
     </Border>

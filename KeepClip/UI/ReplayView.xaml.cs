@@ -226,3 +226,4 @@ public partial class ReplayView : System.Windows.Controls.UserControl
         CloseRequested?.Invoke();
     }
 }
+

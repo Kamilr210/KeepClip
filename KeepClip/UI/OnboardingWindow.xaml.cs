@@ -1,4 +1,7 @@
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Shapes;
 using KeepClip.Localization;
 
 namespace KeepClip.UI;
@@ -24,6 +27,30 @@ public partial class OnboardingWindow : Window
         RenderStep();
     }
 
+    private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == MouseButtonState.Pressed) DragMove();
+    }
+
+    private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            e.Handled = true;
+            Skip_Click(sender, e);
+        }
+        else if (e.Key is Key.Right or Key.Enter)
+        {
+            e.Handled = true;
+            Next_Click(sender, e);
+        }
+        else if (e.Key == Key.Left)
+        {
+            e.Handled = true;
+            Prev_Click(sender, e);
+        }
+    }
+
     private void RenderStep()
     {
         var (titleKey, bodyKey) = _steps[_index];
@@ -32,6 +59,21 @@ public partial class OnboardingWindow : Window
         StepBody.Text = Loc.T(bodyKey);
         PrevBtn.Visibility = _index > 0 ? Visibility.Visible : Visibility.Collapsed;
         NextBtn.Content = _index == _steps.Length - 1 ? Loc.T("onboarding.finish") : Loc.T("onboarding.next");
+
+        StepDotsPanel.Children.Clear();
+        var activeBrush = (System.Windows.Media.Brush)FindResource("AccentBrush");
+        var idleBrush = (System.Windows.Media.Brush)FindResource("BorderBrush");
+        for (int i = 0; i < _steps.Length; i++)
+        {
+            StepDotsPanel.Children.Add(new Border
+            {
+                Width = i == _index ? 20 : 7,
+                Height = 7,
+                CornerRadius = new CornerRadius(3.5),
+                Background = i == _index ? activeBrush : idleBrush,
+                Margin = new Thickness(3, 0, 3, 0)
+            });
+        }
     }
 
     private void Prev_Click(object sender, RoutedEventArgs e)

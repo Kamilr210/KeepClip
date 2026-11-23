@@ -33,6 +33,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private long? _selectionFolderId;
     private readonly HashSet<long> _selectedClipIds = new();
     private bool _suppressUiEvents = true;
+    private WindowState _preFullscreenWindowState = WindowState.Normal;
 
     public bool IsSelectionMode => _selectionFolderId is not null;
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -54,6 +55,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _transcribePoll.Tick += (_, _) => PollTranscribe();
         _thumbPoll.Tick += (_, _) => PollThumbnails();
 
+        EmbeddedPlayer.Closed += libraryChanged =>
+        {
+            PlayerOverlay.Visibility = Visibility.Collapsed;
+            if (libraryChanged) RefreshAll();
+        };
+        EmbeddedPlayer.FullscreenChanged += OnPlayerFullscreenChanged;
+        EmbeddedReplay.CloseRequested += () => ReplayOverlay.Visibility = Visibility.Collapsed;
+
+        StateChanged += (_, _) =>
+        {
+            if (MaximizeBtn is not null)
+                MaximizeBtn.Content = WindowState == WindowState.Maximized ? "❐" : "☐";
+        };
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
     }
@@ -318,7 +332,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 Width = 220,
                 Margin = new Thickness(0, 0, 14, 14),
-                Style = (Style)FindResource("CardBorder"),
+                Style = (Style)FindResource("InteractiveCardBorder"),
                 Padding = new Thickness(16),
                 Cursor = System.Windows.Input.Cursors.Hand,
             };
@@ -545,9 +559,106 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var clip = App.Clips.GetById(clipId);
         if (clip is null) return;
-        var pw = new PlayerWindow(clip, seekSeconds) { Owner = this };
-        pw.ShowDialog();
-        if (pw.LibraryChanged) RefreshAll();
+        EmbeddedPlayer.Open(clip, seekSeconds);
+        PlayerOverlay.Visibility = Visibility.Visible;
+    }
+
+    private void OnPlayerFullscreenChanged(bool isFullscreen)
+    {
+        var chrome = System.Windows.Shell.WindowChrome.GetWindowChrome(this);
+        if (isFullscreen)
+        {
+            _preFullscreenWindowState = WindowState;
+            WindowControlsPanel.Visibility = Visibility.Collapsed;
+            if (chrome is not null) chrome.CaptionHeight = 0;
+            WindowState = WindowState.Maximized;
+        }
+        else
+        {
+            if (chrome is not null) chrome.CaptionHeight = 34;
+            WindowControlsPanel.Visibility = Visibility.Visible;
+            WindowState = _preFullscreenWindowState;
+        }
+    }
+
+    private void ReplayOverlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource == ReplayOverlay)
+        {
+            EmbeddedReplay.StopPolling();
+            ReplayOverlay.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void Window_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (ReplayOverlay.Visibility == Visibility.Visible)
+        {
+            if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                EmbeddedReplay.StopPolling();
+                ReplayOverlay.Visibility = Visibility.Collapsed;
+            }
+            return;
+        }
+        if (PlayerOverlay.Visibility == Visibility.Visible)
+        {
+            if (e.Key == Key.Escape)
+            {
+                e.Handled = true;
+                if (EmbeddedPlayer.IsFullscreen) EmbeddedPlayer.ExitFullscreen();
+                else EmbeddedPlayer.ClosePlayer();
+                return;
+            }
+            if (Keyboard.FocusedElement is System.Windows.Controls.TextBox) return;
+
+            if (e.Key is Key.Space or Key.K)
+            {
+                e.Handled = true;
+                EmbeddedPlayer.TogglePlayPause(showFeedback: true);
+            }
+            else if (e.Key == Key.F)
+            {
+                e.Handled = true;
+                EmbeddedPlayer.ToggleFullscreen();
+            }
+            else if (e.Key == Key.T)
+            {
+                e.Handled = true;
+                EmbeddedPlayer.ToggleTheater();
+            }
+            else if (e.Key == Key.M)
+            {
+                e.Handled = true;
+                EmbeddedPlayer.ToggleMute();
+            }
+            else if (e.Key == Key.C)
+            {
+                e.Handled = true;
+                EmbeddedPlayer.ToggleCc();
+            }
+            else if (e.Key is Key.Left or Key.J)
+            {
+                e.Handled = true;
+                EmbeddedPlayer.Rewind5();
+            }
+            else if (e.Key is Key.Right or Key.L)
+            {
+                e.Handled = true;
+                EmbeddedPlayer.Forward5();
+            }
+            else if (e.Key == Key.Up)
+            {
+                e.Handled = true;
+                EmbeddedPlayer.AdjustVolume(0.1);
+            }
+            else if (e.Key == Key.Down)
+            {
+                e.Handled = true;
+                EmbeddedPlayer.AdjustVolume(-0.1);
+            }
+        }
     }
 
     // Folders Actions
@@ -703,8 +814,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Replay_Click(object sender, RoutedEventArgs e)
     {
-        var rw = new ReplayWindow { Owner = this };
-        rw.ShowDialog();
+        EmbeddedReplay.Open();
+        ReplayOverlay.Visibility = Visibility.Visible;
     }
 
     private void OnReplayHotkeyPressed()

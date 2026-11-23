@@ -3,43 +3,64 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:loc="clr-namespace:KeepClip.Localization">
     <Border Background="{DynamicResource CardBrush}"
-            BorderBrush="{DynamicResource BorderBrush}"
+            BorderBrush="#2D3344"
             BorderThickness="1"
             CornerRadius="16"
             Padding="24"
-            Width="580"
+            Width="600"
             VerticalAlignment="Center"
             HorizontalAlignment="Center">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="28" ShadowDepth="8" Opacity="0.6" Color="#000000" />
+        </Border.Effect>
         <StackPanel>
             <DockPanel Margin="0,0,0,6">
                 <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="✕" Padding="10,4" Click="Close_Click" />
-                <TextBlock Text="{Binding [replay.title], Source={x:Static loc:Loc.Instance}}" FontSize="19" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Width="28" Height="28" CornerRadius="8" Background="{DynamicResource AccentPanelBrush}" Margin="0,0,10,0">
+                        <TextBlock Text="⏺" Foreground="{DynamicResource AccentPaleBrush}" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Text="{Binding [replay.title], Source={x:Static loc:Loc.Instance}}" FontSize="19" FontWeight="Bold" VerticalAlignment="Center" />
+                </StackPanel>
             </DockPanel>
-            <TextBlock Text="{Binding [replay.intro], Source={x:Static loc:Loc.Instance}}" Style="{StaticResource SubtleText}" Margin="0,0,0,14" TextWrapping="Wrap" FontSize="12.5" />
+            <TextBlock Text="{Binding [replay.intro], Source={x:Static loc:Loc.Instance}}" Style="{StaticResource SubtleText}" Margin="0,2,0,12" TextWrapping="Wrap" FontSize="12.5" />
 
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="#8F8F8F" VerticalAlignment="Center" Margin="0,0,8,0" />
-                <TextBlock x:Name="StatusText" Style="{StaticResource SubtleText}" VerticalAlignment="Center" />
-            </StackPanel>
+            <!-- Status Pill -->
+            <Border Background="{DynamicResource Card2Brush}" CornerRadius="8" Padding="12,7" Margin="0,0,0,12" HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse x:Name="StatusDot" Width="9" Height="9" Fill="#8F8F8F" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBlock x:Name="StatusText" FontSize="12.5" FontWeight="Medium" VerticalAlignment="Center" />
+                </StackPanel>
+            </Border>
             <TextBlock x:Name="HotkeyWarnText" Foreground="{DynamicResource WarnBrush}" FontSize="12" Margin="0,0,0,8" Visibility="Collapsed" TextWrapping="Wrap" />
             <TextBlock x:Name="ErrorText" Foreground="{DynamicResource DangerBrush}" FontSize="12" Margin="0,0,0,8" Visibility="Collapsed" TextWrapping="Wrap" />
 
-            <Border Background="{DynamicResource Card2Brush}" CornerRadius="10" Padding="14,10" Margin="0,4,0,12">
+            <!-- Toggle Cards -->
+            <Border Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14,10" Margin="0,0,0,8">
                 <DockPanel>
                     <CheckBox x:Name="EnabledBox" DockPanel.Dock="Right" Style="{StaticResource SwitchCheckBox}" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding [replay.enabled], Source={x:Static loc:Loc.Instance}}" FontWeight="SemiBold" VerticalAlignment="Center" />
                 </DockPanel>
             </Border>
 
-            <CheckBox x:Name="BackgroundBox" Margin="0,4" Foreground="{DynamicResource TextBrush}">
-                <StackPanel>
-                    <TextBlock Text="{Binding [replay.background], Source={x:Static loc:Loc.Instance}}" />
-                    <TextBlock Text="{Binding [replay.backgroundHint], Source={x:Static loc:Loc.Instance}}" Style="{StaticResource SubtleText}" TextWrapping="Wrap" />
-                </StackPanel>
-            </CheckBox>
-            <CheckBox x:Name="MicBox" Margin="0,8,0,14" Foreground="{DynamicResource TextBrush}"
-                      Content="{Binding [replay.mic], Source={x:Static loc:Loc.Instance}}" />
+            <Border Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14,10" Margin="0,0,0,8">
+                <DockPanel>
+                    <CheckBox x:Name="BackgroundBox" DockPanel.Dock="Right" Style="{StaticResource SwitchCheckBox}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding [replay.background], Source={x:Static loc:Loc.Instance}}" FontWeight="Medium" />
+                        <TextBlock Text="{Binding [replay.backgroundHint], Source={x:Static loc:Loc.Instance}}" Style="{StaticResource SubtleText}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                    </StackPanel>
+                </DockPanel>
+            </Border>
 
+            <Border Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="14,10" Margin="0,0,0,14">
+                <DockPanel>
+                    <CheckBox x:Name="MicBox" DockPanel.Dock="Right" Style="{StaticResource SwitchCheckBox}" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding [replay.mic], Source={x:Static loc:Loc.Instance}}" FontWeight="Medium" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+
+            <!-- Recording Settings Grid -->
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -48,7 +69,7 @@
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="12" />
+                    <RowDefinition Height="10" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
@@ -70,7 +91,7 @@
                 </StackPanel>
             </Grid>
 
-            <TextBlock Text="{Binding [replay.audioSection], Source={x:Static loc:Loc.Instance}}" FontWeight="SemiBold" Margin="0,16,0,8" />
+            <TextBlock Text="{Binding [replay.audioSection], Source={x:Static loc:Loc.Instance}}" FontWeight="SemiBold" Margin="0,14,0,8" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -87,12 +108,12 @@
                 </StackPanel>
             </Grid>
 
-            <DockPanel Margin="0,20,0,0">
-                <Button x:Name="SaveNowBtn" DockPanel.Dock="Left" Style="{StaticResource GhostButton}"
+            <DockPanel Margin="0,18,0,0">
+                <Button x:Name="SaveNowBtn" DockPanel.Dock="Left" Style="{StaticResource DarkButton}"
                         Content="{Binding [replay.saveNow], Source={x:Static loc:Loc.Instance}}" Click="SaveNow_Click" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button Style="{StaticResource GhostButton}" Content="{Binding [replay.close], Source={x:Static loc:Loc.Instance}}" Margin="0,0,10,0" Click="Close_Click" />
-                    <Button x:Name="ApplyBtn" Style="{StaticResource PrimaryButton}" Content="{Binding [replay.apply], Source={x:Static loc:Loc.Instance}}" Click="Apply_Click" />
+                    <Button x:Name="ApplyBtn" Style="{StaticResource PrimaryButton}" Padding="18,8" Content="{Binding [replay.apply], Source={x:Static loc:Loc.Instance}}" Click="Apply_Click" />
                 </StackPanel>
             </DockPanel>
         </StackPanel>

@@ -6,24 +6,31 @@
         Background="Transparent"
         WindowStartupLocation="CenterOwner"
         SizeToContent="Height"
-        Width="440"
+        Width="468"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
-    <Border Background="{DynamicResource CardBrush}"
-            BorderBrush="{DynamicResource BorderBrush}"
+        ShowInTaskbar="False"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Border Margin="14"
+            Background="{DynamicResource CardBrush}"
+            BorderBrush="#2D3344"
             BorderThickness="1"
-            CornerRadius="14"
+            CornerRadius="16"
             Padding="22">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="24" ShadowDepth="6" Opacity="0.6" Color="#000000" />
+        </Border.Effect>
         <StackPanel>
-            <TextBlock x:Name="TitleText" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap" />
-            <TextBlock x:Name="BodyText" Style="{StaticResource SubtleText}" Margin="0,8,0,0" TextWrapping="Wrap" FontSize="13" />
+            <DockPanel Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown">
+                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="✕" Padding="9,3" Margin="10,0,0,0" Click="Cancel_Click" VerticalAlignment="Top" />
+                <TextBlock x:Name="TitleText" FontSize="17" FontWeight="Bold" TextWrapping="Wrap" VerticalAlignment="Center" />
+            </DockPanel>
+            <TextBlock x:Name="BodyText" Style="{StaticResource SubtleText}" Margin="0,8,0,0" TextWrapping="Wrap" FontSize="13" LineHeight="19" />
             <TextBox x:Name="InputBox" Style="{StaticResource DarkTextBox}" Margin="0,14,0,0" Visibility="Collapsed" />
             <TextBlock x:Name="ErrorText" Foreground="{DynamicResource DangerBrush}" FontSize="12" Margin="0,6,0,0" Visibility="Collapsed" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
                 <Button x:Name="CancelBtn" Style="{StaticResource GhostButton}" Margin="0,0,10,0" Click="Cancel_Click" />
-                <Button x:Name="OkBtn" Style="{StaticResource PrimaryButton}" Click="Ok_Click" />
+                <Button x:Name="OkBtn" Style="{StaticResource PrimaryButton}" Padding="16,8" Click="Ok_Click" />
             </StackPanel>
         </StackPanel>
     </Border>
 </Window>
-

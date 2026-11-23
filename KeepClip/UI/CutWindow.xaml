@@ -7,81 +7,149 @@
         Background="Transparent"
         WindowStartupLocation="CenterOwner"
         SizeToContent="Height"
-        Width="760"
+        Width="820"
         ResizeMode="NoResize"
-        ShowInTaskbar="False">
-    <Border Background="{DynamicResource CardBrush}"
-            BorderBrush="{DynamicResource BorderBrush}"
+        ShowInTaskbar="False"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Border Margin="14"
+            Background="{DynamicResource CardBrush}"
+            BorderBrush="#2D3344"
             BorderThickness="1"
-            CornerRadius="14"
+            CornerRadius="16"
             Padding="22">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="24" ShadowDepth="6" Opacity="0.6" Color="#000000" />
+        </Border.Effect>
         <StackPanel>
-            <DockPanel Margin="0,0,0,6">
+            <!-- Draggable Header -->
+            <DockPanel Margin="0,0,0,12" Background="Transparent" MouseLeftButtonDown="Header_MouseLeftButtonDown">
                 <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="✕" Padding="10,4" Click="Cancel_Click" />
-                <TextBlock Text="{Binding [cutOverlay.title], Source={x:Static loc:Loc.Instance}}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding [cutOverlay.title], Source={x:Static loc:Loc.Instance}}" FontSize="18" FontWeight="Bold" />
+                    <TextBlock x:Name="SourceNameText" Style="{StaticResource SubtleText}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                </StackPanel>
             </DockPanel>
-            <TextBlock x:Name="SourceNameText" Style="{StaticResource SubtleText}" Margin="0,0,0,12" />
 
-            <Border Background="#000000" CornerRadius="10" Height="280" ClipToBounds="True">
-                <MediaElement x:Name="PreviewMedia" LoadedBehavior="Manual" UnloadedBehavior="Stop" Stretch="Uniform"
-                              MediaOpened="PreviewMedia_MediaOpened" />
+            <!-- YouTube-Style Preview Surface -->
+            <Border Background="#000000" CornerRadius="12" Height="300" ClipToBounds="True">
+                <Grid>
+                    <MediaElement x:Name="PreviewMedia" LoadedBehavior="Manual" UnloadedBehavior="Stop" Stretch="Uniform"
+                                  MediaOpened="PreviewMedia_MediaOpened" />
+                    <Border Background="Transparent" MouseLeftButtonDown="PreviewSurface_Click" />
+
+                    <!-- Overlaid Bottom Controls -->
+                    <Border VerticalAlignment="Bottom" Padding="12,20,12,8">
+                        <Border.Background>
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                <GradientStop Color="#0005070C" Offset="0" />
+                                <GradientStop Color="#E605070C" Offset="1" />
+                            </LinearGradientBrush>
+                        </Border.Background>
+                        <StackPanel>
+                            <Slider x:Name="SeekSlider" Style="{StaticResource YouTubeSlider}" Minimum="0" Maximum="1"
+                                    Margin="2,0,2,2"
+                                    ValueChanged="SeekSlider_ValueChanged"
+                                    PreviewMouseLeftButtonDown="SeekSlider_PreviewMouseLeftButtonDown"
+                                    PreviewMouseLeftButtonUp="SeekSlider_PreviewMouseLeftButtonUp" />
+                            <DockPanel>
+                                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                                    <Button x:Name="PlayPauseBtn" Style="{StaticResource PlayerIconButton}" Margin="0,0,2,0" Click="PlayPause_Click">
+                                        <Path x:Name="PlayPauseIcon" Data="M 4,2 L 15,9 L 4,16 Z" Fill="#FFFFFF" Width="14" Height="15" Stretch="Uniform" />
+                                    </Button>
+                                    <Button Style="{StaticResource PlayerIconButton}" Margin="0,0,2,0" Click="StepBack_Click" ToolTip="-2s (←)">
+                                        <TextBlock Text="-2s" FontSize="11.5" Foreground="#F0F3FA" FontWeight="SemiBold" />
+                                    </Button>
+                                    <Button Style="{StaticResource PlayerIconButton}" Margin="0,0,4,0" Click="StepFwd_Click" ToolTip="+2s (→)">
+                                        <TextBlock Text="+2s" FontSize="11.5" Foreground="#F0F3FA" FontWeight="SemiBold" />
+                                    </Button>
+                                    <Button x:Name="MuteBtn" Style="{StaticResource PlayerIconButton}" Margin="0,0,8,0" Click="Mute_Click">
+                                        <Path x:Name="MuteIcon"
+                                              Data="M 2,6 L 6,6 L 10,2.5 L 10,13.5 L 6,10 L 2,10 Z M 12.5,5.2 A 4,4 0 0 1 12.5,10.8"
+                                              Stroke="#F0F3FA" Fill="#F0F3FA" StrokeThickness="1.5"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                              Width="16" Height="15" Stretch="Uniform" />
+                                    </Button>
+                                    <TextBlock x:Name="TimeText" Foreground="#E6ECFA" FontSize="12.5" FontWeight="SemiBold" VerticalAlignment="Center" Text="0:00 / 0:00" />
+                                </StackPanel>
+
+                                <Border DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                        Background="{DynamicResource AccentPanelBrush}" CornerRadius="7" Padding="10,4">
+                                    <TextBlock x:Name="DurationLabel" Foreground="{DynamicResource AccentPaleBrush}" FontSize="12" FontWeight="SemiBold" />
+                                </Border>
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Border>
 
-            <DockPanel Margin="0,10,0,6">
-                <Button x:Name="PlayPauseBtn" DockPanel.Dock="Left" Style="{StaticResource DarkButton}" Content="▶" Padding="14,6" Click="PlayPause_Click" />
-                <TextBlock x:Name="TimeText" DockPanel.Dock="Right" Style="{StaticResource SubtleText}" VerticalAlignment="Center" Margin="10,0,0,0" Text="0:00 / 0:00" />
-                <Slider x:Name="SeekSlider" Minimum="0" Maximum="1" VerticalAlignment="Center" Margin="10,0"
-                        ValueChanged="SeekSlider_ValueChanged" />
-            </DockPanel>
+            <!-- Visual Trim Range Indicator -->
+            <Border Background="{DynamicResource Card2Brush}" CornerRadius="8" Padding="12,10" Margin="0,12,0,10">
+                <StackPanel>
+                    <Grid x:Name="RangeTrackGrid" Height="10" Margin="0,0,0,10" SizeChanged="RangeTrackGrid_SizeChanged">
+                        <Border Background="#2A3040" CornerRadius="5" />
+                        <Canvas x:Name="RangeCanvas" ClipToBounds="True">
+                            <Border x:Name="RangeFillBar" Height="10" CornerRadius="5" Background="{DynamicResource AccentBrush}" />
+                            <Border x:Name="PlayheadTick" Width="2.5" Height="10" Background="#FFFFFF" CornerRadius="1" />
+                        </Canvas>
+                    </Grid>
 
-            <Grid Margin="0,8,0,4">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="16" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
-                    <DockPanel>
-                        <TextBlock Text="{Binding [cutOverlay.startLabel], Source={x:Static loc:Loc.Instance}}" Style="{StaticResource SubtleText}" />
-                        <TextBlock x:Name="StartLabel" DockPanel.Dock="Right" FontWeight="SemiBold" Text="0:00" />
-                    </DockPanel>
-                    <Slider x:Name="StartSlider" Minimum="0" Maximum="1" ValueChanged="RangeSlider_ValueChanged" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="18" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <DockPanel Margin="0,0,0,2">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="8,2" FontSize="11"
+                                        Content="{Binding [cutOverlay.setStartHere], Source={x:Static loc:Loc.Instance}}"
+                                        Click="SetStartHere_Click" Margin="8,0,0,0" />
+                                <TextBlock x:Name="StartLabel" DockPanel.Dock="Right" FontWeight="SemiBold" VerticalAlignment="Center" Text="0:00" />
+                                <TextBlock Text="{Binding [cutOverlay.startLabel], Source={x:Static loc:Loc.Instance}}" Style="{StaticResource SubtleText}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <Slider x:Name="StartSlider" Style="{StaticResource YouTubeSlider}" Minimum="0" Maximum="1" ValueChanged="RangeSlider_ValueChanged" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <DockPanel Margin="0,0,0,2">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="8,2" FontSize="11"
+                                        Content="{Binding [cutOverlay.setEndHere], Source={x:Static loc:Loc.Instance}}"
+                                        Click="SetEndHere_Click" Margin="8,0,0,0" />
+                                <TextBlock x:Name="EndLabel" DockPanel.Dock="Right" FontWeight="SemiBold" VerticalAlignment="Center" Text="0:00" />
+                                <TextBlock Text="{Binding [cutOverlay.endLabel], Source={x:Static loc:Loc.Instance}}" Style="{StaticResource SubtleText}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <Slider x:Name="EndSlider" Style="{StaticResource YouTubeSlider}" Minimum="0" Maximum="1" ValueChanged="RangeSlider_ValueChanged" />
+                        </StackPanel>
+                    </Grid>
                 </StackPanel>
-                <StackPanel Grid.Column="2">
-                    <DockPanel>
-                        <TextBlock Text="{Binding [cutOverlay.endLabel], Source={x:Static loc:Loc.Instance}}" Style="{StaticResource SubtleText}" />
-                        <TextBlock x:Name="EndLabel" DockPanel.Dock="Right" FontWeight="SemiBold" Text="0:00" />
-                    </DockPanel>
-                    <Slider x:Name="EndSlider" Minimum="0" Maximum="1" ValueChanged="RangeSlider_ValueChanged" />
-                </StackPanel>
-            </Grid>
-            <TextBlock x:Name="DurationLabel" Style="{StaticResource SubtleText}" HorizontalAlignment="Center" Margin="0,2,0,12" />
+            </Border>
 
-            <TextBlock Text="{Binding [cutOverlay.targetLabel], Source={x:Static loc:Loc.Instance}}" FontWeight="SemiBold" Margin="0,0,0,8" />
-            <WrapPanel x:Name="PresetsPanel" Margin="0,0,0,8">
-                <Button Style="{StaticResource PrimaryButton}" Tag="" Content="{Binding [cutOverlay.noComprBtn], Source={x:Static loc:Loc.Instance}}" Margin="0,0,8,8" Click="Preset_Click" />
-                <Button Style="{StaticResource DarkButton}" Tag="20" Content="20 MB (Discord)" Margin="0,0,8,8" Click="Preset_Click" />
-                <Button Style="{StaticResource DarkButton}" Tag="25" Content="25 MB" Margin="0,0,8,8" Click="Preset_Click" />
-                <Button Style="{StaticResource DarkButton}" Tag="50" Content="50 MB (Nitro Basic)" Margin="0,0,8,8" Click="Preset_Click" />
-                <Button Style="{StaticResource DarkButton}" Tag="100" Content="100 MB" Margin="0,0,8,8" Click="Preset_Click" />
-                <Button Style="{StaticResource DarkButton}" Tag="500" Content="500 MB (Nitro)" Margin="0,0,8,8" Click="Preset_Click" />
+            <!-- Target Size Presets -->
+            <TextBlock Text="{Binding [cutOverlay.targetLabel], Source={x:Static loc:Loc.Instance}}" FontWeight="SemiBold" Margin="0,2,0,8" />
+            <WrapPanel x:Name="PresetsPanel" Margin="0,0,0,6">
+                <Button Style="{StaticResource PrimaryButton}" Tag="" Padding="12,7" Content="{Binding [cutOverlay.noComprBtn], Source={x:Static loc:Loc.Instance}}" Margin="0,0,8,8" Click="Preset_Click" />
+                <Button Style="{StaticResource DarkButton}" Tag="20" Padding="12,7" Content="20 MB (Discord)" Margin="0,0,8,8" Click="Preset_Click" />
+                <Button Style="{StaticResource DarkButton}" Tag="25" Padding="12,7" Content="25 MB" Margin="0,0,8,8" Click="Preset_Click" />
+                <Button Style="{StaticResource DarkButton}" Tag="50" Padding="12,7" Content="50 MB (Nitro Basic)" Margin="0,0,8,8" Click="Preset_Click" />
+                <Button Style="{StaticResource DarkButton}" Tag="100" Padding="12,7" Content="100 MB" Margin="0,0,8,8" Click="Preset_Click" />
+                <Button Style="{StaticResource DarkButton}" Tag="500" Padding="12,7" Content="500 MB (Nitro)" Margin="0,0,8,8" Click="Preset_Click" />
             </WrapPanel>
 
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                <TextBlock Text="{Binding [cutOverlay.customLabel], Source={x:Static loc:Loc.Instance}}" Style="{StaticResource SubtleText}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                <TextBox x:Name="CustomMbBox" Style="{StaticResource DarkTextBox}" Width="90" TextChanged="CustomMbBox_TextChanged" />
-                <TextBlock Text="MB" Style="{StaticResource SubtleText}" VerticalAlignment="Center" Margin="8,0,0,0" />
-            </StackPanel>
+            <DockPanel Margin="0,0,0,6">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Left" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding [cutOverlay.customLabel], Source={x:Static loc:Loc.Instance}}" Style="{StaticResource SubtleText}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <TextBox x:Name="CustomMbBox" Style="{StaticResource DarkTextBox}" Width="90" TextChanged="CustomMbBox_TextChanged" />
+                    <TextBlock Text="MB" Style="{StaticResource SubtleText}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                </StackPanel>
+                <TextBlock x:Name="EstimateText" DockPanel.Dock="Right" HorizontalAlignment="Right" VerticalAlignment="Center" Style="{StaticResource SubtleText}" />
+            </DockPanel>
 
-            <TextBlock x:Name="EstimateText" Style="{StaticResource SubtleText}" Margin="0,2,0,6" />
-            <ProgressBar x:Name="CutProgress" Height="6" Minimum="0" Maximum="1" Visibility="Collapsed" Margin="0,4,0,6" Foreground="{DynamicResource AccentBrush}" Background="{DynamicResource Card2Brush}" BorderThickness="0" />
+            <ProgressBar x:Name="CutProgress" Height="6" Minimum="0" Maximum="1" Visibility="Collapsed" Margin="0,6,0,6" />
             <TextBlock x:Name="ErrorText" Foreground="{DynamicResource DangerBrush}" FontSize="12" Margin="0,4,0,0" Visibility="Collapsed" TextWrapping="Wrap" />
 
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
                 <Button Style="{StaticResource GhostButton}" Content="{Binding [cutOverlay.cancelBtn], Source={x:Static loc:Loc.Instance}}" Margin="0,0,10,0" Click="Cancel_Click" />
-                <Button x:Name="GoBtn" Style="{StaticResource PrimaryButton}" Content="{Binding [cutOverlay.goBtn], Source={x:Static loc:Loc.Instance}}" Click="Go_Click" />
+                <Button x:Name="GoBtn" Style="{StaticResource PrimaryButton}" Padding="18,8" Content="{Binding [cutOverlay.goBtn], Source={x:Static loc:Loc.Instance}}" Click="Go_Click" />
             </StackPanel>
         </StackPanel>
     </Border>
 </Window>
-
