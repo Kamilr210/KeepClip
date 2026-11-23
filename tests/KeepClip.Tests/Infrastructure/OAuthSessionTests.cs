@@ -1,12 +1,33 @@
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.AspNetCore.WebUtilities;
+using System.Web;
 
 namespace KeepClip.Tests.Infrastructure;
 
 public class OAuthSessionTests
 {
+    private static class QueryHelpers
+    {
+        public static Dictionary<string, string> ParseQuery(string query)
+        {
+            var nvc = HttpUtility.ParseQueryString(query);
+            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string? k in nvc.AllKeys)
+                if (k is not null) dict[k] = nvc[k] ?? "";
+            return dict;
+        }
+
+        public static string AddQueryString(string uri, IDictionary<string, string?> query)
+        {
+            var ub = new UriBuilder(uri);
+            var nvc = HttpUtility.ParseQueryString(ub.Query);
+            foreach (var (k, v) in query)
+                if (v is not null) nvc[k] = v;
+            ub.Query = nvc.ToString();
+            return ub.Uri.ToString();
+        }
+    }
     private sealed class Clock : TimeProvider
     {
         public DateTimeOffset Now = DateTimeOffset.Parse("2026-10-22T12:00:00Z");

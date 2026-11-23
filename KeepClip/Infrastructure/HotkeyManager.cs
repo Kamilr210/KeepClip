@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
+using System.Windows;
+using System.Windows.Input;
+using System.Windows.Interop;
 
 namespace KeepClip.Infrastructure;
 
@@ -13,42 +15,68 @@ internal static class HotkeyManager
     private const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_SHIFT = 0x4, MOD_WIN = 0x8;
     private const uint MOD_NOREPEAT = 0x4000;
 
-    private static Form? _form;
+    private static Window? _window;
+    private static HwndSource? _source;
+    private static IntPtr _hwnd;
     private static bool _registered;
+    private static Action? _onPressed;
 
     public static bool IsActive { get; private set; }
 
-    public static void Attach(Form form)
+    public static void Attach(Window window, Action onPressed)
     {
-        _form = form;
-        form.HandleDestroyed += (_, _) => { _registered = false; IsActive = false; };
+        _window = window;
+        _onPressed = onPressed;
+        var helper = new WindowInteropHelper(window);
+        _hwnd = helper.EnsureHandle();
+        _source = HwndSource.FromHwnd(_hwnd);
+        _source?.AddHook(WndProc);
+        window.Closed += (_, _) =>
+        {
+            Unregister();
+            _source?.RemoveHook(WndProc);
+            _source = null;
+            _hwnd = IntPtr.Zero;
+        };
         Refresh();
     }
 
     public static void Refresh()
     {
-        var form = _form;
-        if (form is null || form.IsDisposed) return;
-        if (form.InvokeRequired)
+        var window = _window;
+        if (window is null || _hwnd == IntPtr.Zero) return;
+        if (!window.Dispatcher.CheckAccess())
         {
-            try { form.BeginInvoke(Refresh); } catch { }
+            window.Dispatcher.BeginInvoke(Refresh);
             return;
         }
 
-        if (_registered)
-        {
-            try { UnregisterHotKey(form.Handle, HotkeyId); } catch { }
-            _registered = false;
-            IsActive = false;
-        }
+        Unregister();
         if (!ReplayService.Enabled) return;
         if (!TryParse(ReplayService.Hotkey, out var mods, out var vk)) return;
-        _registered = RegisterHotKey(form.Handle, HotkeyId, mods | MOD_NOREPEAT, vk);
+        _registered = RegisterHotKey(_hwnd, HotkeyId, mods | MOD_NOREPEAT, vk);
         IsActive = _registered;
     }
 
-    public static bool HandleMessage(ref Message m)
-        => m.Msg == WM_HOTKEY && (int)m.WParam == HotkeyId;
+    private static void Unregister()
+    {
+        if (_registered && _hwnd != IntPtr.Zero)
+        {
+            try { UnregisterHotKey(_hwnd, HotkeyId); } catch { }
+        }
+        _registered = false;
+        IsActive = false;
+    }
+
+    private static IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_HOTKEY && wParam.ToInt32() == HotkeyId)
+        {
+            handled = true;
+            _onPressed?.Invoke();
+        }
+        return IntPtr.Zero;
+    }
 
     public static bool TryParse(string combo, out uint mods, out uint vk)
     {
@@ -66,9 +94,12 @@ internal static class HotkeyManager
             }
             if (vk != 0) return false;
             var token = raw.Length == 1 && raw[0] is >= '0' and <= '9' ? "D" + raw : raw.Length == 1 ? raw.ToUpperInvariant() : raw;
-            if (!Enum.TryParse<Keys>(token, ignoreCase: true, out var key)) return false;
-            if (!Enum.IsDefined(key) || (uint)key > 255 || key is Keys.ShiftKey or Keys.ControlKey or Keys.Menu or Keys.LWin or Keys.RWin or Keys.LShiftKey or Keys.RShiftKey or Keys.LControlKey or Keys.RControlKey or Keys.LMenu or Keys.RMenu) return false;
-            vk = (uint)key;
+            if (!Enum.TryParse<Key>(token, ignoreCase: true, out var key)) return false;
+            if (key is Key.None or Key.LeftShift or Key.RightShift or Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin)
+                return false;
+            var vkey = (uint)KeyInterop.VirtualKeyFromKey(key);
+            if (vkey is 0 or > 255) return false;
+            vk = vkey;
         }
         return vk != 0 && mods != 0;
     }

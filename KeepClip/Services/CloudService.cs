@@ -205,51 +205,10 @@ public static class CloudService
         connection.InvalidateAbout();
     }
 
-    public static Task ProxyVideoAsync(HttpContext http, string remoteId) => ProxyVideoAsync(http, remoteId, Connection);
-
-    internal static async Task ProxyVideoAsync(HttpContext http, string remoteId, CloudConnection connection)
+    public static async Task<HttpResponseMessage> OpenRemoteVideoAsync(string remoteId, string? rangeHeader, CancellationToken ct)
     {
-        http.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        http.Response.Headers.ContentSecurityPolicy = "sandbox; default-src 'none'";
-        string token;
-        try { token = await connection.GetAccessTokenAsync(); }
-        catch (Exception ex)
-        {
-            http.Response.StatusCode = 502;
-            await http.Response.WriteAsJsonAsync(new { detail = ex.Message }, http.RequestAborted);
-            return;
-        }
-
-        string? range = http.Request.Headers.TryGetValue("Range", out var rv) ? rv.ToString() : null;
-        if (string.IsNullOrEmpty(range)) range = null;
-
-        using var resp = await connection.OpenMediaAsync(token, remoteId, range, http.RequestAborted);
-
-        var rc = resp.Content.Headers;
-        if (resp.StatusCode == System.Net.HttpStatusCode.RequestedRangeNotSatisfiable)
-        {
-            http.Response.StatusCode = 416;
-            if (rc.ContentRange is not null) http.Response.Headers.ContentRange = rc.ContentRange.ToString();
-            return;
-        }
-        var mediaType = rc.ContentType?.MediaType?.ToLowerInvariant();
-        if (!resp.IsSuccessStatusCode || mediaType is not ("video/mp4" or "video/webm" or "video/quicktime" or "video/x-matroska" or "video/x-msvideo"))
-        {
-            http.Response.StatusCode = 502;
-            return;
-        }
-        http.Response.StatusCode = (int)resp.StatusCode;
-        http.Response.ContentType = mediaType;
-        if (rc.ContentLength is not null) http.Response.ContentLength = rc.ContentLength;
-        if (rc.ContentRange is not null) http.Response.Headers["Content-Range"] = rc.ContentRange.ToString();
-        http.Response.Headers["Accept-Ranges"] = "bytes";
-
-        try
-        {
-            await using var s = await resp.Content.ReadAsStreamAsync(http.RequestAborted);
-            await s.CopyToAsync(http.Response.Body, http.RequestAborted);
-        }
-        catch (OperationCanceledException) { }
+        var token = await Connection.GetAccessTokenAsync();
+        return await Connection.OpenMediaAsync(token, remoteId, rangeHeader, ct);
     }
 
     private static async Task<string> EnsureFolderAsync(string token, CloudConnection connection)

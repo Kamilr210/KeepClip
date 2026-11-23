@@ -1,7 +1,5 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace KeepClip.Tests.Services;
 
@@ -199,107 +197,5 @@ public class CloudTransferTests
         _connection.Connected = true;
         await CloudService.TrashRemoteAsync("id", _connection);
         Assert.Equal(1, _connection.Invalidations);
-    }
-
-    [Fact]
-    public async Task Proxy_forwards_ranges_status_headers_and_exact_content()
-    {
-        var http = new DefaultHttpContext();
-        http.Request.Headers.Range = "bytes=1-3";
-        http.Response.Body = new MemoryStream();
-        _connection.Media = (range, _) =>
-        {
-            Assert.Equal("bytes=1-3", range);
-            var response = new HttpResponseMessage(HttpStatusCode.PartialContent) { Content = new ByteArrayContent(new byte[] { 1, 2, 3 }) };
-            response.Content.Headers.ContentType = new MediaTypeHeaderValue("video/mp4");
-            response.Content.Headers.ContentRange = new ContentRangeHeaderValue(1, 3, 10);
-            return Task.FromResult(response);
-        };
-        await CloudService.ProxyVideoAsync(http, "remote", _connection);
-        Assert.Equal(206, http.Response.StatusCode);
-        Assert.Equal("video/mp4", http.Response.ContentType);
-        Assert.Equal("bytes 1-3/10", http.Response.Headers.ContentRange.ToString());
-        Assert.Equal("bytes", http.Response.Headers.AcceptRanges.ToString());
-        Assert.Equal(new byte[] { 1, 2, 3 }, ((MemoryStream)http.Response.Body).ToArray());
-    }
-
-    [Fact]
-    public async Task Proxy_reports_authentication_failure_without_requesting_remote_media()
-    {
-        using var services = new ServiceCollection().AddOptions().BuildServiceProvider();
-        var http = new DefaultHttpContext { RequestServices = services };
-        http.Response.Body = new MemoryStream();
-        _connection.Token = () => Task.FromException<string>(new IOException("not connected"));
-        await CloudService.ProxyVideoAsync(http, "remote", _connection);
-        Assert.Equal(502, http.Response.StatusCode);
-        Assert.Contains("not connected", System.Text.Encoding.UTF8.GetString(((MemoryStream)http.Response.Body).ToArray()));
-    }
-
-    [Theory]
-    [InlineData("text/html", 200)]
-    [InlineData("application/xhtml+xml", 206)]
-    [InlineData("image/svg+xml", 200)]
-    [InlineData("application/octet-stream", 200)]
-    [InlineData(null, 200)]
-    [InlineData("text/html", 404)]
-    public async Task Proxy_never_serves_active_or_unrecognized_remote_documents(string? contentType, int status)
-    {
-        var http = new DefaultHttpContext();
-        http.Response.Body = new MemoryStream();
-        _connection.Media = (_, _) =>
-        {
-            var response = new HttpResponseMessage((HttpStatusCode)status) { Content = new StringContent("<html><script>fetch('/api/clips')</script></html>") };
-            response.Content.Headers.ContentType = contentType is null ? null : new MediaTypeHeaderValue(contentType);
-            return Task.FromResult(response);
-        };
-
-        await CloudService.ProxyVideoAsync(http, "remote", _connection);
-
-        Assert.Equal(502, http.Response.StatusCode);
-        Assert.Empty(((MemoryStream)http.Response.Body).ToArray());
-        Assert.Null(http.Response.ContentType);
-        Assert.Equal("nosniff", http.Response.Headers["X-Content-Type-Options"]);
-        Assert.Contains("sandbox", http.Response.Headers.ContentSecurityPolicy.ToString());
-    }
-
-    [Theory]
-    [InlineData("video/mp4")]
-    [InlineData("video/webm")]
-    [InlineData("video/quicktime")]
-    [InlineData("video/x-matroska")]
-    [InlineData("video/x-msvideo")]
-    public async Task Proxy_preserves_supported_media_with_browser_isolation(string mediaType)
-    {
-        var http = new DefaultHttpContext();
-        http.Response.Body = new MemoryStream();
-        _connection.Media = (_, _) =>
-        {
-            var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(new byte[] { 0, 1, 2, 3 }) };
-            response.Content.Headers.ContentType = new MediaTypeHeaderValue(mediaType);
-            return Task.FromResult(response);
-        };
-        await CloudService.ProxyVideoAsync(http, "remote", _connection);
-        Assert.Equal(200, http.Response.StatusCode);
-        Assert.Equal(mediaType, http.Response.ContentType);
-        Assert.Equal(new byte[] { 0, 1, 2, 3 }, ((MemoryStream)http.Response.Body).ToArray());
-        Assert.Equal("nosniff", http.Response.Headers["X-Content-Type-Options"]);
-        Assert.Contains("sandbox", http.Response.Headers.ContentSecurityPolicy.ToString());
-    }
-
-    [Fact]
-    public async Task Proxy_preserves_unsatisfied_range_without_forwarding_the_remote_error_document()
-    {
-        var http = new DefaultHttpContext();
-        http.Response.Body = new MemoryStream();
-        _connection.Media = (_, _) =>
-        {
-            var response = new HttpResponseMessage(HttpStatusCode.RequestedRangeNotSatisfiable) { Content = new StringContent("<script>untrusted()</script>") };
-            response.Content.Headers.ContentRange = new ContentRangeHeaderValue(10);
-            return Task.FromResult(response);
-        };
-        await CloudService.ProxyVideoAsync(http, "remote", _connection);
-        Assert.Equal(416, http.Response.StatusCode);
-        Assert.Equal("bytes */10", http.Response.Headers.ContentRange);
-        Assert.Empty(((MemoryStream)http.Response.Body).ToArray());
     }
 }

@@ -1,0 +1,33 @@
+<Window x:Class="KeepClip.UI.OnboardingWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:loc="clr-namespace:KeepClip.Localization"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterOwner"
+        SizeToContent="Height"
+        Width="540"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+    <Border Background="{DynamicResource CardBrush}"
+            BorderBrush="{DynamicResource AccentBrush}"
+            BorderThickness="1.5"
+            CornerRadius="16"
+            Padding="26">
+        <StackPanel>
+            <DockPanel Margin="0,0,0,14" LastChildFill="False">
+                <TextBlock x:Name="StepBadge" DockPanel.Dock="Left" Style="{StaticResource SubtleText}" VerticalAlignment="Center" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="12,5"
+                        Content="{Binding [onboarding.skip], Source={x:Static loc:Loc.Instance}}" Click="Skip_Click" />
+            </DockPanel>
+            <TextBlock x:Name="StepTitle" FontSize="20" FontWeight="Bold" TextWrapping="Wrap" />
+            <TextBlock x:Name="StepBody" Style="{StaticResource SubtleText}" FontSize="13.5" Margin="0,10,0,22" TextWrapping="Wrap" LineHeight="20" />
+            <DockPanel LastChildFill="False">
+                <Button x:Name="PrevBtn" DockPanel.Dock="Left" Style="{StaticResource GhostButton}"
+                        Content="{Binding [onboarding.back], Source={x:Static loc:Loc.Instance}}" Click="Prev_Click" />
+                <Button x:Name="NextBtn" DockPanel.Dock="Right" Style="{StaticResource PrimaryButton}" Click="Next_Click" />
+            </DockPanel>
+        </StackPanel>
+    </Border>
+</Window>

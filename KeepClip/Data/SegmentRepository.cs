@@ -34,6 +34,12 @@ public class SegmentRepository
         con.Exec("DELETE FROM segments WHERE clip_id=$id", ("$id", clipId));
     }
 
+    public bool Delete(long segmentId)
+    {
+        using var con = Db.Open();
+        return con.Exec("DELETE FROM segments WHERE id=$id", ("$id", segmentId)) > 0;
+    }
+
     public void Insert(long clipId, double startS, double endS, string text)
     {
         using var con = Db.Open();

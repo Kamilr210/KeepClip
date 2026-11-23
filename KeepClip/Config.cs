@@ -14,7 +14,8 @@ public static class Config
     public static readonly string ToolsBin    = Path.Combine(AppRoot, "tools", "bin");
     public static readonly string Ffmpeg      = Path.Combine(ToolsBin, "ffmpeg.exe");
     public static readonly string Ffprobe     = Path.Combine(ToolsBin, "ffprobe.exe");
-    public static readonly string FrontendDir = Path.Combine(AppRoot, "frontend");
+    public static readonly string AssetsDir   = Path.Combine(AppContext.BaseDirectory, "Assets");
+    public static readonly string FrontendDir = Directory.Exists(AssetsDir) ? AssetsDir : Path.Combine(AppRoot, "Assets");
     public static readonly string DbPath      = Path.Combine(DataDir, "klipy.db");
 
     public static readonly string ModelsDir = Path.Combine(AppRoot, "models");
@@ -66,7 +67,9 @@ public static class Config
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null)
         {
-            if (File.Exists(Path.Combine(dir.FullName, "frontend", "index.html")))
+            if (Directory.Exists(Path.Combine(dir.FullName, "tools"))
+                || Directory.Exists(Path.Combine(dir.FullName, "Assets"))
+                || File.Exists(Path.Combine(dir.FullName, "KeepClip.slnx")))
                 return dir.FullName;
             dir = dir.Parent;
         }

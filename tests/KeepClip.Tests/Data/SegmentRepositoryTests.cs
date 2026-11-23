@@ -1,4 +1,4 @@
-namespace KeepClip.Tests.Data;
+﻿namespace KeepClip.Tests.Data;
 
 public class SegmentRepositoryTests
 {
@@ -82,14 +82,14 @@ public class SegmentRepositoryTests
         var clip = TestDb.AddClip();
         _segments.Insert(clip, 0, 2, "znika");
         _segments.Insert(clip, 3, 5, "zostaje");
-        _segments.Insert(clip, 2, 4, "przycięty");
+        _segments.Insert(clip, 2, 4, "przyciД™ty");
 
         var (shifted, dropped) = _segments.ShiftTimestamps(clip, 2.5);
 
         Assert.Equal(2, shifted);
         Assert.Equal(1, dropped);
         var rows = _segments.ListByClipId(clip);
-        var cut = rows.Single(r => (string)r["text"]! == "przycięty");
+        var cut = rows.Single(r => (string)r["text"]! == "przyciД™ty");
         Assert.Equal(0.0, Convert.ToDouble(cut["start_s"]));
         Assert.Equal(1.5, Convert.ToDouble(cut["end_s"]));
         var kept = rows.Single(r => (string)r["text"]! == "zostaje");
@@ -101,11 +101,11 @@ public class SegmentRepositoryTests
     public void Search_ignores_diacritics_and_matches_prefixes()
     {
         var clip = TestDb.AddClip("CS2", "mecz.mp4");
-        _segments.Insert(clip, 1, 2, "Gęślą jaźń świetnie");
+        _segments.Insert(clip, 1, 2, "GД™Е›lД… jaЕєЕ„ Е›wietnie");
 
-        var byAscii = _segments.Search(SearchEndpoints.ToFtsQuery("gesla"), null, 10);
-        var byPrefix = _segments.Search(SearchEndpoints.ToFtsQuery("jaź"), null, 10);
-        var noMatch = _segments.Search(SearchEndpoints.ToFtsQuery("xylofon"), null, 10);
+        var byAscii = _segments.Search(SearchService.ToFtsQuery("gesla"), null, 10);
+        var byPrefix = _segments.Search(SearchService.ToFtsQuery("jaЕє"), null, 10);
+        var noMatch = _segments.Search(SearchService.ToFtsQuery("xylofon"), null, 10);
 
         var hit = Assert.Single(byAscii);
         Assert.Equal(clip, Convert.ToInt64(hit["clip_id"]));
@@ -122,8 +122,8 @@ public class SegmentRepositoryTests
         _segments.Insert(clip, 0, 1, "headshot przez smoke");
         _segments.Insert(clip, 1, 2, "headshot z awp");
 
-        var both = _segments.Search(SearchEndpoints.ToFtsQuery("headshot smoke"), null, 10);
-        var any = _segments.Search(SearchEndpoints.ToFtsQuery("headshot"), null, 10);
+        var both = _segments.Search(SearchService.ToFtsQuery("headshot smoke"), null, 10);
+        var any = _segments.Search(SearchService.ToFtsQuery("headshot"), null, 10);
 
         Assert.Single(both);
         Assert.Equal(2, any.Count);
@@ -134,14 +134,14 @@ public class SegmentRepositoryTests
     {
         var older = TestDb.AddClip(mtime: 100);
         var newer = TestDb.AddClip(mtime: 200);
-        _segments.Insert(older, 0, 1, "słowo");
-        _segments.Insert(newer, 0, 1, "słowo");
+        _segments.Insert(older, 0, 1, "sЕ‚owo");
+        _segments.Insert(newer, 0, 1, "sЕ‚owo");
 
-        var newestFirst = _segments.Search(SearchEndpoints.ToFtsQuery("słowo"), "newest", 10);
-        var oldestFirst = _segments.Search(SearchEndpoints.ToFtsQuery("słowo"), "oldest", 10);
+        var newestFirst = _segments.Search(SearchService.ToFtsQuery("sЕ‚owo"), "newest", 10);
+        var oldestFirst = _segments.Search(SearchService.ToFtsQuery("sЕ‚owo"), "oldest", 10);
 
         Assert.Equal(newer, Convert.ToInt64(newestFirst[0]["clip_id"]));
         Assert.Equal(older, Convert.ToInt64(oldestFirst[0]["clip_id"]));
-        Assert.Single(_segments.Search(SearchEndpoints.ToFtsQuery("słowo"), null, 1));
+        Assert.Single(_segments.Search(SearchService.ToFtsQuery("sЕ‚owo"), null, 1));
     }
 }

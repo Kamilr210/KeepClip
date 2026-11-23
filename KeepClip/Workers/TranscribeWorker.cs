@@ -60,7 +60,19 @@ public static class TranscribeWorker
             _cancellation?.Dispose();
             _cancellation = new CancellationTokenSource();
             var cancellationToken = _cancellation.Token;
-            _task = Task.Run(() => Work(clips, operations, cancellationToken));
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _task = tcs.Task;
+            var thread = new Thread(() =>
+            {
+                try { Work(clips, operations, cancellationToken); }
+                finally { tcs.TrySetResult(); }
+            })
+            {
+                IsBackground = true,
+                Priority = ThreadPriority.BelowNormal,
+                Name = "KeepClip-Transcribe"
+            };
+            thread.Start();
             return true;
         }
     }
