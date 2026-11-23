@@ -234,7 +234,8 @@ internal sealed class MediaProcessor(MediaProcessRunner runner)
         double start,
         double end,
         double? targetSizeMb = null,
-        Action<double, string>? progress = null)
+        Action<double, string>? progress = null,
+        double audioVolume = 1.0)
     {
         var duration = end - start;
         var validationError = ValidateCut(start, end, targetSizeMb);
@@ -243,7 +244,9 @@ internal sealed class MediaProcessor(MediaProcessRunner runner)
 
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
 
-        const int audioKbps = 128;
+        double clampedVol = double.IsFinite(audioVolume) ? Math.Clamp(audioVolume, 0.0, 3.0) : 1.0;
+        bool muteAudio = clampedVol <= 0.001;
+        int audioKbps = muteAudio ? 0 : 128;
         const int minimumVideoKbps = 50;
         const int maximumAttempts = 3;
         const long bytesPerMb = 1_000_000;
@@ -283,9 +286,19 @@ internal sealed class MediaProcessor(MediaProcessRunner runner)
             else
                 args.AddRange(new[] { "-crf", "19" });
 
+            if (muteAudio)
+            {
+                args.Add("-an");
+            }
+            else
+            {
+                if (Math.Abs(clampedVol - 1.0) > 0.01)
+                    args.AddRange(new[] { "-af", $"volume={clampedVol.ToString("F2", CultureInfo.InvariantCulture)}" });
+                args.AddRange(new[] { "-c:a", "aac", "-b:a", $"{audioKbps}k" });
+            }
+
             args.AddRange(new[]
             {
-                "-c:a", "aac", "-b:a", $"{audioKbps}k",
                 "-movflags", "+faststart",
                 output,
             });

@@ -8,6 +8,10 @@ internal class ClipOperations
     public virtual bool MakeThumbnail(long clipId, string path) => Media.MakeThumbnail(clipId, path);
     public virtual (bool Ok, string? Output, string Message, double Trimmed) FixBrokenClip(string path) => Media.FixBrokenClip(path);
     public virtual (bool Ok, string Message, Dictionary<string, object?> Stats) CutClip(string source, string output, double start, double end, double? targetSizeMb, Action<double, string>? progress) => Media.CutClip(source, output, start, end, targetSizeMb, progress);
+    public virtual (bool Ok, string Message, Dictionary<string, object?> Stats) CutClip(string source, string output, double start, double end, double? targetSizeMb, Action<double, string>? progress, double audioVolume)
+        => Math.Abs(audioVolume - 1.0) < 0.01
+            ? CutClip(source, output, start, end, targetSizeMb, progress)
+            : Media.CutClip(source, output, start, end, targetSizeMb, progress, audioVolume);
     public virtual (bool Ok, string Message) CreatePlaybackProxy(string source, string output, double duration, Action<double>? progress) => Media.CreatePlaybackProxy(source, output, duration, progress);
     public virtual List<Transcriber.Segment> Transcribe(string path, Action<double, string>? progress = null, CancellationToken cancellationToken = default) => Transcriber.Transcribe(path, progress, cancellationToken);
     public virtual void TrashFile(string path) => Trash.Send(path);

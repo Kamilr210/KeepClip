@@ -610,6 +610,25 @@
                   MouseLeftButtonDown="ReplayOverlay_MouseLeftButtonDown">
                 <ui:ReplayView x:Name="EmbeddedReplay" />
             </Grid>
+
+            <!-- Global Busy / "Please wait..." Overlay -->
+            <Grid x:Name="BusyOverlay" Grid.Row="0" Grid.RowSpan="2" Grid.Column="0" Grid.ColumnSpan="2"
+                  Panel.ZIndex="30" Background="#B805070C" Visibility="Collapsed">
+                <Border Background="{DynamicResource CardBrush}" BorderBrush="#2D3344" BorderThickness="1"
+                        CornerRadius="16" Padding="26,20" Width="340"
+                        VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="24" ShadowDepth="6" Opacity="0.6" Color="#000000" />
+                    </Border.Effect>
+                    <StackPanel>
+                        <TextBlock x:Name="BusyTitleText" Text="{Binding [busy.pleaseWait], Source={x:Static loc:Loc.Instance}}"
+                                   FontSize="16" FontWeight="Bold" HorizontalAlignment="Center" />
+                        <TextBlock x:Name="BusySubText" Style="{StaticResource SubtleText}" FontSize="12.5"
+                                   HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,5,0,14" />
+                        <ProgressBar IsIndeterminate="True" Height="5" />
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

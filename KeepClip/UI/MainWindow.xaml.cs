@@ -34,6 +34,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly HashSet<long> _selectedClipIds = new();
     private bool _suppressUiEvents = true;
     private WindowState _preFullscreenWindowState = WindowState.Normal;
+    private double _preFsLeft;
+    private double _preFsTop;
+    private double _preFsWidth = 1280;
+    private double _preFsHeight = 800;
 
     public bool IsSelectionMode => _selectionFolderId is not null;
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -569,14 +573,56 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (isFullscreen)
         {
             _preFullscreenWindowState = WindowState;
+            if (WindowState == WindowState.Normal)
+            {
+                _preFsLeft = Left;
+                _preFsTop = Top;
+                _preFsWidth = Width;
+                _preFsHeight = Height;
+            }
+            else
+            {
+                _preFsLeft = RestoreBounds.Left;
+                _preFsTop = RestoreBounds.Top;
+                _preFsWidth = RestoreBounds.Width;
+                _preFsHeight = RestoreBounds.Height;
+            }
+
             WindowControlsPanel.Visibility = Visibility.Collapsed;
-            if (chrome is not null) chrome.CaptionHeight = 0;
-            WindowState = WindowState.Maximized;
+            if (chrome is not null)
+            {
+                chrome.CaptionHeight = 0;
+                chrome.ResizeBorderThickness = new Thickness(0);
+            }
+
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            var screen = System.Windows.Forms.Screen.FromHandle(hwnd).Bounds;
+            var transform = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformFromDevice ?? Matrix.Identity;
+            var topLeft = transform.Transform(new System.Windows.Point(screen.Left, screen.Top));
+            var bottomRight = transform.Transform(new System.Windows.Point(screen.Right, screen.Bottom));
+
+            WindowState = WindowState.Normal;
+            ResizeMode = ResizeMode.NoResize;
+            Topmost = true;
+            Left = topLeft.X;
+            Top = topLeft.Y;
+            Width = Math.Max(320, bottomRight.X - topLeft.X);
+            Height = Math.Max(240, bottomRight.Y - topLeft.Y);
         }
         else
         {
-            if (chrome is not null) chrome.CaptionHeight = 34;
+            Topmost = false;
+            ResizeMode = ResizeMode.CanResize;
+            if (chrome is not null)
+            {
+                chrome.CaptionHeight = 34;
+                chrome.ResizeBorderThickness = new Thickness(6);
+            }
             WindowControlsPanel.Visibility = Visibility.Visible;
+            Left = _preFsLeft;
+            Top = _preFsTop;
+            Width = _preFsWidth;
+            Height = _preFsHeight;
             WindowState = _preFullscreenWindowState;
         }
     }
@@ -754,12 +800,24 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    // Busy Overlay Helper ("Please wait...")
+    private async Task ShowBusyAsync(string subtitle)
+    {
+        BusyTitleText.Text = Loc.T("busy.pleaseWait");
+        BusySubText.Text = subtitle;
+        BusyOverlay.Visibility = Visibility.Visible;
+        await Dispatcher.Yield(DispatcherPriority.Render);
+    }
+
+    private void HideBusy() => BusyOverlay.Visibility = Visibility.Collapsed;
+
     // Tools: Scan, Transcribe, Replay
     private async void Scan_Click(object sender, RoutedEventArgs e) => await RunScanAsync();
 
     private async Task RunScanAsync()
     {
         BtnScan.IsEnabled = false;
+        await ShowBusyAsync(Loc.T("busy.scanning"));
         try
         {
             var res = await Task.Run(() => Scanner.Scan(CancellationToken.None));
@@ -770,16 +828,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         finally
         {
+            HideBusy();
             BtnScan.IsEnabled = true;
         }
     }
 
-    private void TranscribeNew_Click(object sender, RoutedEventArgs e) => StartTranscribe(force: false);
-    private void RetranscribeAll_Click(object sender, RoutedEventArgs e) => StartTranscribe(force: true);
+    private void TranscribeNew_Click(object sender, RoutedEventArgs e) => _ = StartTranscribeAsync(force: false);
+    private void RetranscribeAll_Click(object sender, RoutedEventArgs e) => _ = StartTranscribeAsync(force: true);
 
-    private void StartTranscribe(bool force)
+    private async Task StartTranscribeAsync(bool force)
     {
-        if (!TranscribeWorker.Start(force, out int total))
+        await ShowBusyAsync(Loc.T("busy.startingTranscribe"));
+        bool started;
+        try
+        {
+            started = await Task.Run(() => TranscribeWorker.Start(force, out _));
+        }
+        finally
+        {
+            HideBusy();
+        }
+        if (!started)
         {
             ReplayToast.Display(false, Loc.T("nav.transcribeNew"), Loc.T("toast.transcribeAlreadyRunning"));
             return;
@@ -827,7 +896,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 if (ReplayService.SaveInProgress) return;
                 ReplayService.PlayCue(ok: false);
-                Dispatcher.BeginInvoke(() => ReplayToast.Display(false, Strings.Get("replay.saveFailedTitle"), ex.Message));
+                _ = Dispatcher.BeginInvoke(() => ReplayToast.Display(false, Strings.Get("replay.saveFailedTitle"), ex.Message));
             }
         });
     }
@@ -884,7 +953,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             var url = OAuthService.BeginConnect();
-            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var oauthUri) || oauthUri.Scheme != Uri.UriSchemeHttps)
+                throw new InvalidOperationException("Invalid OAuth URL.");
+            Process.Start(new ProcessStartInfo(oauthUri.AbsoluteUri) { UseShellExecute = true });
             CloudConnectBtn.IsEnabled = false;
             for (int i = 0; i < 60; i++)
             {
@@ -903,6 +974,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void CloudSync_Click(object sender, RoutedEventArgs e)
     {
+        await ShowBusyAsync(Loc.T("busy.syncing"));
         try
         {
             var res = await CloudService.SyncFromCloudAsync();
@@ -910,6 +982,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ReplayToast.Display(true, Loc.T("nav.cloud"), $"+{res.Imported}, ~{res.Updated}");
         }
         catch (Exception ex) { ReplayToast.Display(false, Loc.T("nav.cloud"), ex.Message); }
+        finally { HideBusy(); }
     }
 
     private async void CloudDisconnect_Click(object sender, RoutedEventArgs e)
@@ -960,18 +1033,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else _orbStoryboard?.Pause();
     }
 
-    private void LangCombo_Changed(object sender, SelectionChangedEventArgs e)
+    private async void LangCombo_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_suppressUiEvents || LangCombo.SelectedValue is not string lang) return;
-        Loc.Instance.CurrentLanguage = lang;
-        _suppressUiEvents = true;
-        var prevSort = SortCombo.SelectedValue as string ?? "newest";
-        var prevTheme = ThemeCombo.SelectedValue as string ?? ThemeManager.CurrentTheme;
-        InitCombos();
-        SortCombo.SelectedValue = prevSort;
-        ThemeCombo.SelectedValue = prevTheme;
-        _suppressUiEvents = false;
-        RefreshAll();
+        await ShowBusyAsync(Loc.T("busy.switchingLanguage"));
+        try
+        {
+            Loc.Instance.CurrentLanguage = lang;
+            _suppressUiEvents = true;
+            var prevSort = SortCombo.SelectedValue as string ?? "newest";
+            var prevTheme = ThemeCombo.SelectedValue as string ?? ThemeManager.CurrentTheme;
+            InitCombos();
+            SortCombo.SelectedValue = prevSort;
+            ThemeCombo.SelectedValue = prevTheme;
+            _suppressUiEvents = false;
+            RefreshAll();
+            await Dispatcher.Yield(DispatcherPriority.Background);
+        }
+        finally
+        {
+            HideBusy();
+        }
     }
 
     private async void ChangeFolder_Click(object sender, RoutedEventArgs e)

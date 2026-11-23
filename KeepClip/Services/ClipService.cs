@@ -74,7 +74,8 @@ public class ClipService
         double start,
         double end,
         double? targetSizeMb,
-        Action<double, string>? progress = null)
+        Action<double, string>? progress = null,
+        double audioVolume = 1.0)
     {
         progress?.Invoke(0, "preparing");
         var clip = _clips.GetById(clipId);
@@ -98,7 +99,7 @@ public class ClipService
         for (int i = 2; File.Exists(output); i++)
             output = Path.Combine(cutsRoot, $"{baseName}_{i}.mp4");
 
-        var (ok, msg, stats) = _operations.CutClip(src, output, start, end, targetSizeMb, progress);
+        var (ok, msg, stats) = _operations.CutClip(src, output, start, end, targetSizeMb, progress, audioVolume);
         if (!ok) return Fail(422, msg);
 
         long? newClipId = null;

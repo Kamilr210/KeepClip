@@ -277,6 +277,11 @@ public partial class PlayerView : System.Windows.Controls.UserControl
             _hideControlsTimer.Start();
     }
 
+    private void PlayerView_PreviewMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_isFullscreen) BumpControlsVisibility();
+    }
+
     private void VideoHost_MouseMove(object sender, System.Windows.Input.MouseEventArgs e) => BumpControlsVisibility();
 
     private void VideoHost_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
@@ -553,7 +558,10 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         ApplyLayoutMode();
         FullscreenChanged?.Invoke(_isFullscreen);
         if (_isFullscreen)
+        {
+            SetControlsVisible(true);
             BumpControlsVisibility();
+        }
         else
             SetControlsVisible(true);
     }
@@ -707,6 +715,8 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         var fname = _clip.Filename;
         RetranscribeBtn.IsEnabled = false;
         RetranscribeBtn.Content = Loc.T("toast.retranscribeBtn");
+        PlayerBusyText.Text = Loc.T("busy.startingTranscribe");
+        PlayerBusyOverlay.Visibility = Visibility.Visible;
         try
         {
             var res = await Task.Run(() => App.ClipService.Retranscribe(clipId));
@@ -723,6 +733,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         }
         finally
         {
+            PlayerBusyOverlay.Visibility = Visibility.Collapsed;
             RetranscribeBtn.Content = Loc.T("playerActions.retranscribe");
             RetranscribeBtn.IsEnabled = true;
         }
@@ -763,6 +774,8 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         var clipId = _clip.Id;
         FixBtn.IsEnabled = false;
         FixBtn.Content = Loc.T("playerActions.fixing");
+        PlayerBusyText.Text = Loc.T("busy.processing");
+        PlayerBusyOverlay.Visibility = Visibility.Visible;
         Pause();
         VideoMedia.Close();
         try
@@ -783,6 +796,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         }
         finally
         {
+            PlayerBusyOverlay.Visibility = Visibility.Collapsed;
             FixBtn.Content = Loc.T("playerActions.fix");
             FixBtn.IsEnabled = true;
         }
