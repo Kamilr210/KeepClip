@@ -113,6 +113,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (WpfApplication.Current is App app && app.ShouldHideToTrayOnClose())
         {
             e.Cancel = true;
+            if (PlayerOverlay.Visibility == Visibility.Visible)
+                EmbeddedPlayer.PausePlayback();
             app.HideToTray();
         }
     }
@@ -183,7 +185,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _orbStoryboard.Begin();
     }
 
-    private void RefreshAll()
+    internal void RefreshAll()
     {
         RefreshGameFilter();
         RefreshStats();
@@ -657,6 +659,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 else EmbeddedPlayer.ClosePlayer();
                 return;
             }
+            if (EmbeddedPlayer.IsBusy) return;
             if (Keyboard.FocusedElement is System.Windows.Controls.TextBox) return;
 
             if (e.Key is Key.Space or Key.K)
@@ -883,8 +886,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Replay_Click(object sender, RoutedEventArgs e)
     {
+        OpenReplayOverlay();
+    }
+
+    internal void OpenReplayOverlay()
+    {
         EmbeddedReplay.Open();
         ReplayOverlay.Visibility = Visibility.Visible;
+    }
+
+    internal void OpenLastReplay()
+    {
+        long? clipId = null;
+        if (ReplayService.LastSavedPath is { Length: > 0 } lastPath)
+            clipId = App.Clips.GetIdByFilepath(lastPath);
+        if (clipId is null)
+        {
+            var latest = App.Clips.List(null, "newest", 1, false);
+            if (latest.Count > 0) clipId = Convert.ToInt64(latest[0]["id"]);
+        }
+        if (clipId is long id)
+        {
+            RefreshAll();
+            OpenPlayer(id);
+        }
+        else
+        {
+            ReplayToast.Display(false, Loc.T("tray.noReplayTitle"), Loc.T("tray.noReplaySubtitle"));
+        }
     }
 
     private void OnReplayHotkeyPressed()

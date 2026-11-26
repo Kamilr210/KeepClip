@@ -14,11 +14,13 @@ public static class Transcriber
     private static readonly object ModelLock = new();
     private static WhisperFactory? _factory;
     private static string? _activeModel;
+    private static string? _lastDetectedLanguage;
     private static bool _probeCleared;
 
     private static int _ladderFloor;
 
     public static string? ActiveModel { get { lock (ModelLock) return _activeModel; } }
+    public static string? LastDetectedLanguage { get { lock (ModelLock) return _lastDetectedLanguage; } }
 
     public readonly record struct Segment(double Start, double End, string Text);
 
@@ -43,7 +45,7 @@ public static class Transcriber
         progress?.Invoke(0.15, "transcribing");
 
         using var processor = factory.CreateBuilder()
-            .WithLanguage(Settings.GetLanguage())
+            .WithLanguage("auto")
             .WithBeamSearchSamplingStrategy(b => b.WithBeamSize(5))
             .WithNoContext()
             .WithTokenTimestamps()
@@ -52,7 +54,10 @@ public static class Transcriber
 
         var outSegs = new List<Segment>();
         var audioDuration = samples.Length / 16000.0;
-        foreach (var seg in ProcessAll(processor, samples, audioDuration, progress, cancellationToken))
+        var rawSegs = ProcessAll(processor, samples, audioDuration, progress, cancellationToken);
+        var detected = rawSegs.Select(s => s.Language).FirstOrDefault(l => !string.IsNullOrWhiteSpace(l));
+        lock (ModelLock) _lastDetectedLanguage = detected;
+        foreach (var seg in rawSegs)
             SplitOnInternalGaps(seg, Config.WhisperSplitGapSeconds, outSegs);
 
         ClearProbe();

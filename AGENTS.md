@@ -1,71 +1,63 @@
-# KeepClip — instrukcje lokalne
+# KeepClip — инструкции для AI-агентов
 
-Ten plik dotyczy wyłącznie tego repozytorium i jego podkatalogów. Nie zmieniaj
-globalnych instrukcji ani ustawień Codexa w ramach pracy nad KeepClip. Architektura
-MusicGo.Newsroom nie ma zastosowania do tego projektu.
+Этот файл относится к репозиторию **KeepClip** и его подкаталогам.
 
-## Architektura i środowisko
+## 1. Архитектура и стек (актуально для v2.5.x+, ветка `switch_to_wpf`)
 
-- Windows x64, .NET 10 (`global.json`), ASP.NET Core w procesie WinForms/WebView2.
-- `KeepClip.slnx`: aplikacja `KeepClip/KeepClip.csproj` i xUnit
-  `tests/KeepClip.Tests/KeepClip.Tests.csproj`, oba `net10.0-windows`.
-- `Endpoints/` → `Services/` → `Data/` (SQLite, bez ORM); `Domain/` to modele,
-  `Application/` zawiera modele odpowiedzi, `Workers/` obsługuje kolejki,
-  `Infrastructure/` integracje systemowe, media i chmurę.
-- Frontend to statyczne HTML/CSS/JS w `frontend/`; `keepClip-Web/` jest osobną
-  stroną. Skanowanie biblioteki zleca frontend przez `POST /api/scan`.
-- `PublicRelease=true` wyłącza `KEEPCLIP_DEV`; samo `-c Release` tego nie robi.
-- `Config` ustala katalogi przy pierwszym użyciu. Testy muszą ustawić izolację
-  przed dostępem do statycznego stanu aplikacji.
+- **Платформа:** Windows x64, **.NET 10** (`global.json`, `<RuntimeFrameworkVersion>10.0.14</RuntimeFrameworkVersion>`), нативное **WPF**-приложение (`KeepClip/KeepClip.csproj`, `net10.0-windows`).
+- **WinForms:** `<UseWindowsForms>true</UseWindowsForms>` включён только ради `System.Windows.Forms.NotifyIcon` (системный трей). Веб-сервер ASP.NET Core, `Endpoints/`, `frontend/` и `WebView2` удалены начиная с v2.5.0.
+- **Решение:** `KeepClip.slnx` (также есть корневой `..\KeepClip.slnx` для Visual Studio) включает:
+  - `KeepClip/KeepClip.csproj` — основное WPF-приложение (`KEEPCLIP_DEV` активен, пока `PublicRelease != true`; одного `-c Release` недостаточно для отключения dev-инструментов).
+  - `tests/KeepClip.Tests/KeepClip.Tests.csproj` — модульные и интеграционные тесты (`xUnit`).
+- **Слои приложения (`KeepClip/`):**
+  - `UI/` — XAML-окна и встроенные представления (`MainWindow`, `PlayerView`, `ReplayView`, `CutWindow`, `ConfigFolderDialog`, `PromptDialog`, `OnboardingWindow`, `DevWindows`, `ClipCardItem`).
+  - `Themes/` — тёмная тема (`Theme.xaml`, `ThemeManager.cs`: `purple` / `green`).
+  - `Localization/` — `Translations.cs` и `Loc.cs` (`pl`, `en`, `ru`, `uk`, live-переключение через `Loc.Instance`).
+  - `Services/` — бизнес-логика (`ClipService`, `ClipOperations`, `ClipDemoService`, `CloudService`, `CloudConnection`, `PlaybackProxyService`, `OnboardingService`, `ReplayWriter`, `SearchService`, `UpdateChecker`, `UpdateService`).
+  - `Data/` — SQLite без ORM (`Db`, `DbExtensions`, `ClipRepository`, `FolderRepository`, `SegmentRepository`, `StatsRepository`, FTS-поиск).
+  - `Domain/` и `Application/` — модели предметной области и ответов (`Clip`, `Folder`, `Segment`, `SearchResult`, `Stats`, `Result<T>`, `ClipDemoResponse`, `OnboardingState`, `ResourceSnapshot` и др.).
+  - `Workers/` — фоновые воркеры (`Scanner`, `ThumbnailWorker`, `TranscribeWorker` с `ThreadPriority.BelowNormal`).
+  - `Infrastructure/` — системные интеграции, медиа и облако (`Media`, `MediaProcessor`, `MediaProcessRunner`, `AudioExtractor`, `AudioPump`, `Transcriber`, `CloudVideoProxy`, `GoogleDrive*`, `OAuth*`, `HotkeyManager`, `ReplayToast`, `ReplayCapture*`, `Trash`, `Strings`, `DisplayHelper`, `ExplorerLauncher`, `CrashLog`, `CredentialStore`, `DevResourceMonitor`).
+- `keepClip-Web/` — отдельный веб-проект (лендинг/сайт), не часть десктопного WPF-приложения.
 
-## Praca z kodem
+## 2. Внешние инструменты и модели (FFmpeg и Whisper)
 
-Zachowuj formatowanie i jednoliniowe sygnatury/wywołania tam, gdzie istnieją.
-Nie dodawaj zmian formatowania niezwiązanych z zadaniem ani końcowej pustej linii
-po ostatnim `}`. Dobieraj metodę HTTP endpointu zgodnie z istniejącym kontraktem.
-Nie rób szerokich refaktoryzacji dla samego pokrycia testami.
+- `Config.AppRoot` вычисляется в `Config.FindAppRoot()` поиском `tools`, `Assets` или `KeepClip.slnx` вверх от `AppContext.BaseDirectory`. Так как `Assets/` копируется в выходной каталог сборки (`bin\...\Assets`), при обычном запуске `AppRoot` совпадает с папкой `KeepClip.exe`.
+- **FFmpeg / FFprobe:** ожидаются в `<AppRoot>\tools\bin\ffmpeg.exe` и `<AppRoot>\tools\bin\ffprobe.exe`. При `dotnet publish` таргет `StageRuntimeAssets` копирует `tools\**\*` из корня репозитория в `$(PublishDir)tools\`, но при обычном `dotnet build` копирование `tools\` не выполняется.
+- **Whisper (STT):** движок подключён через NuGet (`Whisper.net` 1.9.1 + `Whisper.net.Runtime.Vulkan` + `Whisper.net.Runtime` с fallback на CPU). Модели GGML хранятся в `<AppRoot>\models\ggml-<model>.bin` (`large-v3`, `large-v3-turbo`, `small`; можно переопределить через `KEEPCLIP_WHISPER_MODEL`) и автоматически скачиваются при первой транскрибации.
 
-Sprawdź gałąź i lokalne zmiany przed edycją. Zachowuj zmiany użytkownika. Na
-gałęzi `dev` nie zmieniaj plików: zaproponuj nazwę zadania/gałęzi. Dla nowego
-zadania używaj osobnej gałęzi lub uzgodnionego worktree. Nie wykonuj commitów,
-pushów, tagów ani publikacji bez wyraźnej prośby. Propozycje nazw commitów podawaj
-po polsku, rzeczownikowo, np. „Dodanie testów skanowania katalogów”.
+## 3. Технические правила работы с кодом
 
-## Kontrola jakości
+- **Конфликты имён WPF / WinForms:** всегда явно квалифицируйте неоднозначные типы (`System.Windows.Controls.ContextMenu`, `System.Windows.Controls.MenuItem`, `System.Windows.Controls.TextBox`, `System.Windows.Controls.CheckBox`, `System.Windows.Application`, `System.Windows.Clipboard`, `Microsoft.Win32.OpenFileDialog`, `Microsoft.Win32.SaveFileDialog`).
+- **Тёмная тема WPF:** все стандартные контролы (включая `ComboBox`, `ContextMenu`, `MenuItem`, `ScrollBar`, `ToolTip`) должны использовать стили из `Themes/Theme.xaml`. Обёртки элементов `ComboBox` обязаны переопределять `ToString()`. Плейсхолдер для `DarkTextBox` передаётся через `Tag`.
+- **Локализация:** UI использует `Loc.Instance` / `Loc.T("key")`, ошибки сервисов — `Strings.Get("key")`. Новые ключи UI добавляйте во все языки (`pl`, `en`, `ru`, `uk`).
+- **Стиль и минимальность правок:** сохраняйте существующее форматирование и однострочные сигнатуры там, где они используются. Не добавляйте лишних изменений форматирования и не делайте широких рефакторингов без необходимости.
+- **Changelog:** при заметных изменениях для версий `>= 2.5.0` обновляйте `changelog.md`.
+- **Git и ветки:** перед правками проверьте текущую ветку и локальные изменения; сохраняйте пользовательские правки. На ветке `dev` не редактируйте файлы напрямую — используйте отдельную ветку. Не выполняйте `commit`, `push`, создание тегов и релизов без явного запроса пользователя.
 
-Z katalogu głównego repozytorium:
+## 4. Сборка и контроль качества (QA)
+
+Из корня репозитория (`C:\Users\goman\source\repos\KeepClip\KeepClip`):
 
 ```powershell
+# Сборка
+dotnet build KeepClip/KeepClip.csproj --no-restore -v:m
+dotnet build tests/KeepClip.Tests/KeepClip.Tests.csproj --no-restore -v:m
+
+# Скрипты контроля качества
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-check.ps1 -Mode Quick
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/quality-check.ps1 -Mode Full
 ```
 
-Po zmianie uruchom adekwatne kontrole; przed zakończeniem pracy nad kodem lub QA
-uruchom `Full`. Warianty natywne, raporty i diagnoza są w
-[docs/quality-assurance.md](docs/quality-assurance.md). Lokalny skill
-`.agents/skills/keepclip-quality/SKILL.md` pomaga wybrać i zdiagnozować kontrolę.
+- Подробности режимов QA, отчётов и диагностики — в `docs/quality-assurance.md` и локальном скилле `.agents/skills/keepclip-quality/SKILL.md`.
+- После правок запускайте подходящие проверки; перед завершением задачи по коду или QA — `-Mode Full`.
+- При сбое найдите причину по логу/TRX, исправьте минимальный участок и повторите проверку. После 3 попыток без прогресса зафиксируйте диагноз, команду и блокер. Не удаляйте тесты, не ослабляйте ассерты и не отключайте анализаторы ради «зелёного» результата.
 
-Po niepowodzeniu ustal przyczynę z logu/TRX, popraw najmniejszy odpowiedni zakres
-i ponów kontrolę. Po trzech kolejnych próbach bez postępu zapisz diagnozę,
-dokładne polecenie i blokadę, a następnie wykonaj niezależne kontrole. Nie usuwaj
-testów, nie osłabiaj asercji, nie wyłączaj analizatorów ani audytu zależności dla
-uzyskania zielonego wyniku. Nie przedstawiaj niewykonanej kontroli jako zaliczonej.
+## 5. Безопасность тестов
 
-## Bezpieczeństwo testów
-
-- Używaj `TestEnvironment.NewTempDir`, testowej bazy i atrap istniejących
-  adapterów (`ClipOperations`, `CloudConnection`, `MediaProcessRunner`, HTTP).
-- Nie czytaj ani nie zmieniaj użytkownikowych `data/`, `models/`, klipów,
-  poświadczeń Drive i ustawień. Nie podłączaj prawdziwego konta chmurowego.
-- Testy API działają przez `WebApplicationFactory`; lokalne procesy i listenery
-  używają wyłącznie danych testowych oraz pętli zwrotnej.
-- Nie uruchamiaj nagrywania ekranu/mikrofonu, pobierania modeli, instalatora,
-  `setup.ps1`, `dotnet publish` ani workflow wydania jako zwykłego QA.
-- Nie zabijaj działającej aplikacji użytkownika, żeby odblokować build. Zgłoś
-  blokadę pliku i użyj odizolowanego katalogu builda, jeśli jest dostępny.
-- Testy dzielą statyczne ustawienia i SQLite, więc pozostają sekwencyjne.
-  Współbieżność testuj wewnątrz pojedynczego testu, z sygnałami i limitem czasu.
-
-W raporcie końcowym podaj wykonane polecenia, rzeczywiste wyniki i ograniczenia.
-Jeśli użytkownik potrzebuje ręcznego testu API, podaj metodę i pełny lokalny URL,
-body oraz SQL do znalezienia wymaganych identyfikatorów w testowej bazie.
+- `Config` инициализирует пути статически при первом обращении — тесты должны настраивать изоляцию (`KEEPCLIP_DATA_DIR`, `TestEnvironment.NewTempDir`) до обращения к статическому состоянию.
+- Используйте временные БД и заглушки адаптеров (`ClipOperations`, `CloudConnection`, `MediaProcessRunner`, HTTP).
+- Не читайте и не изменяйте пользовательские `data/`, `models/`, клипы, настройки и учётные данные Google Drive. Не подключайте реальный облачный аккаунт.
+- Не запускайте запись экрана/микрофона, скачивание моделей Whisper, инсталлятор, `setup.ps1`, `dotnet publish` и release-workflow в рамках обычного QA.
+- Не завершайте запущенный пользовательский процесс `KeepClip.exe` для разблокировки сборки — сообщите о блокировке файла или используйте изолированный каталог сборки.
+- Тесты разделяют статические настройки и SQLite, поэтому выполняются последовательно.

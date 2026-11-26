@@ -211,7 +211,7 @@ public class ClipService
         sw.Stop();
 
         _segments.ReplaceAll(clipId, segs.Select(s => (s.Start, s.End, s.Text)));
-        _clips.SetTranscribed(clipId, TranscribeWorker.NowIso(), Settings.GetLanguage());
+        _clips.SetTranscribed(clipId, TranscribeWorker.NowIso(), Transcriber.LastDetectedLanguage ?? Settings.GetLanguage());
         progress?.Invoke(0.99, "saving");
 
         DevLog.Add($"Transkrypcja klipu #{clipId}: gotowe — {segs.Count} segmentów w {Math.Round(sw.Elapsed.TotalSeconds, 1)} s");

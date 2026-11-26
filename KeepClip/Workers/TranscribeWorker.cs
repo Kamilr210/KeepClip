@@ -153,7 +153,7 @@ public static class TranscribeWorker
                                 "INSERT INTO segments (clip_id, start_s, end_s, text) VALUES ($c,$s,$e,$t)",
                                 ("$c", cid), ("$s", s.Start), ("$e", s.End), ("$t", s.Text));
                         con.Exec("UPDATE clips SET transcribed_at=$ts, language=$lang WHERE id=$id",
-                            ("$ts", NowIso()), ("$lang", Settings.GetLanguage()), ("$id", cid));
+                            ("$ts", NowIso()), ("$lang", Transcriber.LastDetectedLanguage ?? Settings.GetLanguage()), ("$id", cid));
                         transaction.Commit();
                     }
                     sw.Stop();

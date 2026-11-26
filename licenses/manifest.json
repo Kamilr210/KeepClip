@@ -16,6 +16,22 @@
       "sha256": "8a333b3ab9a1b1ab8ff9947a84ac6ea43749daa169b7422900f9f290d1bf557a",
       "upstreamArchive": null,
       "file": "ffprobe.exe"
+    },
+    {
+      "version": "ffmpeg version 9.0.2-KeepClip-source-build-1 Copyright (c) 2000-2026 the FFmpeg developers",
+      "configuration": "",
+      "correspondingSourceStatus": "unverified",
+      "sha256": "f7ecb7d4c8c94f59dd209eed1197e5b5d7b804567524b3a205535c0b8692f498",
+      "upstreamArchive": null,
+      "file": "ffmpeg.exe"
+    },
+    {
+      "version": "ffprobe version 9.0.2-KeepClip-source-build-1 Copyright (c) 2007-2026 the FFmpeg developers",
+      "configuration": "",
+      "correspondingSourceStatus": "unverified",
+      "sha256": "80b9c5de13587444ba20d4ea69616a692214f4be46495e2e8b1592941cfc4d6b",
+      "upstreamArchive": null,
+      "file": "ffprobe.exe"
     }
   ],
   "packages": [
@@ -63,22 +79,6 @@
       "repository": "https://github.com/dotnet/extensions",
       "scope": "application",
       "licenseType": "expression"
-    },
-    {
-      "copyright": "© Microsoft Corporation. All rights reserved.",
-      "nugetArchiveSha512": "50aQQCAY6Y78fcULLIsli750tq+VdLrJsdq7leYk5Zbbbi510kCjLBAG9EoZyEBAa7tlKpqnJ+5F7yuJXn3pfg==",
-      "id": "Microsoft.Web.WebView2",
-      "nugetContentHash": "b7dZ5kZ9bfU5Yo11M8feCOoiyalXCN+2Gsw674RBDBmQ2dJV5EOXb8/ivN2LuLJ+VO2V7FmK6l6LsyfEnG1lXw==",
-      "version": "1.0.3967.48",
-      "licenseFiles": [
-        "licenses/third-party/webview2/1.0.3967.48/LICENSE.txt",
-        "licenses/third-party/webview2/1.0.3967.48/NOTICE.txt"
-      ],
-      "commit": "",
-      "license": "LICENSE.txt",
-      "repository": "",
-      "scope": "application",
-      "licenseType": "file"
     },
     {
       "copyright": "© Mark Heath 2023",

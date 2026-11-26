@@ -29,6 +29,24 @@ public static class ReplayService
 
     public static bool SaveInProgress => _saving != 0;
 
+    public static bool IsRunning
+    {
+        get
+        {
+            var ff = _ff;
+            try { return ff is { HasExited: false }; } catch { return false; }
+        }
+    }
+
+    public static string? LastSavedPath { get; private set; }
+
+    public static event Action? StateChanged;
+
+    private static void NotifyStateChanged()
+    {
+        try { StateChanged?.Invoke(); } catch { }
+    }
+
     public static Action<bool, string, string>? Notifier;
 
     public static bool Enabled => Settings.GetString("replay_enabled") == "1";
@@ -122,11 +140,13 @@ public static class ReplayService
             _captureTier = -1;
             StartLocked(freshRing: true);
         }
+        NotifyStateChanged();
     }
 
     public static void Shutdown()
     {
         lock (Gate) StopLocked();
+        NotifyStateChanged();
     }
 
     public static void PlayCue(bool ok)
@@ -154,19 +174,26 @@ public static class ReplayService
         var game = DisplayHelper.ForegroundGameName() ?? "Pulpit";
 
         PlayCue(ok: true);
+        NotifyStateChanged();
         try { Notifier?.Invoke(true, Strings.Get("replay.savingTitle"), Strings.Get("replay.savingSubtitle")); } catch { }
 
         try
         {
             var writer = new ReplayWriter(RunFfmpegAsync);
             var result = await writer.SaveAsync(SegDir, game, DurationS, _audioOn, _encoder?.StartsWith("hevc", StringComparison.Ordinal) == true);
+            if (result.TryGetValue("path", out var savedObj) && savedObj is string savedPath && savedPath.Length > 0)
+                LastSavedPath = savedPath;
             try { Notifier?.Invoke(true, Strings.Get("replay.savedTitle"), (string)result["file"]!); } catch { }
             await Console.Error.WriteLineAsync($"Powtórka zapisana ({source}): {result["path"]}");
             Scanner.Scan();
             ThumbnailWorker.Ensure();
             return result;
         }
-        finally { Interlocked.Exchange(ref _saving, 0); }
+        finally
+        {
+            Interlocked.Exchange(ref _saving, 0);
+            NotifyStateChanged();
+        }
     }
 
     private static void StartLocked(bool freshRing)

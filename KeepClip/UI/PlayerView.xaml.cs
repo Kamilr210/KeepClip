@@ -40,6 +40,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
     private bool _controlsVisible = true;
     private bool _isTheater;
     private bool _isFullscreen;
+    private bool _isBusy;
     private double _duration = 1;
     private List<Dictionary<string, object?>> _segments = new();
     private readonly List<(double Start, double End, Border RowBorder)> _segmentRows = new();
@@ -49,6 +50,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
     public event Action<bool>? FullscreenChanged;
     public bool LibraryChanged { get; private set; }
     public bool IsFullscreen => _isFullscreen;
+    public bool IsBusy => _isBusy;
 
     public PlayerView()
     {
@@ -84,6 +86,16 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         FileText.Text = clip.Filename;
         FsGameText.Text = gameLabel;
         FsFileText.Text = clip.Filename;
+        if (!string.IsNullOrWhiteSpace(clip.Filepath))
+        {
+            FilePathBtn.Content = clip.Filepath;
+            FilePathBtn.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            FilePathBtn.Content = "";
+            FilePathBtn.Visibility = Visibility.Collapsed;
+        }
 
         _duration = Math.Max(0.5, clip.Duration);
         SeekSlider.Maximum = _duration;
@@ -111,6 +123,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         if (_isFullscreen)
             SetFullscreen(false);
         _playing = false;
+        _isBusy = false;
         UpdatePlayPauseUi();
         VideoMedia.Stop();
         VideoMedia.Close();
@@ -193,6 +206,18 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         }
         if (_seekOnOpen is > 0)
             SeekTo(_seekOnOpen.Value);
+
+        if (_playing && !_isBusy)
+        {
+            VideoMedia.Play();
+            VideoMedia.SpeedRatio = _speed;
+        }
+        else
+        {
+            _playing = false;
+            VideoMedia.Pause();
+            UpdatePlayPauseUi();
+        }
     }
 
     private void VideoMedia_MediaEnded(object sender, RoutedEventArgs e)
@@ -322,6 +347,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
 
     public void TogglePlayPause(bool showFeedback = false)
     {
+        if (_isBusy) return;
         if (_playing)
         {
             Pause();
@@ -338,6 +364,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
 
     private void Play()
     {
+        if (_isBusy) return;
         VideoMedia.Play();
         VideoMedia.SpeedRatio = _speed;
         _playing = true;
@@ -345,6 +372,8 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         _hideControlsTimer.Stop();
         if (!_isHoveringControls) _hideControlsTimer.Start();
     }
+
+    public void PausePlayback() => Pause();
 
     private void Pause()
     {
@@ -396,6 +425,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
     {
         seconds = Math.Clamp(seconds, 0, _duration);
         VideoMedia.Position = TimeSpan.FromSeconds(seconds);
+        if (!_playing) VideoMedia.Pause();
         _suppressSeek = true;
         SeekSlider.Value = seconds;
         _suppressSeek = false;
@@ -505,7 +535,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
             mi.Click += (_, _) =>
             {
                 _speed = spd;
-                VideoMedia.SpeedRatio = spd;
+                if (_playing) VideoMedia.SpeedRatio = spd;
                 SpeedBtnText.Text = $"{spd:0.##}×";
             };
             menu.Items.Add(mi);
@@ -713,6 +743,8 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         if (_clip is null) return;
         var clipId = _clip.Id;
         var fname = _clip.Filename;
+        _isBusy = true;
+        Pause();
         RetranscribeBtn.IsEnabled = false;
         RetranscribeBtn.Content = Loc.T("toast.retranscribeBtn");
         PlayerBusyText.Text = Loc.T("busy.startingTranscribe");
@@ -733,6 +765,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         }
         finally
         {
+            _isBusy = false;
             PlayerBusyOverlay.Visibility = Visibility.Collapsed;
             RetranscribeBtn.Content = Loc.T("playerActions.retranscribe");
             RetranscribeBtn.IsEnabled = true;
@@ -772,6 +805,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
     {
         if (_clip is null) return;
         var clipId = _clip.Id;
+        _isBusy = true;
         FixBtn.IsEnabled = false;
         FixBtn.Content = Loc.T("playerActions.fixing");
         PlayerBusyText.Text = Loc.T("busy.processing");
@@ -786,6 +820,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
                 _clip = App.Clips.GetById(clipId) ?? _clip;
                 LoadSegments();
                 LibraryChanged = true;
+                _isBusy = false;
                 _ = InitVideoSourceAsync();
                 ReplayToast.Display(true, Loc.T("playerActions.fix"), res.Value?.GetValueOrDefault("message") as string ?? "");
             }
@@ -796,6 +831,7 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         }
         finally
         {
+            _isBusy = false;
             PlayerBusyOverlay.Visibility = Visibility.Collapsed;
             FixBtn.Content = Loc.T("playerActions.fix");
             FixBtn.IsEnabled = true;
@@ -957,6 +993,20 @@ public partial class PlayerView : System.Windows.Controls.UserControl
         if (_clip is null) return;
         App.ClipDemoService.Remove(_clip.Id);
         LoadDemoStatus();
+    }
+
+    private void FilePath_Click(object sender, RoutedEventArgs e)
+    {
+        var path = _clip?.Filepath;
+        if (string.IsNullOrWhiteSpace(path)) return;
+        try
+        {
+            if (File.Exists(path))
+                Process.Start(ExplorerLauncher.CreateStartInfo(path));
+            else if (Path.GetDirectoryName(path) is { Length: > 0 } dir && Directory.Exists(dir))
+                Process.Start(ExplorerLauncher.CreateStartInfo(dir));
+        }
+        catch { }
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => ClosePlayer();

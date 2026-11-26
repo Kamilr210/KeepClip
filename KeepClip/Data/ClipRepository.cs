@@ -47,6 +47,13 @@ public class ClipRepository
         return row is null ? null : Map(row);
     }
 
+    public long? GetIdByFilepath(string filepath)
+    {
+        using var con = Db.Open();
+        var row = con.QueryOne("SELECT id FROM clips WHERE filepath=$fp COLLATE NOCASE", ("$fp", filepath));
+        return row is null ? null : Convert.ToInt64(row["id"]);
+    }
+
     public long Count()
     {
         using var con = Db.Open();

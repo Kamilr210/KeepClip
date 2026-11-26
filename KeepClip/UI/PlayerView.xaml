@@ -27,6 +27,25 @@
                         </Border>
                         <TextBlock x:Name="FileText" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
+                    <Button x:Name="FilePathBtn" HorizontalAlignment="Left" Margin="0,2,0,0" Padding="0"
+                            Background="Transparent" BorderThickness="0" Cursor="Hand"
+                            WindowChrome.IsHitTestVisibleInChrome="True"
+                            Click="FilePath_Click"
+                            ToolTip="{Binding [clipMenu.reveal], Source={x:Static loc:Loc.Instance}}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <TextBlock x:Name="PathText" Text="{TemplateBinding Content}"
+                                           FontSize="11.5" Foreground="{DynamicResource MutedBrush}"
+                                           TextTrimming="CharacterEllipsis" />
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="PathText" Property="Foreground" Value="{DynamicResource AccentPaleBrush}" />
+                                        <Setter TargetName="PathText" Property="TextDecorations" Value="Underline" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                 </StackPanel>
             </DockPanel>
 
